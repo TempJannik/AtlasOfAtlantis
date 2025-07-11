@@ -1,0 +1,306 @@
+﻿{
+  "tiles": [
+    {
+      "x": 0,
+      "y": 0,
+      "type": "Mountain",
+      "level": 6,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "type": "Hill",
+      "level": 4,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "type": "Hill",
+      "level": 1,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 3,
+      "y": 0,
+      "type": "AnthropusCamp",
+      "level": 5,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 4,
+      "y": 0,
+      "type": "Lake",
+      "level": 7,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 5,
+      "y": 0,
+      "type": "City",
+      "level": 20,
+      "playerId": 9415,
+      "allianceId": 18
+    },
+    {
+      "x": 6,
+      "y": 0,
+      "type": "Bog",
+      "level": 1,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 7,
+      "y": 0,
+      "type": "Bog",
+      "level": 2,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 8,
+      "y": 0,
+      "type": "Mountain",
+      "level": 3,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 9,
+      "y": 0,
+      "type": "Hill",
+      "level": 10,
+      "playerId": 11130,
+      "allianceId": 18
+    },
+    {
+      "x": 10,
+      "y": 0,
+      "type": "AnthropusCamp",
+      "level": 4,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "type": "Mountain",
+      "level": 9,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 12,
+      "y": 0,
+      "type": "City",
+      "level": 3,
+      "playerId": 13066,
+      "allianceId": 0
+    },
+    {
+      "x": 13,
+      "y": 0,
+      "type": "Grassland",
+      "level": 7,
+      "playerId": 0,
+      "allianceId": 0
+    },
+    {
+      "x": 14,
+      "y": 0,
+      "type": "City",
+      "level": 20,
+      "playerId": 21309,
+      "allianceId": 200
+    }
+  ],
+  "players": [
+    {
+      "playerId": "6109",
+      "name": "Senna",
+      "city": "Goob City",
+      "might": "5145442"
+    },
+    {
+      "playerId": "4091",
+      "name": "Player13997009",
+      "city": "First City",
+      "might": "80470"
+    },
+    {
+      "playerId": "15200",
+      "name": "Player13860466",
+      "city": "First City",
+      "might": "24572"
+    },
+    {
+      "playerId": "8631",
+      "name": "king reko",
+      "city": "First City",
+      "might": "6914020"
+    },
+    {
+      "playerId": "6819",
+      "name": "do",
+      "city": "IQuitTheGameBye",
+      "might": "4927394"
+    },
+    {
+      "playerId": "10659",
+      "name": "GALADRIEL",
+      "city": "FONDCOMBE",
+      "might": "9304944"
+    },
+    {
+      "playerId": "21231",
+      "name": "Ox",
+      "city": "First City",
+      "might": "54334"
+    },
+    {
+      "playerId": "4238",
+      "name": "Dřąķöo",
+      "city": "First City",
+      "might": "10617275"
+    }
+  ],
+  "alliances": [
+    {
+      "allianceId": "539",
+      "name": "White shadow"
+    },
+    {
+      "allianceId": "315",
+      "name": "blights scourge"
+    },
+    {
+      "allianceId": "18",
+      "name": "Realm of Hades"
+    },
+    {
+      "allianceId": "224",
+      "name": "$$$$$fA"
+    },
+    {
+      "allianceId": "200",
+      "name": "Cheems nation"
+    }
+    ],
+    "allianceBases": [
+    {
+      "alliance_id": 495,
+      "fortress_level": 4,
+      "x": 256,
+      "y": 3,
+      "name": "144k_Elites",
+      "overlord": "Phantom_Dragon",
+      "power": "33908760"
+    },
+    {
+      "alliance_id": 548,
+      "fortress_level": 5,
+      "x": 518,
+      "y": 17,
+      "name": "ØRĘNDÅ",
+      "overlord": "Paloma",
+      "power": "114922652"
+    },
+    {
+      "alliance_id": 412,
+      "fortress_level": 2,
+      "x": 673,
+      "y": 20,
+      "name": "Alkhansos",
+      "overlord": "violetta",
+      "power": "46036316"
+    },
+    {
+      "alliance_id": 348,
+      "fortress_level": 10,
+      "x": 79,
+      "y": 55,
+      "name": "noobs",
+      "overlord": "General ZOD",
+      "power": "5788844470"
+    },
+    {
+      "alliance_id": 327,
+      "fortress_level": 4,
+      "x": 545,
+      "y": 46,
+      "name": "Shadow Fall",
+      "overlord": "Sir Lancelot",
+      "power": "509618650"
+    },
+    {
+      "alliance_id": 419,
+      "fortress_level": 2,
+      "x": 579,
+      "y": 31,
+      "name": "BAMF",
+      "overlord": "MrRicM",
+      "power": "49794175"
+    },
+    {
+      "alliance_id": 334,
+      "fortress_level": 1,
+      "x": 202,
+      "y": 84,
+      "name": "erejed",
+      "overlord": "zarco",
+      "power": "6982955"
+    },
+    {
+      "alliance_id": 217,
+      "fortress_level": 4,
+      "x": 342,
+      "y": 72,
+      "name": "Team Fresh",
+      "overlord": "TF_Archangel",
+      "power": "264622"
+    },
+    {
+      "alliance_id": 427,
+      "fortress_level": 5,
+      "x": 464,
+      "y": 83,
+      "name": "Not Here",
+      "overlord": "Haven",
+      "power": "236863520"
+    },
+    {
+      "alliance_id": 489,
+      "fortress_level": 2,
+      "x": 527,
+      "y": 64,
+      "name": "Dutchies",
+      "overlord": "Player14006821",
+      "power": "12416248"
+    },
+    {
+      "alliance_id": 271,
+      "fortress_level": 5,
+      "x": 650,
+      "y": 82,
+      "name": "Deez Nuts",
+      "overlord": "Player6909293",
+      "power": "93394814"
+    },
+    {
+      "alliance_id": 532,
+      "fortress_level": 8,
+      "x": 304,
+      "y": 102,
+      "name": "KingsOfCarnage",
+      "overlord": "Scoobei",
+      "power": "1061337766"
+    }
+  ]
+}

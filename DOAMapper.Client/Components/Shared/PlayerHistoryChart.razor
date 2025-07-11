@@ -1,0 +1,53 @@
+﻿@if (Data?.Any() == true)
+{
+    <div class="history-chart">
+        <h6>Player History Timeline</h6>
+        <div class="timeline">
+            @foreach (var entry in Data.OrderByDescending(d => d.ValidFrom))
+            {
+                <div class="timeline-item">
+                    <div class="timeline-date">
+                        @entry.ValidFrom.ToString("MMM dd, yyyy")
+                    </div>
+                    <div class="timeline-content">
+                        <div class="change-type badge bg-@GetChangeTypeBadgeColor(entry.ChangeType)">
+                            @entry.ChangeType
+                        </div>
+                        <div class="player-data">
+                            <strong>@entry.Data.Name</strong> - @entry.Data.CityName
+                            <br />
+                            <small class="text-muted">Might: @entry.Data.Might.ToString("N0")</small>
+                            @if (!string.IsNullOrEmpty(entry.Data.AllianceName))
+                            {
+                                <br />
+                                <small class="text-muted">Alliance: @entry.Data.AllianceName</small>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="text-muted">
+        <i class="bi bi-info-circle me-2"></i>
+        No historical data available for this player.
+    </div>
+}
+
+@code {
+    [Parameter] public List<HistoryEntryDto<PlayerDto>>? Data { get; set; }
+
+    private string GetChangeTypeBadgeColor(string changeType)
+    {
+        return changeType.ToLower() switch
+        {
+            "added" => "success",
+            "modified" => "warning",
+            "removed" => "danger",
+            _ => "secondary"
+        };
+    }
+}

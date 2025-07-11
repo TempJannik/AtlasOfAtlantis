@@ -1,0 +1,13 @@
+﻿services:
+  doamapper:
+    image: doamapper
+    build:
+      context: .
+      dockerfile: DOAMapper/Dockerfile
+
+  doamapper.client:
+    image: doamapper.client
+    build:
+      context: .
+      dockerfile: DOAMapper.Client/Dockerfile
+

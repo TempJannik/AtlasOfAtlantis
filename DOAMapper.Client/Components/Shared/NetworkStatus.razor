@@ -1,0 +1,45 @@
+﻿@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+@if (!IsOnline)
+{
+    <div class="position-fixed bottom-0 start-50 translate-middle-x mb-3" style="z-index: 9998;">
+        <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="bi bi-wifi-off me-2"></i>
+            <div>
+                <strong>No Internet Connection</strong>
+                <br />
+                <small>Some features may not work properly while offline.</small>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool IsOnline = true;
+    private IJSObjectReference? jsModule;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/networkStatus.js");
+            await jsModule.InvokeVoidAsync("initializeNetworkStatus", DotNetObjectReference.Create(this));
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnNetworkStatusChanged(bool isOnline)
+    {
+        IsOnline = isOnline;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (jsModule != null)
+        {
+            await jsModule.DisposeAsync();
+        }
+    }
+}

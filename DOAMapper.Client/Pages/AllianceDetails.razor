@@ -1,0 +1,275 @@
+﻿@page "/alliances/{AllianceId}"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject IAllianceService AllianceService
+@inject NavigationManager Navigation
+
+<PageTitle>@(Alliance?.Name ?? "Alliance Details") - DOAMapper</PageTitle>
+
+<div class="alliance-details">
+    @if (Alliance != null)
+    {
+        <div class="alliance-header">
+            <div class="alliance-title">
+                <h1>@Alliance.Name</h1>
+                <p class="overlord">Led by @Alliance.OverlordName</p>
+            </div>
+            <div class="alliance-actions">
+                <DateSelector @bind-SelectedDate="CurrentDate" AvailableDates="AvailableDates" />
+                <button class="btn btn-outline-secondary" @onclick="ShowHistory">
+                    <i class="bi bi-clock-history"></i> View History
+                </button>
+            </div>
+        </div>
+        
+        <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Alliance Stats</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="stat-item">
+                            <label>Alliance ID:</label>
+                            <span>@Alliance.AllianceId</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>Power:</label>
+                            <span class="power-value">@Alliance.Power.ToString("N0")</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>Members:</label>
+                            <span>@Alliance.MemberCount</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>Fortress:</label>
+                            <span>Level @Alliance.FortressLevel</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>Location:</label>
+                            <span>(@Alliance.FortressX, @Alliance.FortressY)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5>Members: @(AllianceMembers?.TotalCount ?? 0)</h5>
+                        <button class="btn btn-sm btn-outline-primary" @onclick="LoadMembers" disabled="@IsLoadingMembers">
+                            @if (IsLoadingMembers)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @if (IsLoadingMembers)
+                        {
+                            <LoadingSpinner LoadingText="Loading members..." />
+                        }
+                        else if (AllianceMembers?.Items?.Any() == true)
+                        {
+                            <div class="member-list">
+                                @foreach (var member in AllianceMembers.Items)
+                                {
+                                    <div class="member-item" @onclick="() => NavigateToPlayer(member.PlayerId)">
+                                        <div class="member-info">
+                                            <strong>@member.Name</strong>
+                                            <small class="text-muted d-block">@member.CityName</small>
+                                        </div>
+                                        <div class="member-might">
+                                            @member.Might.ToString("N0")
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <Pagination CurrentPage="CurrentMemberPage" TotalPages="AllianceMembers.TotalPages"
+                                       OnPageChanged="OnMemberPageChanged" />
+                        }
+                        else
+                        {
+                            <p class="text-muted">No members found for this alliance.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (ShowAllianceHistory && AllianceHistory?.Any() == true)
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Alliance History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="history-timeline">
+                        @foreach (var entry in AllianceHistory.OrderByDescending(h => h.ValidFrom))
+                        {
+                            <div class="timeline-item">
+                                <div class="timeline-date">
+                                    @entry.ValidFrom.ToString("MMM dd, yyyy")
+                                </div>
+                                <div class="timeline-content">
+                                    <div class="change-type badge bg-@GetChangeTypeBadgeColor(entry.ChangeType)">
+                                        @entry.ChangeType
+                                    </div>
+                                    <div class="alliance-data">
+                                        <strong>@entry.Data.Name</strong>
+                                        <br />
+                                        <small class="text-muted">
+                                            Power: @entry.Data.Power.ToString("N0") | 
+                                            Members: @entry.Data.MemberCount |
+                                            Fortress: Level @entry.Data.FortressLevel
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else if (IsLoading)
+    {
+        <LoadingSpinner LoadingText="Loading alliance details..." />
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            Alliance not found for the selected date.
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string AllianceId { get; set; } = string.Empty;
+    [SupplyParameterFromQuery] public string? Date { get; set; }
+
+    private DateTime? CurrentDate;
+    private bool IsLoading = true;
+    private bool IsLoadingMembers = false;
+    private bool ShowAllianceHistory = false;
+    private string? ErrorMessage;
+
+    private int CurrentMemberPage = 1;
+    private const int MemberPageSize = 10;
+
+    private AllianceDto? Alliance;
+    private PagedResult<PlayerDto>? AllianceMembers;
+    private List<HistoryEntryDto<AllianceDto>>? AllianceHistory;
+    private List<DateTime> AvailableDates = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            AvailableDates = await AllianceService.GetAvailableDatesAsync();
+
+            if (!string.IsNullOrEmpty(Date) && DateTime.TryParse(Date, out var parsedDate))
+            {
+                CurrentDate = parsedDate;
+            }
+            else if (AvailableDates.Any())
+            {
+                CurrentDate = AvailableDates.First();
+            }
+
+            await LoadAllianceData();
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to initialize alliance details. Please try again.";
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadAllianceData()
+    {
+        if (!CurrentDate.HasValue) return;
+
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            Alliance = await AllianceService.GetAllianceAsync(AllianceId, CurrentDate.Value);
+            await LoadMembers();
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load alliance data. Please try again.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadMembers()
+    {
+        if (!CurrentDate.HasValue) return;
+
+        IsLoadingMembers = true;
+        try
+        {
+            AllianceMembers = await AllianceService.GetAllianceMembersAsync(AllianceId, CurrentDate.Value, CurrentMemberPage, MemberPageSize);
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load alliance members. Please try again.";
+        }
+        finally
+        {
+            IsLoadingMembers = false;
+        }
+    }
+
+    private async Task ShowHistory()
+    {
+        if (AllianceHistory == null)
+        {
+            try
+            {
+                AllianceHistory = await AllianceService.GetAllianceHistoryAsync(AllianceId);
+            }
+            catch (Exception)
+            {
+                ErrorMessage = "Failed to load alliance history. Please try again.";
+                return;
+            }
+        }
+        ShowAllianceHistory = !ShowAllianceHistory;
+    }
+
+    private async Task OnMemberPageChanged(int page)
+    {
+        CurrentMemberPage = page;
+        await LoadMembers();
+    }
+
+    private void NavigateToPlayer(string playerId)
+    {
+        Navigation.NavigateTo($"/players/{playerId}?date={CurrentDate:yyyy-MM-dd}");
+    }
+
+    private string GetChangeTypeBadgeColor(string changeType)
+    {
+        return changeType.ToLower() switch
+        {
+            "added" => "success",
+            "modified" => "warning",
+            "removed" => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private void ClearError()
+    {
+        ErrorMessage = null;
+    }
+}

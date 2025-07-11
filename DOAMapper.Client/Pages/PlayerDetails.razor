@@ -1,0 +1,197 @@
+﻿@page "/players/{PlayerId}"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject IPlayerService PlayerService
+@inject NavigationManager Navigation
+
+<PageTitle>@(Player?.Name ?? "Player Details") - DOAMapper</PageTitle>
+
+<div class="player-details">
+    @if (Player != null)
+    {
+        <div class="player-header">
+            <div class="player-title">
+                <h1>@Player.Name</h1>
+                <p class="city-name">@Player.CityName</p>
+            </div>
+            <div class="player-actions">
+                <DateSelector @bind-SelectedDate="CurrentDate" AvailableDates="AvailableDates" />
+                <button class="btn btn-outline-secondary" @onclick="ShowHistory">
+                    <i class="bi bi-clock-history"></i> View History
+                </button>
+            </div>
+        </div>
+        
+        <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Player Stats</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="stat-item">
+                            <label>Player ID:</label>
+                            <span>@Player.PlayerId</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>Might:</label>
+                            <span class="might-value">@Player.Might.ToString("N0")</span>
+                        </div>
+                        @if (Player.Alliance != null)
+                        {
+                            <div class="stat-item">
+                                <label>Alliance:</label>
+                                <a href="/alliances/@Player.Alliance.AllianceId?date=@CurrentDate?.ToString("yyyy-MM-dd")" 
+                                   class="alliance-link">
+                                    @Player.Alliance.Name
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Owned tiles: @(PlayerTiles?.Count ?? 0)</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (PlayerTiles?.Any() == true)
+                        {
+                            <div class="tile-summary">
+                                @foreach (var tileGroup in PlayerTiles.GroupBy(t => t.Type))
+                                {
+                                    <div class="tile-type-group">
+                                        <h6>@tileGroup.Key (@tileGroup.Count())</h6>
+                                        <div class="tile-list">
+                                            @foreach (var tile in tileGroup.Take(10))
+                                            {
+                                                <span class="tile-badge" title="Level @tile.Level">
+                                                    (@tile.X, @tile.Y) | Level @tile.Level
+                                                </span>
+                                            }
+                                            @if (tileGroup.Count() > 10)
+                                            {
+                                                <span class="text-muted">... and @(tileGroup.Count() - 10) more</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No tiles owned by this player.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        @if (ShowPlayerHistory && PlayerHistory?.Any() == true)
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Player History</h5>
+                </div>
+                <div class="card-body">
+                    <PlayerHistoryChart Data="PlayerHistory" />
+                </div>
+            </div>
+        }
+    }
+    else if (IsLoading)
+    {
+        <LoadingSpinner LoadingText="Loading player details..." />
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            Player not found for the selected date.
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string PlayerId { get; set; } = string.Empty;
+    [SupplyParameterFromQuery] public string? Date { get; set; }
+
+    private DateTime? CurrentDate;
+    private bool IsLoading = true;
+    private bool ShowPlayerHistory = false;
+    private string? ErrorMessage;
+
+    private PlayerDetailDto? Player;
+    private List<TileDto>? PlayerTiles;
+    private List<HistoryEntryDto<PlayerDto>>? PlayerHistory;
+    private List<DateTime> AvailableDates = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            AvailableDates = await PlayerService.GetAvailableDatesAsync();
+
+            if (!string.IsNullOrEmpty(Date) && DateTime.TryParse(Date, out var parsedDate))
+            {
+                CurrentDate = parsedDate;
+            }
+            else if (AvailableDates.Any())
+            {
+                CurrentDate = AvailableDates.First();
+            }
+
+            await LoadPlayerData();
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to initialize player details. Please try again.";
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadPlayerData()
+    {
+        if (!CurrentDate.HasValue) return;
+
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            Player = await PlayerService.GetPlayerAsync(PlayerId, CurrentDate.Value);
+            PlayerTiles = await PlayerService.GetPlayerTilesAsync(PlayerId, CurrentDate.Value);
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load player data. Please try again.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ShowHistory()
+    {
+        if (PlayerHistory == null)
+        {
+            try
+            {
+                PlayerHistory = await PlayerService.GetPlayerHistoryAsync(PlayerId);
+            }
+            catch (Exception)
+            {
+                ErrorMessage = "Failed to load player history. Please try again.";
+                return;
+            }
+        }
+        ShowPlayerHistory = !ShowPlayerHistory;
+    }
+
+    private void ClearError()
+    {
+        ErrorMessage = null;
+    }
+}

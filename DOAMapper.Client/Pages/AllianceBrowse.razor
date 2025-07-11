@@ -1,0 +1,156 @@
+﻿@page "/alliances"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject IAllianceService AllianceService
+@inject DateStateService DateState
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Alliances - DOAMapper</PageTitle>
+
+<div class="alliance-browse">
+    <div class="browse-header">
+        <h2>Alliances</h2>
+        <DateSelector SelectedDate="CurrentDate" AvailableDates="AvailableDates" SelectedDateChanged="OnDateChanged" />
+    </div>
+    
+    <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
+    
+    @if (IsLoading)
+    {
+        <LoadingSpinner LoadingText="Loading alliances..." />
+    }
+    else if (Alliances?.Items.Any() == true)
+    {
+        <div class="alliance-list">
+            <div class="list-header">
+                <span>@Alliances.TotalCount alliances found</span>
+                <small class="text-muted">Sorted by power (highest first)</small>
+            </div>
+            
+            @foreach (var alliance in Alliances.Items)
+            {
+                <div class="alliance-card" @onclick="() => NavigateToAlliance(alliance.AllianceId)">
+                    <div class="alliance-info">
+                        <h5>@alliance.Name</h5>
+                        <p class="overlord">Led by @alliance.OverlordName</p>
+                    </div>
+                    <div class="alliance-stats">
+                        <div class="stat">
+                            <label>Power:</label>
+                            <span class="power-value">@alliance.Power.ToString("N0")</span>
+                        </div>
+                        <div class="stat">
+                            <label>Members:</label>
+                            <span>@alliance.MemberCount</span>
+                        </div>
+                        <div class="stat">
+                            <label>Fortress:</label>
+                            <span>Level @alliance.FortressLevel (@alliance.FortressX, @alliance.FortressY)</span>
+                        </div>
+                    </div>
+                </div>
+            }
+            
+            <Pagination CurrentPage="CurrentPage" TotalPages="Alliances.TotalPages" 
+                       OnPageChanged="OnPageChanged" />
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            No alliances found for the selected date.
+        </div>
+    }
+</div>
+
+@code {
+    private DateTime? CurrentDate => DateState.SelectedDate;
+    private bool IsLoading = true;
+    private int CurrentPage = 1;
+    private const int PageSize = 20;
+    private string? ErrorMessage;
+
+    private PagedResult<AllianceDto>? Alliances;
+    private List<DateTime> AvailableDates => DateState.AvailableDates;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DateState.DateChanged += OnDateStateChanged;
+
+        try
+        {
+            var dates = await AllianceService.GetAvailableDatesAsync();
+            DateState.SetAvailableDates(dates);
+
+            if (DateState.SelectedDate.HasValue)
+            {
+                await LoadAlliances();
+            }
+            else
+            {
+                IsLoading = false;
+            }
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load available dates. Please try again.";
+            IsLoading = false;
+        }
+    }
+    
+    private async Task LoadAlliances()
+    {
+        if (!CurrentDate.HasValue) return;
+        
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            Alliances = await AllianceService.GetAlliancesAsync(CurrentDate.Value, CurrentPage, PageSize);
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load alliances. Please try again.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+    
+    private async Task OnPageChanged(int page)
+    {
+        CurrentPage = page;
+        await LoadAlliances();
+    }
+    
+    private void NavigateToAlliance(string allianceId)
+    {
+        Navigation.NavigateTo($"/alliances/{allianceId}?date={CurrentDate:yyyy-MM-dd}");
+    }
+    
+    private async void OnDateStateChanged(DateTime? newDate)
+    {
+        await InvokeAsync(() =>
+        {
+            StateHasChanged();
+            _ = Task.Run(LoadAlliances);
+        });
+    }
+
+    private async Task OnDateChanged()
+    {
+        await LoadAlliances();
+    }
+
+    private void ClearError()
+    {
+        ErrorMessage = null;
+    }
+
+    public void Dispose()
+    {
+        DateState.DateChanged -= OnDateStateChanged;
+    }
+}

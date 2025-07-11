@@ -1,0 +1,272 @@
+﻿@page "/"
+@using DOAMapper.Services.Interfaces
+@using DOAMapper.Shared.Models.DTOs
+@using DOAMapper.Shared.Models.Enums
+@inject DOAMapper.Services.Interfaces.IPlayerService PlayerService
+@inject DOAMapper.Services.Interfaces.IAllianceService AllianceService
+@inject DOAMapper.Services.Interfaces.IImportService ImportService
+@inject NavigationManager Navigation
+
+<PageTitle>DOAMapper - Dragons of Atlantis Map Tracker</PageTitle>
+
+<div class="dashboard">
+    <div class="dashboard-header">
+        <h1>DOAMapper Dashboard</h1>
+        <p class="lead">Dragons of Atlantis Map Tracking and Analytics</p>
+    </div>
+
+    <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
+
+    @if (IsLoading)
+    {
+        <LoadingSpinner LoadingText="Loading dashboard data..." />
+    }
+    else
+    {
+        <div class="row">
+            <!-- Quick Actions -->
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5><i class="bi bi-lightning-fill me-2"></i>Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/players"))">
+                                <i class="bi bi-people-fill me-2"></i>Search Players
+                            </button>
+                            <button class="btn btn-success" @onclick="@(() => Navigation.NavigateTo("/alliances"))">
+                                <i class="bi bi-shield-fill me-2"></i>Browse Alliances
+                            </button>
+                            <button class="btn btn-warning" @onclick="@(() => Navigation.NavigateTo("/import"))">
+                                <i class="bi bi-upload me-2"></i>Import Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Overview -->
+            <div class="col-lg-8 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5><i class="bi bi-bar-chart-fill me-2"></i>Data Overview</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (LatestImport != null)
+                        {
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="stat-card">
+                                        <div class="stat-value">@LatestImport.ImportDate.ToString("MMM dd, yyyy")</div>
+                                        <div class="stat-label">Latest Data</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="stat-card">
+                                        <div class="stat-value">@LatestImport.RecordsProcessed.ToString("N0")</div>
+                                        <div class="stat-label">Records Processed</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    Last import: @LatestImport.FileName
+                                    (@LatestImport.RecordsChanged.ToString("N0") changes)
+                                </small>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center text-muted">
+                                <i class="bi bi-inbox display-4"></i>
+                                <p class="mt-2">No data imported yet</p>
+                                <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/import"))">
+                                    Import Your First Dataset
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (AvailableDates.Any())
+        {
+            <div class="row">
+                <!-- Available Dates -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-calendar-fill me-2"></i>Available Data Dates</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="date-list">
+                                @foreach (var date in AvailableDates.Take(5))
+                                {
+                                    <div class="date-item">
+                                        <span class="date-value">@date.ToString("MMM dd, yyyy")</span>
+                                        <div class="date-actions">
+                                            <button class="btn btn-sm btn-outline-primary"
+                                                    @onclick="@(() => NavigateToPlayers(date))">
+                                                Players
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success"
+                                                    @onclick="@(() => NavigateToAlliances(date))">
+                                                Alliances
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                                @if (AvailableDates.Count > 5)
+                                {
+                                    <div class="text-muted text-center mt-2">
+                                        ... and @(AvailableDates.Count - 5) more dates
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-clock-history me-2"></i>Recent Imports</h5>
+                        </div>
+                        <div class="card-body">
+                            @if (RecentImports?.Any() == true)
+                            {
+                                <div class="import-list">
+                                    @foreach (var import in RecentImports.Take(5))
+                                    {
+                                        <div class="import-item">
+                                            <div class="import-info">
+                                                <div class="import-date">@import.ImportDate.ToString("MMM dd, HH:mm")</div>
+                                                <div class="import-file">@import.FileName</div>
+                                            </div>
+                                            <span class="badge bg-@GetStatusColor(import.Status)">
+                                                @import.Status
+                                            </span>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                            @onclick="@(() => Navigation.NavigateTo("/import"))">
+                                        View All Imports
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-muted text-center">
+                                    <i class="bi bi-inbox me-2"></i>
+                                    No recent imports
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Getting Started -->
+        @if (!AvailableDates.Any())
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5><i class="bi bi-info-circle-fill me-2"></i>Getting Started</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>Welcome to DOAMapper!</h6>
+                            <p>To get started with tracking Dragons of Atlantis map data:</p>
+                            <ol>
+                                <li><strong>Import Data:</strong> Upload a JSON file containing map data</li>
+                                <li><strong>Search Players:</strong> Find and analyze player information</li>
+                                <li><strong>Browse Alliances:</strong> Explore alliance data and member lists</li>
+                                <li><strong>Track Changes:</strong> View historical data and changes over time</li>
+                            </ol>
+                            <div class="mt-3">
+                                <button class="btn btn-primary me-2" @onclick="@(() => Navigation.NavigateTo("/import"))">
+                                    <i class="bi bi-upload me-1"></i>Import Your First Dataset
+                                </button>
+                                <button class="btn btn-outline-secondary" @onclick="@(() => Navigation.NavigateTo("/history"))">
+                                    <i class="bi bi-question-circle me-1"></i>Learn More
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private bool IsLoading = true;
+    private string? ErrorMessage;
+    private List<DateTime> AvailableDates = new();
+    private List<ImportSessionDto>? RecentImports;
+    private ImportSessionDto? LatestImport;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        try
+        {
+            // Load available dates from player service (could be from any service)
+            AvailableDates = await PlayerService.GetAvailableDatesAsync();
+
+            // Load recent imports
+            var allImports = await ImportService.GetImportHistoryAsync();
+            RecentImports = allImports.OrderByDescending(i => i.ImportDate).ToList();
+            LatestImport = RecentImports.FirstOrDefault();
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load dashboard data. Please try again.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private string GetStatusColor(ImportStatus status)
+    {
+        return status switch
+        {
+            ImportStatus.Completed => "success",
+            ImportStatus.Processing => "primary",
+            ImportStatus.Failed => "danger",
+            ImportStatus.Cancelled => "warning",
+            _ => "secondary"
+        };
+    }
+
+    private void ClearError()
+    {
+        ErrorMessage = null;
+    }
+
+    private void NavigateToPlayers(DateTime date)
+    {
+        Navigation.NavigateTo($"/players?date={date:yyyy-MM-dd}");
+    }
+
+    private void NavigateToAlliances(DateTime date)
+    {
+        Navigation.NavigateTo($"/alliances?date={date:yyyy-MM-dd}");
+    }
+}

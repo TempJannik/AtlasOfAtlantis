@@ -1,0 +1,297 @@
+﻿/* DOAMapper Custom Styles */
+
+/* Player and Alliance Cards */
+.player-card, .alliance-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.player-card:hover, .alliance-card:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
+    transform: translateY(-1px);
+}
+
+/* Stat Items */
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.stat-item label {
+    font-weight: 600;
+    color: #6c757d;
+}
+
+/* Might and Power Values */
+.might-value, .power-value {
+    font-weight: bold;
+    color: #198754;
+    font-size: 1.1em;
+}
+
+/* Tile Badges */
+.tile-badge {
+    display: inline-block;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    margin: 0.125rem;
+    font-size: 0.875rem;
+    font-family: monospace;
+}
+
+.tile-type-group {
+    margin-bottom: 1rem;
+}
+
+.tile-type-group h6 {
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+/* Date Selector */
+.date-selector-container {
+    margin-bottom: 1rem;
+}
+
+.date-selector-container .form-select {
+    max-width: 300px;
+}
+
+/* Search Results */
+.search-results {
+    margin-top: 1rem;
+}
+
+.results-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Alliance Link */
+.alliance-link {
+    color: #0d6efd;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.alliance-link:hover {
+    text-decoration: underline;
+}
+
+/* Loading States */
+.spinner-border {
+    color: #0d6efd;
+}
+
+/* Member List */
+.member-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.member-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid #f8f9fa;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.member-item:hover {
+    background-color: #f8f9fa;
+}
+
+.member-item:last-child {
+    border-bottom: none;
+}
+
+.member-might {
+    font-weight: 600;
+    color: #198754;
+}
+
+/* History Timeline */
+.history-timeline, .timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+    padding-left: 1rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -0.5rem;
+    top: 0.5rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    background-color: #0d6efd;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #0d6efd;
+}
+
+.timeline-date {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.timeline-content {
+    background-color: #f8f9fa;
+    padding: 0.75rem;
+    border-radius: 6px;
+    border-left: 3px solid #0d6efd;
+}
+
+/* Import Progress */
+.import-progress .stat {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.import-progress .stat label {
+    font-weight: 600;
+    color: #6c757d;
+}
+
+/* Upload Area */
+.upload-area {
+    text-align: center;
+    padding: 2rem;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    transition: border-color 0.2s ease;
+}
+
+.upload-area:hover {
+    border-color: #0d6efd;
+}
+
+.upload-help {
+    margin-top: 1rem;
+}
+
+.selected-file {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+/* Alliance Stats */
+.alliance-stats .stat {
+    margin-bottom: 0.5rem;
+}
+
+.alliance-stats .stat label {
+    font-weight: 600;
+    color: #6c757d;
+    margin-right: 0.5rem;
+}
+
+/* Player Stats */
+.player-stats {
+    text-align: right;
+}
+
+.player-stats .might {
+    display: block;
+    font-weight: 600;
+    color: #198754;
+    margin-bottom: 0.25rem;
+}
+
+.player-stats .alliance {
+    display: block;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+/* List Headers */
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .player-card, .alliance-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .player-stats, .alliance-stats {
+        margin-top: 0.5rem;
+        width: 100%;
+        text-align: left;
+    }
+    
+    .stat {
+        margin-bottom: 0.25rem;
+    }
+    
+    .date-selector-container .form-select {
+        max-width: 100%;
+    }
+    
+    .results-header, .list-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .member-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .timeline {
+        padding-left: 1rem;
+    }
+    
+    .timeline-item {
+        padding-left: 0.5rem;
+    }
+    
+    .timeline-item::before {
+        left: -0.25rem;
+        width: 0.5rem;
+        height: 0.5rem;
+    }
+}

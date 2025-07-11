@@ -1,0 +1,51 @@
+﻿@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div class="error-container">
+        @if (ShowIcon)
+        {
+            <div class="error-icon">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+        }
+        
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <div class="error-title">@Title</div>
+        }
+        
+        <div class="error-message">@ErrorMessage</div>
+        
+        @if (ShowRetryButton && OnRetry.HasDelegate)
+        {
+            <button class="btn btn-outline-primary retry-button" @onclick="OnRetry">
+                <i class="bi bi-arrow-clockwise me-1"></i>
+                @RetryButtonText
+            </button>
+        }
+        
+        @if (ShowHomeButton)
+        {
+            <button class="btn btn-outline-secondary retry-button ms-2" @onclick="NavigateHome">
+                <i class="bi bi-house me-1"></i>
+                Go to Home
+            </button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public bool ShowIcon { get; set; } = true;
+    [Parameter] public bool ShowRetryButton { get; set; } = true;
+    [Parameter] public bool ShowHomeButton { get; set; } = false;
+    [Parameter] public string RetryButtonText { get; set; } = "Try Again";
+    [Parameter] public EventCallback OnRetry { get; set; }
+    
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    
+    private void NavigateHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

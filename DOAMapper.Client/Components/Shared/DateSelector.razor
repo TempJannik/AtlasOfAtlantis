@@ -1,0 +1,86 @@
+﻿@inject DateStateService DateState
+@implements IDisposable
+
+<div class="date-selector-container">
+    <label class="form-label">View Data From:</label>
+    <select class="form-select" @bind="SelectedDateString" @bind:after="OnDateChanged">
+        <option value="">Select Date...</option>
+        @foreach (var date in DateState.AvailableDates)
+        {
+            <option value="@date.ToString("yyyy-MM-dd")">
+                @date.ToString("MMM dd, yyyy")
+            </option>
+        }
+    </select>
+    @if (DateState.SelectedDate != null)
+    {
+        <small class="text-muted">
+            Showing data imported on @DateState.SelectedDate.Value.ToString("MMMM dd, yyyy")
+        </small>
+    }
+</div>
+
+@code {
+    [Parameter] public DateTime? SelectedDate { get; set; }
+    [Parameter] public EventCallback<DateTime?> SelectedDateChanged { get; set; }
+    [Parameter] public List<DateTime> AvailableDates { get; set; } = new();
+
+    private string SelectedDateString
+    {
+        get => DateState.SelectedDate?.ToString("yyyy-MM-dd") ?? "";
+        set
+        {
+            if (DateTime.TryParse(value, out var date))
+            {
+                DateState.SetSelectedDate(date);
+            }
+            else
+            {
+                DateState.SetSelectedDate(null);
+            }
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        DateState.DateChanged += OnDateStateChanged;
+        DateState.AvailableDatesChanged += OnAvailableDatesChanged;
+
+        // Initialize with provided dates if available
+        if (AvailableDates.Any())
+        {
+            DateState.SetAvailableDates(AvailableDates);
+        }
+
+        // Initialize with provided selected date
+        if (SelectedDate.HasValue)
+        {
+            DateState.SetSelectedDate(SelectedDate.Value);
+        }
+    }
+
+    private async Task OnDateChanged()
+    {
+        await SelectedDateChanged.InvokeAsync(DateState.SelectedDate);
+    }
+
+    private async void OnDateStateChanged(DateTime? newDate)
+    {
+        await InvokeAsync(() =>
+        {
+            StateHasChanged();
+            SelectedDateChanged.InvokeAsync(newDate);
+        });
+    }
+
+    private async void OnAvailableDatesChanged(List<DateTime> newDates)
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        DateState.DateChanged -= OnDateStateChanged;
+        DateState.AvailableDatesChanged -= OnAvailableDatesChanged;
+    }
+}
