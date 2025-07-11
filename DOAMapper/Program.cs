@@ -85,7 +85,27 @@ else
     Console.WriteLine($"DATABASE_URL environment variable: '{databaseUrl}'");
     Console.WriteLine($"PostgreSQL config connection string: '{configConnectionString}'");
 
-    var connectionString = databaseUrl ?? configConnectionString;
+    string connectionString;
+
+    // Convert DATABASE_URL (postgresql://...) to Npgsql connection string format
+    if (!string.IsNullOrEmpty(databaseUrl) && databaseUrl.StartsWith("postgresql://"))
+    {
+        try
+        {
+            var uri = new Uri(databaseUrl);
+            connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.Trim('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]};SSL Mode=Require;Trust Server Certificate=true";
+            Console.WriteLine($"Converted DATABASE_URL to connection string: '{connectionString}'");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to parse DATABASE_URL: {ex.Message}");
+            throw new InvalidOperationException($"Failed to parse DATABASE_URL: {ex.Message}");
+        }
+    }
+    else
+    {
+        connectionString = databaseUrl ?? configConnectionString;
+    }
 
     // Validate connection string
     if (string.IsNullOrEmpty(connectionString) || connectionString == "${DATABASE_URL}")
@@ -95,8 +115,6 @@ else
             $"DATABASE_URL='{databaseUrl}', PostgreSQL config='{configConnectionString}'. " +
             "Please ensure you have added a PostgreSQL database service in Railway and the DATABASE_URL environment variable is properly configured.");
     }
-
-    Console.WriteLine($"Using connection string: '{connectionString}'");
 
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseNpgsql(connectionString, npgsqlOptions =>
