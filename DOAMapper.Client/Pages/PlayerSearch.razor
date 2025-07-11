@@ -58,7 +58,10 @@
                         <span class="might">Might: @player.Might.ToString("N0")</span>
                         @if (!string.IsNullOrEmpty(player.AllianceName))
                         {
-                            <span class="alliance">[@player.AllianceName]</span>
+                            <span class="alliance">
+                                <i class="shield-icon">🛡️</i>
+                                [@player.AllianceName]
+                            </span>
                         }
                     </div>
                 </div>

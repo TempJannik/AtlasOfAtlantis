@@ -33,10 +33,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="wwwroot\css\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\DOAMapper.Shared\DOAMapper.Shared.csproj" />
     </ItemGroup>
 

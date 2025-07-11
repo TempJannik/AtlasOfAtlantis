@@ -63,15 +63,51 @@ else
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #f8f9fa;
+        background: linear-gradient(135deg, var(--doa-bg-primary) 0%, var(--doa-bg-secondary) 100%);
+        position: relative;
+    }
+
+    .loading-layout::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+        animation: pulse 3s ease-in-out infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.7; }
     }
 
     .loading-content {
         text-align: center;
+        position: relative;
+        z-index: 1;
+        background: var(--doa-bg-surface);
+        padding: var(--doa-space-8);
+        border-radius: var(--doa-radius-xl);
+        border: 1px solid var(--doa-border-primary);
+        box-shadow: var(--doa-shadow-lg);
+    }
+
+    .loading-content p {
+        color: var(--doa-text-secondary);
+        margin-top: var(--doa-space-3);
+        font-weight: var(--doa-font-medium);
     }
 
     .full-width {
         width: 100%;
+    }
+
+    .spinner-border {
+        color: var(--doa-secondary-500);
+        width: 3rem;
+        height: 3rem;
     }
 </style>
 
