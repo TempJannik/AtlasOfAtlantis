@@ -22,26 +22,29 @@ public class AllianceService : IAllianceService
 
     public async Task<PagedResult<AllianceDto>> GetAlliancesAsync(DateTime date, int page, int pageSize)
     {
-        _logger.LogInformation("Getting alliances for date {Date}, page {Page}, size {PageSize}", date, page, pageSize);
+        // Ensure date is UTC for PostgreSQL compatibility
+        var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
+
+        _logger.LogInformation("Getting alliances for date {Date}, page {Page}, size {PageSize}", utcDate, page, pageSize);
 
         var alliancesQuery = _context.Alliances
-            .Where(a => a.IsActive && a.ValidFrom <= date && (a.ValidTo == null || a.ValidTo > date));
+            .Where(a => a.IsActive && a.ValidFrom <= utcDate && (a.ValidTo == null || a.ValidTo > utcDate));
 
         var totalCount = await alliancesQuery.CountAsync();
 
         var alliances = await alliancesQuery
-            .Include(a => a.Members.Where(m => m.IsActive && m.ValidFrom <= date && (m.ValidTo == null || m.ValidTo > date)))
+            .Include(a => a.Members.Where(m => m.IsActive && m.ValidFrom <= utcDate && (m.ValidTo == null || m.ValidTo > utcDate)))
             .OrderByDescending(a => a.Power)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
         var allianceDtos = _mapper.Map<List<AllianceDto>>(alliances);
-        
+
         // Set the data date for each alliance
         foreach (var dto in allianceDtos)
         {
-            dto.DataDate = date;
+            dto.DataDate = utcDate;
         }
 
         _logger.LogInformation("Found {Count} alliances for date {Date}", totalCount, date);
@@ -78,7 +81,7 @@ public class AllianceService : IAllianceService
         var totalCount = await alliancesQuery.CountAsync();
 
         var alliances = await alliancesQuery
-            .Include(a => a.Members.Where(m => m.IsActive && m.ValidFrom <= date && (m.ValidTo == null || m.ValidTo > date)))
+            .Include(a => a.Members.Where(m => m.IsActive && m.ValidFrom <= utcDate && (m.ValidTo == null || m.ValidTo > utcDate)))
             .OrderByDescending(a => a.Power)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
