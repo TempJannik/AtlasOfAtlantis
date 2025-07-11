@@ -1,0 +1,203 @@
+﻿@page "/login"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using DOAMapper.Shared.Services
+@using DOAMapper.Shared.Models.Authentication
+@inject IAuthenticationService AuthService
+@inject IAuthenticationStateService AuthStateService
+@inject NavigationManager Navigation
+
+<PageTitle>Login - DOAMapper</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h2>DOAMapper</h2>
+            <p class="text-muted">Dragons of Atlantis Map Tracker</p>
+        </div>
+
+        <div class="login-form">
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" 
+                       class="form-control @(HasError ? "is-invalid" : "")" 
+                       id="password" 
+                       @bind="Password" 
+                       @onkeypress="OnKeyPress"
+                       placeholder="Enter password"
+                       disabled="@IsLoading" />
+                @if (HasError)
+                {
+                    <div class="invalid-feedback">
+                        @ErrorMessage
+                    </div>
+                }
+            </div>
+
+            <div class="d-grid">
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @onclick="HandleLogin"
+                        disabled="@IsLoading">
+                    @if (IsLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Logging in...</span>
+                    }
+                    else
+                    {
+                        <span>Login</span>
+                    }
+                </button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(SuccessMessage))
+            {
+                <div class="alert alert-success mt-3" role="alert">
+                    @SuccessMessage
+                </div>
+            }
+        </div>
+
+        <div class="login-footer">
+            <small class="text-muted">
+                Enter your password to access the application
+            </small>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .login-header h2 {
+        color: #333;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    .login-form {
+        margin-bottom: 20px;
+    }
+
+    .login-footer {
+        text-align: center;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 12px;
+        font-weight: 500;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+</style>
+
+@code {
+    private string Password = string.Empty;
+    private bool IsLoading = false;
+    private bool HasError = false;
+    private string ErrorMessage = string.Empty;
+    private string SuccessMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if already authenticated and redirect
+        var isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (isAuthenticated)
+        {
+            Navigation.NavigateTo("/players", true);
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(Password))
+        {
+            ShowError("Password is required");
+            return;
+        }
+
+        IsLoading = true;
+        HasError = false;
+        ErrorMessage = string.Empty;
+        SuccessMessage = string.Empty;
+
+        try
+        {
+            var result = await AuthService.LoginAsync(Password);
+            
+            if (result.Success)
+            {
+                // Update the state service
+                var authState = await AuthService.GetAuthenticationStateAsync();
+                AuthStateService.UpdateState(authState);
+                
+                SuccessMessage = result.Message;
+                
+                // Small delay to show success message
+                await Task.Delay(500);
+                
+                // Redirect to players page (new home)
+                Navigation.NavigateTo("/players", true);
+            }
+            else
+            {
+                ShowError(result.Message);
+            }
+        }
+        catch (Exception)
+        {
+            ShowError("An error occurred during login. Please try again.");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task OnKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !IsLoading && !string.IsNullOrWhiteSpace(Password))
+        {
+            await HandleLogin();
+        }
+    }
+
+    private void ShowError(string message)
+    {
+        HasError = true;
+        ErrorMessage = message;
+        Password = string.Empty; // Clear password on error
+    }
+}

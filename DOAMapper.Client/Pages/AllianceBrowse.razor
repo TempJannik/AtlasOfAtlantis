@@ -1,5 +1,7 @@
 ﻿@page "/alliances"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using DOAMapper.Shared.Services
+@using DOAMapper.Client.Components
 @inject IAllianceService AllianceService
 @inject DateStateService DateState
 @inject NavigationManager Navigation
@@ -7,7 +9,8 @@
 
 <PageTitle>Alliances - DOAMapper</PageTitle>
 
-<div class="alliance-browse">
+<AuthenticationGuard>
+    <div class="alliance-browse">
     <div class="browse-header">
         <h2>Alliances</h2>
         <DateSelector SelectedDate="CurrentDate" AvailableDates="AvailableDates" SelectedDateChanged="OnDateChanged" />
@@ -62,7 +65,8 @@
             No alliances found for the selected date.
         </div>
     }
-</div>
+    </div>
+</AuthenticationGuard>
 
 @code {
     private DateTime? CurrentDate => DateState.SelectedDate;

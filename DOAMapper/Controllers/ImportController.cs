@@ -1,11 +1,13 @@
 using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Services.Interfaces;
+using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DOAMapper.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[RequireAdmin]
 public class ImportController : ControllerBase
 {
     private readonly IImportService _importService;

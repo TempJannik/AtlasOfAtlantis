@@ -1,11 +1,14 @@
 ﻿@page "/import"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using DOAMapper.Shared.Services
+@using DOAMapper.Client.Components
 @inject IImportService ImportService
 @inject IJSRuntime JSRuntime
 
 <PageTitle>Import Data - DOAMapper</PageTitle>
 
-<div class="data-import">
+<AuthenticationGuard RequireAdmin="true">
+    <div class="data-import">
     <div class="import-header">
         <h2>Import Map Data</h2>
         <p class="text-muted">Upload a new JSON file to update the map data</p>
@@ -139,7 +142,8 @@
             }
         </div>
     </div>
-</div>
+    </div>
+</AuthenticationGuard>
 
 @code {
     private IBrowserFile? SelectedFile;

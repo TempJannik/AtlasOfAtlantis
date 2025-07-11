@@ -1,4 +1,4 @@
-using DOAMapper.Models.Entities;
+﻿using DOAMapper.Models.Entities;
 
 namespace DOAMapper.Services.Interfaces;
 
@@ -6,6 +6,7 @@ public interface IChangeDetectionService
 {
     Task<ChangeSet<Tile>> DetectTileChangesAsync(List<Tile> incoming, List<Tile> current);
     Task<ChangeSet<Player>> DetectPlayerChangesAsync(List<Player> incoming, List<Player> current);
+    Task<ChangeSet<Player>> DetectPlayerChangesAsync(List<Player> incoming, List<Player> current, List<Tile> incomingTiles, List<Tile> currentTiles);
     Task<ChangeSet<Alliance>> DetectAllianceChangesAsync(List<Alliance> incoming, List<Alliance> current);
 }
 

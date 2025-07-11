@@ -178,7 +178,7 @@ public class ImportService : IImportService
             session.ProgressPercentage = 100;
             session.RecordsProcessed = 40; // Update with actual count if available
             session.RecordsChanged = 40;   // Update with actual count if available
-
+            await _context.SaveChangesAsync();
             _logger.LogInformation("Import processing completed successfully for session {SessionId}", sessionId);
         }
         catch (Exception ex)
@@ -752,8 +752,7 @@ public class ImportService : IImportService
                     importData.Tiles.Count);
             }, cancellationToken);
 
-
-
+            
             // Verify transaction state before commit
             await VerifyTransactionIntegrity(sessionId, importData);
 
@@ -1135,13 +1134,32 @@ public class ImportService : IImportService
         _logger.LogInformation("Alliance assignment: {WithAlliance} players assigned to alliances, {WithoutAlliance} players without alliances",
             playersWithAlliances, playerEntities.Count - playersWithAlliances);
 
-        // Get current players for change detection
+        // Convert tiles to Tile entities for change detection
+        var tileEntities = tiles.Select(t => new Tile
+        {
+            Id = Guid.NewGuid(),
+            X = t.X,
+            Y = t.Y,
+            ImportSessionId = sessionId,
+            Type = t.Type,
+            Level = t.Level,
+            PlayerId = t.PlayerId > 0 ? t.PlayerId.ToString() : null,
+            AllianceId = t.AllianceId > 0 ? t.AllianceId.ToString() : null,
+            IsActive = true,
+            ValidFrom = DateTime.UtcNow
+        }).ToList();
+
+        // Get current players and tiles for change detection
         var currentPlayers = await _context.Players
             .Where(p => p.IsActive)
             .ToListAsync();
 
-        // Detect changes
-        var changes = await _changeDetectionService.DetectPlayerChangesAsync(playerEntities, currentPlayers);
+        var currentTiles = await _context.Tiles
+            .Where(t => t.IsActive)
+            .ToListAsync();
+
+        // Detect changes with tile data for city coordinate and wilderness tracking
+        var changes = await _changeDetectionService.DetectPlayerChangesAsync(playerEntities, currentPlayers, tileEntities, currentTiles);
 
         // Apply changes
         await _temporalDataService.ApplyPlayerChangesAsync(changes, sessionId);

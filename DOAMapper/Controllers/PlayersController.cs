@@ -1,5 +1,6 @@
 using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Services.Interfaces;
+using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DOAMapper.Controllers;
@@ -112,6 +113,7 @@ public class PlayersController : ControllerBase
     }
 
     [HttpGet("{playerId}/history")]
+    [RequireAdmin]
     public async Task<ActionResult<List<HistoryEntryDto<PlayerDto>>>> GetPlayerHistory(string playerId)
     {
         try

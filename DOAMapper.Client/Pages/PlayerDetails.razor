@@ -1,6 +1,8 @@
 ﻿@page "/players/{PlayerId}"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using DOAMapper.Shared.Services
 @inject IPlayerService PlayerService
+@inject IAuthenticationService AuthService
 @inject NavigationManager Navigation
 
 <PageTitle>@(Player?.Name ?? "Player Details") - DOAMapper</PageTitle>
@@ -130,6 +132,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Check authentication first
+        var isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (!isAuthenticated)
+        {
+            Navigation.NavigateTo("/login", true);
+            return;
+        }
+
         try
         {
             AvailableDates = await PlayerService.GetAvailableDatesAsync();

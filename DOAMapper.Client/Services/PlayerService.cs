@@ -1,15 +1,18 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using DOAMapper.Shared.Models.DTOs;
+using DOAMapper.Shared.Services;
 
 namespace DOAMapper.Client.Services;
 
 public class PlayerService : IPlayerService
 {
     private readonly HttpClient _httpClient;
+    private readonly IAuthenticationService _authService;
 
-    public PlayerService(HttpClient httpClient)
+    public PlayerService(HttpClient httpClient, IAuthenticationService authService)
     {
         _httpClient = httpClient;
+        _authService = authService;
     }
 
     public async Task<PagedResult<PlayerDto>> SearchPlayersAsync(string query, DateTime date, int page, int pageSize)
@@ -34,14 +37,33 @@ public class PlayerService : IPlayerService
 
     public async Task<List<HistoryEntryDto<PlayerDto>>> GetPlayerHistoryAsync(string playerId)
     {
-        var response = await _httpClient.GetFromJsonAsync<List<HistoryEntryDto<PlayerDto>>>(
-            $"api/players/{Uri.EscapeDataString(playerId)}/history");
-        return response ?? new List<HistoryEntryDto<PlayerDto>>();
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/players/{Uri.EscapeDataString(playerId)}/history");
+        await AddAuthHeadersAsync(request);
+
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<List<HistoryEntryDto<PlayerDto>>>();
+        return result ?? new List<HistoryEntryDto<PlayerDto>>();
     }
 
     public async Task<List<DateTime>> GetAvailableDatesAsync()
     {
         var response = await _httpClient.GetFromJsonAsync<List<DateTime>>("api/players/dates");
         return response ?? new List<DateTime>();
+    }
+
+    private async Task AddAuthHeadersAsync(HttpRequestMessage request)
+    {
+        var isAdmin = await _authService.IsAdminAsync();
+        if (isAdmin)
+        {
+            // Get the admin password from the authentication service
+            var authService = _authService as AuthenticationService;
+            if (authService != null)
+            {
+                request.Headers.Add("X-Admin-Password", authService.GetAdminPassword());
+            }
+        }
     }
 }

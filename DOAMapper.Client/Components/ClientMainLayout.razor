@@ -1,0 +1,157 @@
+﻿@using DOAMapper.Shared.Services
+@using DOAMapper.Shared.Models.Authentication
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@if (IsLoading)
+{
+    <div class="loading-layout">
+        <div class="loading-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Checking authentication...</p>
+        </div>
+    </div>
+}
+else if (!IsAuthenticated && !IsLoginPage)
+{
+    <!-- Will redirect to login -->
+    <div class="loading-layout">
+        <div class="loading-content">
+            <p>Redirecting to login...</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="page">
+        @if (IsAuthenticated)
+        {
+            <div class="sidebar">
+                <ClientNavMenu />
+            </div>
+        }
+
+        <main class="@(IsAuthenticated ? "" : "full-width")">
+            @if (IsAuthenticated)
+            {
+                <div class="top-row px-4">
+                    <a href="/history" class="text-decoration-none">
+                        <i class="bi bi-info-circle me-1"></i>About DOAMapper
+                    </a>
+                </div>
+            }
+
+            <article class="content px-4">
+                @ChildContent
+            </article>
+        </main>
+    </div>
+}
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+<style>
+    .loading-layout {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f9fa;
+    }
+
+    .loading-content {
+        text-align: center;
+    }
+
+    .full-width {
+        width: 100%;
+    }
+</style>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool IsLoading = true;
+    private bool IsAuthenticated = false;
+    private bool IsAdmin = false;
+    private bool IsLoginPage => Navigation.Uri.EndsWith("/login", StringComparison.OrdinalIgnoreCase);
+    private bool IsAdminPage => Navigation.Uri.Contains("/import") || Navigation.Uri.Contains("/history");
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to authentication state changes
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+        await CheckAuthenticationState();
+    }
+
+    private async Task CheckAuthenticationState()
+    {
+        try
+        {
+            IsAuthenticated = await AuthService.IsAuthenticatedAsync();
+            IsAdmin = await AuthService.IsAdminAsync();
+
+            // Redirect to login if not authenticated and not already on login page
+            if (!IsAuthenticated && !IsLoginPage)
+            {
+                Navigation.NavigateTo("/login", true);
+                return;
+            }
+
+            // Redirect to players if trying to access admin page without admin rights
+            if (IsAdminPage && !IsAdmin)
+            {
+                Navigation.NavigateTo("/players", true);
+                return;
+            }
+        }
+        catch (Exception)
+        {
+            // On error, assume not authenticated
+            IsAuthenticated = false;
+            
+            if (!IsLoginPage)
+            {
+                Navigation.NavigateTo("/login", true);
+                return;
+            }
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async void OnAuthenticationStateChanged(AuthenticationState newState)
+    {
+        await InvokeAsync(async () =>
+        {
+            IsAuthenticated = newState.IsAuthenticated;
+            IsAdmin = newState.IsAdmin;
+
+            if (!IsAuthenticated && !IsLoginPage)
+            {
+                Navigation.NavigateTo("/login", true);
+            }
+            else if (IsAdminPage && !IsAdmin)
+            {
+                Navigation.NavigateTo("/players", true);
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

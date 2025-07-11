@@ -1,5 +1,8 @@
-﻿@page "/players"
+﻿@page "/"
+@page "/players"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using DOAMapper.Shared.Services
+@using DOAMapper.Client.Components
 @inject IPlayerService PlayerService
 @inject DateStateService DateState
 @inject NavigationManager Navigation
@@ -7,7 +10,8 @@
 
 <PageTitle>Players - DOAMapper</PageTitle>
 
-<div class="player-search">
+<AuthenticationGuard>
+    <div class="player-search">
     <div class="search-header">
         <h2>Players</h2>
         <DateSelector SelectedDate="CurrentDate" AvailableDates="AvailableDates" SelectedDateChanged="OnDateChanged" />
@@ -76,7 +80,8 @@
             No players found for the selected date.
         </div>
     }
-</div>
+    </div>
+</AuthenticationGuard>
 
 @code {
     private DateTime? CurrentDate => DateState.SelectedDate;

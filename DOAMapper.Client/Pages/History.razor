@@ -1,9 +1,13 @@
 ﻿@page "/history"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using DOAMapper.Shared.Services
+@using DOAMapper.Client.Components
 @inject DateStateService DateState
 @inject IImportService ImportService
 
 <PageTitle>History & Analytics - DOAMapper</PageTitle>
+
+<AuthenticationGuard RequireAdmin="true">
 
 <div class="history-analytics">
     <div class="history-header">
@@ -201,6 +205,7 @@
         </div>
     }
 </div>
+</AuthenticationGuard>
 
 @code {
     private bool IsLoading = true;

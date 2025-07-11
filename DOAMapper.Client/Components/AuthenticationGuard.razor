@@ -1,0 +1,70 @@
+﻿@using DOAMapper.Shared.Services
+@using DOAMapper.Shared.Models.Authentication
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+
+@if (IsLoading)
+{
+    <div class="auth-loading">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Checking authentication...</span>
+        </div>
+    </div>
+}
+else if (IsAuthenticated && (!RequireAdmin || IsAdmin))
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool RequireAdmin { get; set; } = false;
+
+    private bool IsLoading = true;
+    private bool IsAuthenticated = false;
+    private bool IsAdmin = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthentication();
+    }
+
+    private async Task CheckAuthentication()
+    {
+        try
+        {
+            IsAuthenticated = await AuthService.IsAuthenticatedAsync();
+            IsAdmin = await AuthService.IsAdminAsync();
+
+            if (!IsAuthenticated)
+            {
+                Navigation.NavigateTo("/login", true);
+                return;
+            }
+
+            if (RequireAdmin && !IsAdmin)
+            {
+                Navigation.NavigateTo("/players", true);
+                return;
+            }
+        }
+        catch (Exception)
+        {
+            Navigation.NavigateTo("/login", true);
+            return;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
+
+<style>
+    .auth-loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 200px;
+    }
+</style>

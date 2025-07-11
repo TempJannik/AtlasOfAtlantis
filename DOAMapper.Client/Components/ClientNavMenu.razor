@@ -1,0 +1,128 @@
+﻿@using DOAMapper.Shared.Services
+@using DOAMapper.Shared.Models.Authentication
+@inject IAuthenticationService AuthService
+@inject IAuthenticationStateService AuthStateService
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">DOAMapper</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="players" Match="NavLinkMatch.All">
+                <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> Players
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="alliances">
+                <span class="bi bi-shield-fill-nav-menu" aria-hidden="true"></span> Alliances
+            </NavLink>
+        </div>
+
+        @if (IsAdmin)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="import">
+                    <span class="bi bi-upload-nav-menu" aria-hidden="true"></span> Import Data
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="history">
+                    <span class="bi bi-clock-history-nav-menu" aria-hidden="true"></span> History/Analytics
+                </NavLink>
+            </div>
+        }
+
+        @if (IsAuthenticated)
+        {
+            <div class="nav-item px-3 mt-3">
+                <div class="nav-link text-muted">
+                    @if (IsAdmin)
+                    {
+                        <span class="badge bg-danger me-2">Admin</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-primary me-2">User</span>
+                    }
+                </div>
+            </div>
+            
+            <div class="nav-item px-3">
+                <button class="btn btn-sm btn-outline-light w-100" @onclick="Logout">
+                    <i class="bi bi-box-arrow-right me-1"></i>Logout
+                </button>
+            </div>
+        }
+    </nav>
+</div>
+
+@code {
+    private bool IsAdmin = false;
+    private bool IsAuthenticated = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to authentication state changes
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        AuthStateService.StateChanged += OnAuthStateServiceChanged;
+
+        await UpdateAuthenticationState();
+    }
+
+    private async Task UpdateAuthenticationState()
+    {
+        try
+        {
+            IsAuthenticated = await AuthService.IsAuthenticatedAsync();
+            IsAdmin = await AuthService.IsAdminAsync();
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            IsAuthenticated = false;
+            IsAdmin = false;
+            StateHasChanged();
+        }
+    }
+
+    private async void OnAuthenticationStateChanged(AuthenticationState newState)
+    {
+        await InvokeAsync(async () =>
+        {
+            IsAuthenticated = newState.IsAuthenticated;
+            IsAdmin = newState.IsAdmin;
+            StateHasChanged();
+        });
+    }
+
+    private async void OnAuthStateServiceChanged(AuthenticationState newState)
+    {
+        await InvokeAsync(() =>
+        {
+            IsAuthenticated = newState.IsAuthenticated;
+            IsAdmin = newState.IsAdmin;
+            StateHasChanged();
+        });
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        // Navigation will be handled by the authentication state change
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        AuthStateService.StateChanged -= OnAuthStateServiceChanged;
+    }
+}

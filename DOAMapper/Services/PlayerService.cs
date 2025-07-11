@@ -136,14 +136,43 @@ public class PlayerService : IPlayerService
         {
             var player = playerHistory[i];
             var playerDto = _mapper.Map<PlayerDto>(player);
-            
+
             string changeType = "Added";
+            var changeDetails = new List<string>();
+
             if (i < playerHistory.Count - 1)
             {
                 var previousPlayer = playerHistory[i + 1];
-                if (player.Name != previousPlayer.Name || 
-                    player.CityName != previousPlayer.CityName ||
-                    player.AllianceId != previousPlayer.AllianceId)
+
+                // Check basic player changes
+                var hasBasicChanges = false;
+                if (player.Name != previousPlayer.Name)
+                {
+                    changeDetails.Add($"Name changed from '{previousPlayer.Name}' to '{player.Name}'");
+                    hasBasicChanges = true;
+                }
+                if (player.Might != previousPlayer.Might)
+                {
+                    changeDetails.Add($"Might changed from {previousPlayer.Might:N0} to {player.Might:N0}");
+                    hasBasicChanges = true;
+                }
+                if (player.CityName != previousPlayer.CityName)
+                {
+                    changeDetails.Add($"City name changed from '{previousPlayer.CityName}' to '{player.CityName}'");
+                    hasBasicChanges = true;
+                }
+                if (player.AllianceId != previousPlayer.AllianceId)
+                {
+                    var oldAllianceName = previousPlayer.Alliance?.Name ?? "None";
+                    var newAllianceName = player.Alliance?.Name ?? "None";
+                    changeDetails.Add($"Alliance changed from '{oldAllianceName}' to '{newAllianceName}'");
+                    hasBasicChanges = true;
+                }
+
+                // Check for city coordinate and wilderness changes by analyzing tile data
+                await AnalyzeTileChangesForPlayerAsync(playerId, player.ValidFrom, previousPlayer.ValidFrom, changeDetails);
+
+                if (hasBasicChanges || changeDetails.Count > 0)
                 {
                     changeType = "Modified";
                 }
@@ -154,18 +183,77 @@ public class PlayerService : IPlayerService
                 changeType = "Removed";
             }
 
+            // Create a custom change type that includes details
+            var displayChangeType = changeType;
+            if (changeDetails.Any())
+            {
+                displayChangeType = $"{changeType}: {string.Join("; ", changeDetails)}";
+            }
+
             historyEntries.Add(new HistoryEntryDto<PlayerDto>
             {
                 Data = playerDto,
                 ValidFrom = player.ValidFrom,
                 ValidTo = player.ValidTo,
-                ChangeType = changeType
+                ChangeType = displayChangeType
             });
         }
 
         _logger.LogInformation("Found {Count} history entries for player {PlayerId}", historyEntries.Count, playerId);
 
         return historyEntries;
+    }
+
+    private async Task AnalyzeTileChangesForPlayerAsync(string playerId, DateTime currentDate, DateTime previousDate, List<string> changeDetails)
+    {
+        // Get tiles for both dates
+        var currentTiles = await _context.Tiles
+            .Where(t => t.PlayerId == playerId &&
+                       t.IsActive &&
+                       t.ValidFrom <= currentDate &&
+                       (t.ValidTo == null || t.ValidTo > currentDate))
+            .ToListAsync();
+
+        var previousTiles = await _context.Tiles
+            .Where(t => t.PlayerId == playerId &&
+                       t.IsActive &&
+                       t.ValidFrom <= previousDate &&
+                       (t.ValidTo == null || t.ValidTo > previousDate))
+            .ToListAsync();
+
+        // Check for city coordinate changes
+        var currentCityTile = currentTiles.FirstOrDefault(t => t.Type == "City");
+        var previousCityTile = previousTiles.FirstOrDefault(t => t.Type == "City");
+
+        if (currentCityTile != null && previousCityTile != null)
+        {
+            if (currentCityTile.X != previousCityTile.X || currentCityTile.Y != previousCityTile.Y)
+            {
+                changeDetails.Add($"City moved from ({previousCityTile.X},{previousCityTile.Y}) to ({currentCityTile.X},{currentCityTile.Y})");
+            }
+        }
+
+        // Check for wilderness changes
+        var currentWilderness = currentTiles.Where(t => t.Type != "City").ToList();
+        var previousWilderness = previousTiles.Where(t => t.Type != "City").ToList();
+
+        var currentWildernessKeys = currentWilderness.Select(t => $"{t.X},{t.Y}").ToHashSet();
+        var previousWildernessKeys = previousWilderness.Select(t => $"{t.X},{t.Y}").ToHashSet();
+
+        var gainedWilderness = currentWilderness.Where(t => !previousWildernessKeys.Contains($"{t.X},{t.Y}")).ToList();
+        var lostWilderness = previousWilderness.Where(t => !currentWildernessKeys.Contains($"{t.X},{t.Y}")).ToList();
+
+        if (gainedWilderness.Any())
+        {
+            var gainedDetails = gainedWilderness.Select(t => $"{t.Type} at ({t.X},{t.Y})").ToList();
+            changeDetails.Add($"Gained {gainedWilderness.Count} wilderness: {string.Join(", ", gainedDetails)}");
+        }
+
+        if (lostWilderness.Any())
+        {
+            var lostDetails = lostWilderness.Select(t => $"{t.Type} at ({t.X},{t.Y})").ToList();
+            changeDetails.Add($"Lost {lostWilderness.Count} wilderness: {string.Join(", ", lostDetails)}");
+        }
     }
 
     public async Task<List<DateTime>> GetAvailableDatesAsync()

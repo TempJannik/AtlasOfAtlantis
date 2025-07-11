@@ -1,6 +1,8 @@
 ﻿@page "/alliances/{AllianceId}"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using DOAMapper.Shared.Services
 @inject IAllianceService AllianceService
+@inject IAuthenticationService AuthService
 @inject NavigationManager Navigation
 
 <PageTitle>@(Alliance?.Name ?? "Alliance Details") - DOAMapper</PageTitle>
@@ -167,6 +169,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Check authentication first
+        var isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (!isAuthenticated)
+        {
+            Navigation.NavigateTo("/login", true);
+            return;
+        }
+
         try
         {
             AvailableDates = await AllianceService.GetAvailableDatesAsync();

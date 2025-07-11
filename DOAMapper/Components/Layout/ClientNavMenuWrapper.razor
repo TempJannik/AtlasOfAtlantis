@@ -1,0 +1,10 @@
+﻿@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using DOAMapper.Client.Components
+
+<ClientMainLayout>
+    @ChildContent
+</ClientMainLayout>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,5 +1,6 @@
-using DOAMapper.Shared.Models.DTOs;
+﻿using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Services.Interfaces;
+using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DOAMapper.Controllers;
@@ -96,6 +97,7 @@ public class MapController : ControllerBase
     }
 
     [HttpGet("tile/history")]
+    [RequireAdmin]
     public async Task<ActionResult<List<HistoryEntryDto<TileDto>>>> GetTileHistory(
         [FromQuery] int x,
         [FromQuery] int y)
@@ -119,6 +121,7 @@ public class MapController : ControllerBase
     }
 
     [HttpGet("statistics")]
+    [RequireAdmin]
     public async Task<ActionResult<Dictionary<string, int>>> GetTileStatistics(
         [FromQuery] DateTime? date = null)
     {
