@@ -22,8 +22,11 @@ public class MapService : IMapService
 
     public async Task<List<TileDto>> GetRegionTilesAsync(int x1, int y1, int x2, int y2, DateTime date)
     {
-        _logger.LogInformation("Getting tiles for region ({X1},{Y1}) to ({X2},{Y2}) for date {Date}", 
-            x1, y1, x2, y2, date);
+        // Ensure date is UTC for PostgreSQL compatibility
+        var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
+
+        _logger.LogInformation("Getting tiles for region ({X1},{Y1}) to ({X2},{Y2}) for date {Date}",
+            x1, y1, x2, y2, utcDate);
 
         // Ensure coordinates are in correct order
         var minX = Math.Min(x1, x2);
@@ -45,11 +48,11 @@ public class MapService : IMapService
         var tiles = await _context.Tiles
             .Include(t => t.Player)
             .Include(t => t.Alliance)
-            .Where(t => t.X >= minX && t.X <= maxX && 
+            .Where(t => t.X >= minX && t.X <= maxX &&
                        t.Y >= minY && t.Y <= maxY &&
-                       t.IsActive && 
-                       t.ValidFrom <= date && 
-                       (t.ValidTo == null || t.ValidTo > date))
+                       t.IsActive &&
+                       t.ValidFrom <= utcDate &&
+                       (t.ValidTo == null || t.ValidTo > utcDate))
             .OrderBy(t => t.X)
             .ThenBy(t => t.Y)
             .ToListAsync();
@@ -59,7 +62,7 @@ public class MapService : IMapService
         // Set the data date for each tile
         foreach (var dto in tileDtos)
         {
-            dto.DataDate = date;
+            dto.DataDate = utcDate;
         }
 
         _logger.LogInformation("Found {Count} tiles in region ({MinX},{MinY}) to ({MaxX},{MaxY})", 
@@ -163,11 +166,14 @@ public class MapService : IMapService
 
     public async Task<List<DateTime>> GetAvailableDatesAsync()
     {
-        return await _context.ImportSessions
+        var dates = await _context.ImportSessions
             .Where(s => s.Status == DOAMapper.Shared.Models.Enums.ImportStatus.Completed)
             .Select(s => s.ImportDate.Date)
             .Distinct()
             .OrderByDescending(d => d)
             .ToListAsync();
+
+        // Ensure all dates are UTC for PostgreSQL compatibility
+        return dates.Select(d => DateTime.SpecifyKind(d, DateTimeKind.Utc)).ToList();
     }
 }

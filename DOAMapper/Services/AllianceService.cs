@@ -57,11 +57,14 @@ public class AllianceService : IAllianceService
 
     public async Task<PagedResult<AllianceDto>> SearchAlliancesAsync(string query, DateTime date, int page, int pageSize)
     {
-        _logger.LogInformation("Searching alliances with query '{Query}' for date {Date}, page {Page}, size {PageSize}", 
-            query, date, page, pageSize);
+        // Ensure date is UTC for PostgreSQL compatibility
+        var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
+
+        _logger.LogInformation("Searching alliances with query '{Query}' for date {Date}, page {Page}, size {PageSize}",
+            query, utcDate, page, pageSize);
 
         var alliancesQuery = _context.Alliances
-            .Where(a => a.IsActive && a.ValidFrom <= date && (a.ValidTo == null || a.ValidTo > date));
+            .Where(a => a.IsActive && a.ValidFrom <= utcDate && (a.ValidTo == null || a.ValidTo > utcDate));
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -86,7 +89,7 @@ public class AllianceService : IAllianceService
         // Set the data date for each alliance
         foreach (var dto in allianceDtos)
         {
-            dto.DataDate = date;
+            dto.DataDate = utcDate;
         }
 
         _logger.LogInformation("Found {Count} alliances matching query '{Query}'", totalCount, query);
@@ -102,23 +105,26 @@ public class AllianceService : IAllianceService
 
     public async Task<AllianceDto?> GetAllianceAsync(string allianceId, DateTime date)
     {
-        _logger.LogInformation("Getting alliance {AllianceId} for date {Date}", allianceId, date);
+        // Ensure date is UTC for PostgreSQL compatibility
+        var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
+
+        _logger.LogInformation("Getting alliance {AllianceId} for date {Date}", allianceId, utcDate);
 
         var alliance = await _context.Alliances
-            .Include(a => a.Members.Where(m => m.IsActive && m.ValidFrom <= date && (m.ValidTo == null || m.ValidTo > date)))
-            .FirstOrDefaultAsync(a => a.AllianceId == allianceId && 
-                                   a.IsActive && 
-                                   a.ValidFrom <= date && 
-                                   (a.ValidTo == null || a.ValidTo > date));
+            .Include(a => a.Members.Where(m => m.IsActive && m.ValidFrom <= utcDate && (m.ValidTo == null || m.ValidTo > utcDate)))
+            .FirstOrDefaultAsync(a => a.AllianceId == allianceId &&
+                                   a.IsActive &&
+                                   a.ValidFrom <= utcDate &&
+                                   (a.ValidTo == null || a.ValidTo > utcDate));
 
         if (alliance == null)
         {
-            _logger.LogWarning("Alliance {AllianceId} not found for date {Date}", allianceId, date);
+            _logger.LogWarning("Alliance {AllianceId} not found for date {Date}", allianceId, utcDate);
             return null;
         }
 
         var allianceDto = _mapper.Map<AllianceDto>(alliance);
-        allianceDto.DataDate = date;
+        allianceDto.DataDate = utcDate;
 
         _logger.LogInformation("Found alliance {AllianceName} with {MemberCount} members", 
             alliance.Name, alliance.Members.Count);
@@ -128,15 +134,18 @@ public class AllianceService : IAllianceService
 
     public async Task<PagedResult<PlayerDto>> GetAllianceMembersAsync(string allianceId, DateTime date, int page, int pageSize)
     {
+        // Ensure date is UTC for PostgreSQL compatibility
+        var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
+
         _logger.LogInformation("Getting members for alliance {AllianceId} for date {Date}, page {Page}, size {PageSize}",
-            allianceId, date, page, pageSize);
+            allianceId, utcDate, page, pageSize);
 
         var membersQuery = _context.Players
             .Include(p => p.Alliance)
             .Where(p => p.AllianceId == allianceId &&
                        p.IsActive &&
-                       p.ValidFrom <= date &&
-                       (p.ValidTo == null || p.ValidTo > date));
+                       p.ValidFrom <= utcDate &&
+                       (p.ValidTo == null || p.ValidTo > utcDate));
 
         var totalCount = await membersQuery.CountAsync();
 
@@ -151,7 +160,7 @@ public class AllianceService : IAllianceService
         // Set the data date for each member
         foreach (var dto in memberDtos)
         {
-            dto.DataDate = date;
+            dto.DataDate = utcDate;
         }
 
         _logger.LogInformation("Found {Count} total members for alliance {AllianceId}, returning page {Page}",
@@ -168,15 +177,18 @@ public class AllianceService : IAllianceService
 
     public async Task<List<TileDto>> GetAllianceTilesAsync(string allianceId, DateTime date)
     {
-        _logger.LogInformation("Getting tiles for alliance {AllianceId} for date {Date}", allianceId, date);
+        // Ensure date is UTC for PostgreSQL compatibility
+        var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
+
+        _logger.LogInformation("Getting tiles for alliance {AllianceId} for date {Date}", allianceId, utcDate);
 
         var tiles = await _context.Tiles
             .Include(t => t.Player)
             .Include(t => t.Alliance)
-            .Where(t => t.AllianceId == allianceId && 
-                       t.IsActive && 
-                       t.ValidFrom <= date && 
-                       (t.ValidTo == null || t.ValidTo > date))
+            .Where(t => t.AllianceId == allianceId &&
+                       t.IsActive &&
+                       t.ValidFrom <= utcDate &&
+                       (t.ValidTo == null || t.ValidTo > utcDate))
             .OrderBy(t => t.Type)
             .ThenBy(t => t.X)
             .ThenBy(t => t.Y)
@@ -187,7 +199,7 @@ public class AllianceService : IAllianceService
         // Set the data date for each tile
         foreach (var dto in tileDtos)
         {
-            dto.DataDate = date;
+            dto.DataDate = utcDate;
         }
 
         _logger.LogInformation("Found {Count} tiles for alliance {AllianceId}", tiles.Count, allianceId);
@@ -255,11 +267,14 @@ public class AllianceService : IAllianceService
 
     public async Task<List<DateTime>> GetAvailableDatesAsync()
     {
-        return await _context.ImportSessions
+        var dates = await _context.ImportSessions
             .Where(s => s.Status == DOAMapper.Shared.Models.Enums.ImportStatus.Completed)
             .Select(s => s.ImportDate.Date)
             .Distinct()
             .OrderByDescending(d => d)
             .ToListAsync();
+
+        // Ensure all dates are UTC for PostgreSQL compatibility
+        return dates.Select(d => DateTime.SpecifyKind(d, DateTimeKind.Utc)).ToList();
     }
 }

@@ -154,12 +154,15 @@ public class ImportService : IImportService
     {
         _logger.LogDebug("Getting available import dates");
 
-        return await _context.ImportSessions
+        var dates = await _context.ImportSessions
             .Where(s => s.Status == ImportStatus.Completed)
             .Select(s => s.ImportDate.Date)
             .Distinct()
             .OrderByDescending(d => d)
             .ToListAsync();
+
+        // Ensure all dates are UTC for PostgreSQL compatibility
+        return dates.Select(d => DateTime.SpecifyKind(d, DateTimeKind.Utc)).ToList();
     }
 
     private async Task ProcessImportWithTimeoutAsync(Guid sessionId, Stream jsonStream)
