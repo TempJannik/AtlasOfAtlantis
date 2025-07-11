@@ -81,6 +81,14 @@ else
     var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
                           ?? builder.Configuration.GetConnectionString("PostgreSQL");
 
+    // Validate connection string
+    if (string.IsNullOrEmpty(connectionString) || connectionString == "${DATABASE_URL}")
+    {
+        throw new InvalidOperationException(
+            "DATABASE_URL environment variable is not set or PostgreSQL connection string is missing. " +
+            "Please ensure you have added a PostgreSQL database service in Railway and the DATABASE_URL environment variable is properly configured.");
+    }
+
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseNpgsql(connectionString, npgsqlOptions =>
         {
