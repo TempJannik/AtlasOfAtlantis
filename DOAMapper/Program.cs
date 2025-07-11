@@ -91,6 +91,10 @@ builder.Services.AddSingleton<DOAMapper.Shared.Services.IAuthenticationService, 
 builder.Services.AddSingleton<DOAMapper.Shared.Services.IAuthenticationStateService, DOAMapper.Services.AuthenticationStateService>();
 builder.Services.AddSingleton<DOAMapper.Services.ErrorHandlingService>();
 
+// Register new background import services
+builder.Services.AddScoped<DOAMapper.Services.BackgroundImportService>();
+builder.Services.AddScoped<DOAMapper.Services.ImportStatusService>();
+
 // Server should only register server services
 // Client services are registered in the client project's Program.cs
 

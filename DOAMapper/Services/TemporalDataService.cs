@@ -1,4 +1,4 @@
-using DOAMapper.Data;
+﻿using DOAMapper.Data;
 using DOAMapper.Models.Entities;
 using DOAMapper.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +18,7 @@ public class TemporalDataService : ITemporalDataService
 
     public async Task ApplyTileChangesAsync(ChangeSet<Tile> changes, Guid importSessionId)
     {
-        var importDate = DateTime.UtcNow;
+        var importDate = DateTime.UtcNow.Date;
         
         // Handle removed tiles - set ValidTo date
         if (changes.Removed.Any())
@@ -229,7 +229,7 @@ public class TemporalDataService : ITemporalDataService
 
     public async Task ApplyPlayerChangesAsync(ChangeSet<Player> changes, Guid importSessionId)
     {
-        var importDate = DateTime.UtcNow;
+        var importDate = DateTime.UtcNow.Date;
         
         // Handle removed players
         if (changes.Removed.Any())
@@ -400,7 +400,7 @@ public class TemporalDataService : ITemporalDataService
 
     public async Task ApplyAllianceChangesAsync(ChangeSet<Alliance> changes, Guid importSessionId)
     {
-        var importDate = DateTime.UtcNow;
+        var importDate = DateTime.UtcNow.Date;
         
         // Handle removed alliances
         if (changes.Removed.Any())

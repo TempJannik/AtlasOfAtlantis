@@ -1,5 +1,6 @@
 using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Services.Interfaces;
+using DOAMapper.Services;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,11 +12,19 @@ namespace DOAMapper.Controllers;
 public class ImportController : ControllerBase
 {
     private readonly IImportService _importService;
+    private readonly BackgroundImportService _backgroundImportService;
+    private readonly ImportStatusService _importStatusService;
     private readonly ILogger<ImportController> _logger;
 
-    public ImportController(IImportService importService, ILogger<ImportController> logger)
+    public ImportController(
+        IImportService importService,
+        BackgroundImportService backgroundImportService,
+        ImportStatusService importStatusService,
+        ILogger<ImportController> logger)
     {
         _importService = importService;
+        _backgroundImportService = backgroundImportService;
+        _importStatusService = importStatusService;
         _logger = logger;
     }
 
@@ -40,13 +49,20 @@ public class ImportController : ControllerBase
         try
         {
             using var stream = file.OpenReadStream();
-            var session = await _importService.StartImportAsync(stream, file.FileName);
-            var sessionDto = await _importService.GetImportStatusAsync(session.Id);
-            
-            _logger.LogInformation("Import started for file {FileName} with session {SessionId}", 
+
+            // Use BackgroundImportService for background processing
+            var session = await _backgroundImportService.StartBackgroundImportAsync(stream, file.FileName);
+            var sessionDto = await _importStatusService.GetImportStatusAsync(session.Id);
+
+            _logger.LogInformation("Background import started for file {FileName} with session {SessionId}",
                 file.FileName, session.Id);
-            
+
             return Ok(sessionDto);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already in progress"))
+        {
+            _logger.LogWarning("Import upload rejected - another import is already in progress");
+            return Conflict("Another import is already in progress. Please wait for it to complete.");
         }
         catch (Exception ex)
         {
@@ -60,7 +76,7 @@ public class ImportController : ControllerBase
     {
         try
         {
-            var status = await _importService.GetImportStatusAsync(sessionId);
+            var status = await _importStatusService.GetImportStatusAsync(sessionId);
             return Ok(status);
         }
         catch (ArgumentException)
@@ -72,7 +88,7 @@ public class ImportController : ControllerBase
     [HttpGet("history")]
     public async Task<ActionResult<List<ImportSessionDto>>> GetImportHistory()
     {
-        var history = await _importService.GetImportHistoryAsync();
+        var history = await _importStatusService.GetImportHistoryAsync();
         return Ok(history);
     }
 
@@ -81,5 +97,43 @@ public class ImportController : ControllerBase
     {
         var dates = await _importService.GetAvailableImportDatesAsync();
         return Ok(dates);
+    }
+
+    [HttpPost("cancel/{sessionId}")]
+    public ActionResult CancelImport(Guid sessionId)
+    {
+        try
+        {
+            var cancelled = _backgroundImportService.CancelImport(sessionId);
+            if (cancelled)
+            {
+                _logger.LogInformation("Import cancellation requested for session {SessionId}", sessionId);
+                return Ok(new { message = "Import cancellation requested" });
+            }
+            else
+            {
+                return NotFound("Import session not found or not active");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to cancel import for session {SessionId}", sessionId);
+            return StatusCode(500, "Failed to cancel import");
+        }
+    }
+
+    [HttpGet("active")]
+    public ActionResult<List<Guid>> GetActiveImports()
+    {
+        try
+        {
+            var activeImports = _backgroundImportService.GetActiveImportSessions();
+            return Ok(activeImports);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get active imports");
+            return StatusCode(500, "Failed to get active imports");
+        }
     }
 }

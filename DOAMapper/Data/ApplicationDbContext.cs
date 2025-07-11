@@ -1,4 +1,4 @@
-using DOAMapper.Models.Entities;
+﻿using DOAMapper.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DOAMapper.Data;
@@ -55,7 +55,14 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.FileName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Status).HasConversion<string>();
+            entity.Property(e => e.CurrentPhase).HasMaxLength(100);
+            entity.Property(e => e.StatusMessage).HasMaxLength(500);
+            entity.Property(e => e.PhaseDetailsJson).HasColumnType("TEXT");
+
+            // Indexes for performance
             entity.HasIndex(e => e.ImportDate);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
         });
     }
     
