@@ -11,6 +11,10 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Railway PORT environment variable for dynamic port assignment
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://*:{port}");
+
 // Register encoding providers for legacy encodings (Windows-1252, ISO-8859-1, etc.)
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
@@ -73,8 +77,18 @@ if (builder.Environment.IsDevelopment())
 }
 else
 {
+    // Production: Use Railway's DATABASE_URL environment variable or fallback to PostgreSQL connection string
+    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+                          ?? builder.Configuration.GetConnectionString("PostgreSQL");
+
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSQL")));
+        options.UseNpgsql(connectionString, npgsqlOptions =>
+        {
+            npgsqlOptions.CommandTimeout(300); // 5 minute timeout for large operations
+        })
+        .EnableSensitiveDataLogging(false)
+        .EnableServiceProviderCaching()
+        .EnableDetailedErrors(false));
 }
 
 // AutoMapper
@@ -100,11 +114,32 @@ builder.Services.AddScoped<DOAMapper.Services.ImportStatusService>();
 
 var app = builder.Build();
 
-// Ensure database is created
+// Ensure database is created and import directory exists
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    context.Database.EnsureCreated();
+    try
+    {
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+        logger.LogInformation("Initializing database...");
+        context.Database.EnsureCreated();
+        logger.LogInformation("Database initialization completed successfully");
+
+        // Ensure import directory exists
+        var importDirectory = app.Configuration["ImportSettings:ImportDirectory"] ?? "/app/Data/Imports";
+        if (!Directory.Exists(importDirectory))
+        {
+            Directory.CreateDirectory(importDirectory);
+            logger.LogInformation("Created import directory: {ImportDirectory}", importDirectory);
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Failed to initialize database or create import directory");
+        throw; // Re-throw to prevent application startup with invalid database
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -119,7 +154,8 @@ else
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// Comment out HTTPS redirection for Railway deployment (Railway handles HTTPS at load balancer level)
+// app.UseHttpsRedirection();
 
 
 app.UseAntiforgery();

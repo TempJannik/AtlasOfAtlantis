@@ -23,3 +23,17 @@
 **/values.dev.yaml
 LICENSE
 README.md
+
+# Project-specific exclusions
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/map.json
+**/example.json
+**/test-*.ps1
+**/clear-database.ps1
+**/docs/
+**/TEST-SCRIPTS-README.md
+
+# Railway-specific
+railway.toml

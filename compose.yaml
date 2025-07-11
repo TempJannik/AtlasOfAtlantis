@@ -4,10 +4,8 @@
     build:
       context: .
       dockerfile: DOAMapper/Dockerfile
-
-  doamapper.client:
-    image: doamapper.client
-    build:
-      context: .
-      dockerfile: DOAMapper.Client/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
 

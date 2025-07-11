@@ -1,0 +1,7 @@
+﻿[build]
+builder = "dockerfile"
+dockerfilePath = "DOAMapper/Dockerfile"
+
+[deploy]
+startCommand = "dotnet DOAMapper.dll"
+restartPolicyType = "never"
