@@ -78,16 +78,25 @@ if (builder.Environment.IsDevelopment())
 else
 {
     // Production: Use Railway's DATABASE_URL environment variable or fallback to PostgreSQL connection string
-    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
-                          ?? builder.Configuration.GetConnectionString("PostgreSQL");
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    var configConnectionString = builder.Configuration.GetConnectionString("PostgreSQL");
+
+    // Debug logging to see what we're getting
+    Console.WriteLine($"DATABASE_URL environment variable: '{databaseUrl}'");
+    Console.WriteLine($"PostgreSQL config connection string: '{configConnectionString}'");
+
+    var connectionString = databaseUrl ?? configConnectionString;
 
     // Validate connection string
     if (string.IsNullOrEmpty(connectionString) || connectionString == "${DATABASE_URL}")
     {
         throw new InvalidOperationException(
-            "DATABASE_URL environment variable is not set or PostgreSQL connection string is missing. " +
+            $"DATABASE_URL environment variable is not set or PostgreSQL connection string is missing. " +
+            $"DATABASE_URL='{databaseUrl}', PostgreSQL config='{configConnectionString}'. " +
             "Please ensure you have added a PostgreSQL database service in Railway and the DATABASE_URL environment variable is properly configured.");
     }
+
+    Console.WriteLine($"Using connection string: '{connectionString}'");
 
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseNpgsql(connectionString, npgsqlOptions =>
