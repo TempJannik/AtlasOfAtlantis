@@ -16,4 +16,10 @@ builder.Services.AddSingleton<DOAMapper.Shared.Services.IAuthenticationStateServ
 builder.Services.AddSingleton<DateStateService>();
 builder.Services.AddSingleton<ErrorHandlingService>();
 
-await builder.Build().RunAsync();
+var app = builder.Build();
+
+// Initialize authentication service to restore state from localStorage
+var authService = app.Services.GetRequiredService<DOAMapper.Shared.Services.IAuthenticationService>();
+await authService.EnsureInitializedAsync();
+
+await app.RunAsync();

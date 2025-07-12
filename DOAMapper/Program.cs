@@ -93,7 +93,7 @@ else
         try
         {
             var uri = new Uri(databaseUrl);
-            connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.Trim('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]};SSL Mode=Require;Trust Server Certificate=true";
+            connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.Trim('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]};SSL Mode=Require;Trust Server Certificate=true;Client Encoding=UTF8";
             Console.WriteLine($"Converted DATABASE_URL to connection string: '{connectionString}'");
         }
         catch (Exception ex)

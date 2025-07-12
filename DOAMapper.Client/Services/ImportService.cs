@@ -81,10 +81,10 @@ public class ImportService : IImportService
         if (isAdmin)
         {
             // Get the admin password from the authentication service
-            var authService = _authService as AuthenticationService;
-            if (authService != null)
+            var adminPassword = _authService.GetAdminPassword();
+            if (!string.IsNullOrEmpty(adminPassword))
             {
-                request.Headers.Add("X-Admin-Password", authService.GetAdminPassword());
+                request.Headers.Add("X-Admin-Password", adminPassword);
             }
         }
     }

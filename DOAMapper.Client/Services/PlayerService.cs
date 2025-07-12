@@ -59,16 +59,20 @@ public class PlayerService : IPlayerService
         if (isAuthenticated)
         {
             var isAdmin = await _authService.IsAdminAsync();
-            var authService = _authService as AuthenticationService;
-            if (authService != null)
+            if (isAdmin)
             {
-                if (isAdmin)
+                var adminPassword = _authService.GetAdminPassword();
+                if (!string.IsNullOrEmpty(adminPassword))
                 {
-                    request.Headers.Add("X-Admin-Password", authService.GetAdminPassword());
+                    request.Headers.Add("X-Admin-Password", adminPassword);
                 }
-                else
+            }
+            else
+            {
+                var userPassword = _authService.GetUserPassword();
+                if (!string.IsNullOrEmpty(userPassword))
                 {
-                    request.Headers.Add("X-User-Password", authService.GetUserPassword());
+                    request.Headers.Add("X-User-Password", userPassword);
                 }
             }
         }

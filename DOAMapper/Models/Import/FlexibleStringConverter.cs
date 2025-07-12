@@ -13,20 +13,9 @@ public class FlexibleStringConverter : JsonConverter<string>
         switch (reader.TokenType)
         {
             case JsonTokenType.String:
-                try
-                {
-                    return reader.GetString() ?? string.Empty;
-                }
-                catch (InvalidOperationException ex) when (ex.Message.Contains("Cannot transcode invalid UTF-8"))
-                {
-                    // Handle invalid UTF-8 by returning a placeholder
-                    return "[INVALID_ENCODING]";
-                }
-                catch (Exception)
-                {
-                    // For any other string reading error, return empty string
-                    return string.Empty;
-                }
+                // Let the JSON deserializer handle Unicode characters naturally
+                // If there are encoding issues, they will be handled by the ImportService's encoding detection logic
+                return reader.GetString() ?? string.Empty;
 
             case JsonTokenType.Number:
                 // Handle numbers as strings

@@ -87,4 +87,20 @@ public class AuthenticationService : IAuthenticationService
     {
         return password == AdminPassword;
     }
+
+    public Task EnsureInitializedAsync()
+    {
+        // Server-side service doesn't need initialization
+        return Task.CompletedTask;
+    }
+
+    public string GetAdminPassword()
+    {
+        return AdminPassword;
+    }
+
+    public string GetUserPassword()
+    {
+        return UserPassword;
+    }
 }

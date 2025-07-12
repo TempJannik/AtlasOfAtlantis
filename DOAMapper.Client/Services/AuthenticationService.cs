@@ -9,12 +9,14 @@ namespace DOAMapper.Client.Services;
 public class AuthenticationService : IAuthenticationService
 {
     private const string StorageKey = "doamapper_auth_state";
+    private const string PasswordStorageKey = "doamapper_auth_pwd";
 
     private readonly IJSRuntime _jsRuntime;
     private readonly IServiceProvider _serviceProvider;
     private AuthenticationState _currentState = AuthenticationState.Unauthenticated;
     private bool _initialized = false;
     private string? _storedPassword; // Store password for API calls
+    private readonly SemaphoreSlim _initializationSemaphore = new(1, 1);
 
     public event Action<AuthenticationState>? AuthenticationStateChanged;
 
@@ -28,8 +30,12 @@ public class AuthenticationService : IAuthenticationService
     {
         if (_initialized) return;
 
+        await _initializationSemaphore.WaitAsync();
         try
         {
+            if (_initialized) return; // Double-check after acquiring lock
+
+            // Restore authentication state
             var storedState = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", StorageKey);
             if (!string.IsNullOrEmpty(storedState))
             {
@@ -39,14 +45,44 @@ public class AuthenticationService : IAuthenticationService
                     _currentState = authState;
                 }
             }
+
+            // Restore password if authenticated
+            if (_currentState.IsAuthenticated)
+            {
+                var storedPassword = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", PasswordStorageKey);
+                if (!string.IsNullOrEmpty(storedPassword))
+                {
+                    // Simple base64 decode for basic obfuscation
+                    try
+                    {
+                        var passwordBytes = Convert.FromBase64String(storedPassword);
+                        _storedPassword = System.Text.Encoding.UTF8.GetString(passwordBytes);
+                    }
+                    catch
+                    {
+                        // If decoding fails, clear authentication state
+                        _currentState = AuthenticationState.Unauthenticated;
+                        _storedPassword = null;
+                    }
+                }
+                else
+                {
+                    // If no password stored but state says authenticated, clear authentication
+                    _currentState = AuthenticationState.Unauthenticated;
+                }
+            }
         }
         catch (Exception)
         {
             // If there's an error reading from storage, use default unauthenticated state
             _currentState = AuthenticationState.Unauthenticated;
+            _storedPassword = null;
         }
-
-        _initialized = true;
+        finally
+        {
+            _initialized = true;
+            _initializationSemaphore.Release();
+        }
     }
 
     private async Task SaveStateAsync()
@@ -55,6 +91,19 @@ public class AuthenticationService : IAuthenticationService
         {
             var stateJson = JsonSerializer.Serialize(_currentState);
             await _jsRuntime.InvokeVoidAsync("localStorage.setItem", StorageKey, stateJson);
+
+            // Save password if authenticated (with basic obfuscation)
+            if (_currentState.IsAuthenticated && !string.IsNullOrEmpty(_storedPassword))
+            {
+                var passwordBytes = System.Text.Encoding.UTF8.GetBytes(_storedPassword);
+                var encodedPassword = Convert.ToBase64String(passwordBytes);
+                await _jsRuntime.InvokeVoidAsync("localStorage.setItem", PasswordStorageKey, encodedPassword);
+            }
+            else
+            {
+                // Clear password if not authenticated
+                await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", PasswordStorageKey);
+            }
         }
         catch (Exception)
         {
@@ -67,11 +116,21 @@ public class AuthenticationService : IAuthenticationService
         try
         {
             await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", StorageKey);
+            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", PasswordStorageKey);
         }
         catch (Exception)
         {
             // If there's an error clearing storage, continue
         }
+    }
+
+    /// <summary>
+    /// Ensures the authentication service is initialized and ready to use.
+    /// This should be called during app startup to restore authentication state from localStorage.
+    /// </summary>
+    public async Task EnsureInitializedAsync()
+    {
+        await InitializeAsync();
     }
 
     public async Task<LoginResponse> LoginAsync(string password)
@@ -127,7 +186,7 @@ public class AuthenticationService : IAuthenticationService
     {
         _currentState = AuthenticationState.Unauthenticated;
         _storedPassword = null; // Clear stored password
-        await SaveStateAsync();
+        await ClearStorageAsync(); // Clear both state and password from storage
         AuthenticationStateChanged?.Invoke(_currentState);
     }
 

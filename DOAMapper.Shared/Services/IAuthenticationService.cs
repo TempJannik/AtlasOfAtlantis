@@ -10,5 +10,8 @@ public interface IAuthenticationService
     Task<bool> IsAuthenticatedAsync();
     Task<bool> IsAdminAsync();
     Task<UserRole> GetUserRoleAsync();
+    Task EnsureInitializedAsync();
+    string GetAdminPassword();
+    string GetUserPassword();
     event Action<AuthenticationState>? AuthenticationStateChanged;
 }
