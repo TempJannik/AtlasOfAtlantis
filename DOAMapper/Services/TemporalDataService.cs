@@ -137,33 +137,36 @@ public class TemporalDataService : ITemporalDataService
             }
         }
 
-        // Check for conflicts with existing tiles (both active and inactive)
+        // Check for conflicts with existing ACTIVE tiles only
+        // Note: We exclude coordinates that we just deactivated in the modified tiles step
         var tileCoordinates = trackedTiles.Select(t => new { t.X, t.Y }).ToHashSet();
+        var deactivatedTileCoordinates = changes.Modified.Select(t => new { t.X, t.Y }).ToHashSet();
 
-        // Get all existing tiles first, then filter in memory
-        var allExistingTiles = await _context.Tiles
+        // Get existing active tiles only, excluding those we just deactivated
+        var existingActiveTileCoordinates = await _context.Tiles
+            .Where(t => t.IsActive)
             .Select(t => new { t.X, t.Y })
             .ToListAsync();
 
-        var existingTileCoordinates = allExistingTiles
-            .Where(t => tileCoordinates.Contains(new { t.X, t.Y }))
+        var conflictingTileCoordinates = existingActiveTileCoordinates
+            .Where(t => tileCoordinates.Contains(new { t.X, t.Y }) && !deactivatedTileCoordinates.Contains(new { t.X, t.Y }))
             .ToList();
 
-        if (existingTileCoordinates.Any())
+        if (conflictingTileCoordinates.Any())
         {
-            _logger.LogError("Found {Count} tile coordinates that already exist in database: {ExistingKeys}",
-                existingTileCoordinates.Count,
-                string.Join(", ", existingTileCoordinates.Select(t => $"{t.X},{t.Y}")));
+            _logger.LogError("Found {Count} tile coordinates that already exist as ACTIVE in database: {ExistingKeys}",
+                conflictingTileCoordinates.Count,
+                string.Join(", ", conflictingTileCoordinates.Select(t => $"{t.X},{t.Y}")));
 
-            // Remove tiles that already exist in the database
+            // Remove tiles that already exist as active in the database
             var conflictingTiles = trackedTiles
-                .Where(t => existingTileCoordinates.Any(existing => existing.X == t.X && existing.Y == t.Y))
+                .Where(t => conflictingTileCoordinates.Any(existing => existing.X == t.X && existing.Y == t.Y))
                 .ToList();
 
             foreach (var conflictingTile in conflictingTiles)
             {
                 _context.Entry(conflictingTile).State = EntityState.Detached;
-                _logger.LogWarning("Removed tile with existing coordinates ({X},{Y}) from change tracker", conflictingTile.X, conflictingTile.Y);
+                _logger.LogWarning("Removed tile with existing ACTIVE coordinates ({X},{Y}) from change tracker", conflictingTile.X, conflictingTile.Y);
             }
         }
 
@@ -358,32 +361,35 @@ public class TemporalDataService : ITemporalDataService
             }
         }
 
-        // Check for conflicts with existing players (both active and inactive)
+        // Check for conflicts with existing ACTIVE players only
+        // Note: We exclude PlayerIds that we just deactivated in the modified players step
         var playerIdsToAdd = trackedPlayers.Select(p => p.PlayerId).ToList();
-        var existingPlayerIds = await _context.Players
-            .Where(p => playerIdsToAdd.Contains(p.PlayerId))
+        var deactivatedPlayerIds = changes.Modified.Select(p => p.PlayerId).ToHashSet();
+
+        var existingActivePlayerIds = await _context.Players
+            .Where(p => p.IsActive && playerIdsToAdd.Contains(p.PlayerId) && !deactivatedPlayerIds.Contains(p.PlayerId))
             .Select(p => p.PlayerId)
             .ToListAsync();
 
-        if (existingPlayerIds.Any())
+        if (existingActivePlayerIds.Any())
         {
-            _logger.LogError("Found {Count} PlayerIds that already exist in database: {ExistingIds}",
-                existingPlayerIds.Count,
-                string.Join(", ", existingPlayerIds));
+            _logger.LogError("Found {Count} PlayerIds that already exist as ACTIVE in database: {ExistingIds}",
+                existingActivePlayerIds.Count,
+                string.Join(", ", existingActivePlayerIds));
 
-            // Remove players that already exist in the database
+            // Remove players that already exist as active in the database
             var conflictingPlayers = trackedPlayers
-                .Where(p => existingPlayerIds.Contains(p.PlayerId))
+                .Where(p => existingActivePlayerIds.Contains(p.PlayerId))
                 .ToList();
 
             foreach (var conflictingPlayer in conflictingPlayers)
             {
                 _context.Entry(conflictingPlayer).State = EntityState.Detached;
-                _logger.LogWarning("Removed player with existing ID {PlayerId} from change tracker", conflictingPlayer.PlayerId);
+                _logger.LogWarning("Removed player with existing ACTIVE ID {PlayerId} from change tracker", conflictingPlayer.PlayerId);
             }
         }
 
-        var finalPlayerCount = trackedPlayers.Count - duplicateGroups.Sum(g => g.Count() - 1) - existingPlayerIds.Count;
+        var finalPlayerCount = trackedPlayers.Count - duplicateGroups.Sum(g => g.Count() - 1) - existingActivePlayerIds.Count;
         _logger.LogInformation("About to save {Count} players to database", finalPlayerCount);
 
         try
@@ -529,32 +535,35 @@ public class TemporalDataService : ITemporalDataService
             }
         }
 
-        // Check for conflicts with existing alliances (both active and inactive)
+        // Check for conflicts with existing ACTIVE alliances only
+        // Note: We exclude AllianceIds that we just deactivated in the modified alliances step
         var allianceIdsToAdd = trackedAlliances.Select(a => a.AllianceId).ToList();
-        var existingAllianceIds = await _context.Alliances
-            .Where(a => allianceIdsToAdd.Contains(a.AllianceId))
+        var deactivatedAllianceIds = changes.Modified.Select(a => a.AllianceId).ToHashSet();
+
+        var existingActiveAllianceIds = await _context.Alliances
+            .Where(a => a.IsActive && allianceIdsToAdd.Contains(a.AllianceId) && !deactivatedAllianceIds.Contains(a.AllianceId))
             .Select(a => a.AllianceId)
             .ToListAsync();
 
-        if (existingAllianceIds.Any())
+        if (existingActiveAllianceIds.Any())
         {
-            _logger.LogError("Found {Count} AllianceIds that already exist in database: {ExistingIds}",
-                existingAllianceIds.Count,
-                string.Join(", ", existingAllianceIds));
+            _logger.LogError("Found {Count} AllianceIds that already exist as ACTIVE in database: {ExistingIds}",
+                existingActiveAllianceIds.Count,
+                string.Join(", ", existingActiveAllianceIds));
 
-            // Remove alliances that already exist in the database
+            // Remove alliances that already exist as active in the database
             var conflictingAlliances = trackedAlliances
-                .Where(a => existingAllianceIds.Contains(a.AllianceId))
+                .Where(a => existingActiveAllianceIds.Contains(a.AllianceId))
                 .ToList();
 
             foreach (var conflictingAlliance in conflictingAlliances)
             {
                 _context.Entry(conflictingAlliance).State = EntityState.Detached;
-                _logger.LogWarning("Removed alliance with existing ID {AllianceId} from change tracker", conflictingAlliance.AllianceId);
+                _logger.LogWarning("Removed alliance with existing ACTIVE ID {AllianceId} from change tracker", conflictingAlliance.AllianceId);
             }
         }
 
-        var finalAllianceCount = trackedAlliances.Count - duplicateGroups.Sum(g => g.Count() - 1) - existingAllianceIds.Count;
+        var finalAllianceCount = trackedAlliances.Count - duplicateGroups.Sum(g => g.Count() - 1) - existingActiveAllianceIds.Count;
         _logger.LogInformation("About to save {Count} alliances to database", finalAllianceCount);
 
         try

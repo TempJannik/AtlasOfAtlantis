@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DOAMapper.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250711174623_EnhanceImportSessionProgress")]
-    partial class EnhanceImportSessionProgress
+    [Migration("20250712175457_InitialCreateCleanTemporal")]
+    partial class InitialCreateCleanTemporal
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -281,60 +281,24 @@ namespace DOAMapper.Migrations
 
             modelBuilder.Entity("DOAMapper.Models.Entities.Player", b =>
                 {
-                    b.HasOne("DOAMapper.Models.Entities.Alliance", "Alliance")
-                        .WithMany("Members")
-                        .HasForeignKey("AllianceId")
-                        .HasPrincipalKey("AllianceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("DOAMapper.Models.Entities.ImportSession", "ImportSession")
                         .WithMany()
                         .HasForeignKey("ImportSessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Alliance");
 
                     b.Navigation("ImportSession");
                 });
 
             modelBuilder.Entity("DOAMapper.Models.Entities.Tile", b =>
                 {
-                    b.HasOne("DOAMapper.Models.Entities.Alliance", "Alliance")
-                        .WithMany("Tiles")
-                        .HasForeignKey("AllianceId")
-                        .HasPrincipalKey("AllianceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("DOAMapper.Models.Entities.ImportSession", "ImportSession")
                         .WithMany()
                         .HasForeignKey("ImportSessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DOAMapper.Models.Entities.Player", "Player")
-                        .WithMany("Tiles")
-                        .HasForeignKey("PlayerId")
-                        .HasPrincipalKey("PlayerId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Alliance");
-
                     b.Navigation("ImportSession");
-
-                    b.Navigation("Player");
-                });
-
-            modelBuilder.Entity("DOAMapper.Models.Entities.Alliance", b =>
-                {
-                    b.Navigation("Members");
-
-                    b.Navigation("Tiles");
-                });
-
-            modelBuilder.Entity("DOAMapper.Models.Entities.Player", b =>
-                {
-                    b.Navigation("Tiles");
                 });
 #pragma warning restore 612, 618
         }

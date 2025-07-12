@@ -41,6 +41,9 @@ public class ApplicationDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Disable foreign key constraints for temporal entities to support multiple records with same IDs
+        modelBuilder.Model.SetDefaultSchema(null);
         
         ConfigureImportSession(modelBuilder);
         ConfigurePlayer(modelBuilder);
@@ -75,24 +78,22 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.CityName).HasMaxLength(100).IsRequired();
             entity.Property(e => e.AllianceId).HasMaxLength(50);
-            
-            // Indexes for performance
+
+            // Indexes for performance (non-unique to support temporal versioning)
             entity.HasIndex(e => e.PlayerId);
             entity.HasIndex(e => e.Name);
             entity.HasIndex(e => e.AllianceId);
             entity.HasIndex(e => new { e.PlayerId, e.ValidFrom });
             entity.HasIndex(e => new { e.IsActive, e.ValidFrom });
-            
+
             // Relationships
             entity.HasOne(e => e.ImportSession)
                   .WithMany()
                   .HasForeignKey(e => e.ImportSessionId);
-                  
-            entity.HasOne(e => e.Alliance)
-                  .WithMany(a => a.Members)
-                  .HasForeignKey(e => e.AllianceId)
-                  .HasPrincipalKey(a => a.AllianceId)
-                  .OnDelete(DeleteBehavior.SetNull);
+
+            // Ignore navigation properties to avoid FK constraints for temporal versioning
+            entity.Ignore(e => e.Alliance);
+            entity.Ignore(e => e.Tiles);
         });
     }
     
@@ -115,6 +116,10 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.ImportSession)
                   .WithMany()
                   .HasForeignKey(e => e.ImportSessionId);
+
+            // Ignore navigation properties to avoid FK constraints for temporal versioning
+            entity.Ignore(e => e.Members);
+            entity.Ignore(e => e.Tiles);
         });
     }
     
@@ -140,17 +145,9 @@ public class ApplicationDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.ImportSessionId);
                   
-            entity.HasOne(e => e.Player)
-                  .WithMany(p => p.Tiles)
-                  .HasForeignKey(e => e.PlayerId)
-                  .HasPrincipalKey(p => p.PlayerId)
-                  .OnDelete(DeleteBehavior.SetNull);
-
-            entity.HasOne(e => e.Alliance)
-                  .WithMany(a => a.Tiles)
-                  .HasForeignKey(e => e.AllianceId)
-                  .HasPrincipalKey(a => a.AllianceId)
-                  .OnDelete(DeleteBehavior.SetNull);
+            // Ignore navigation properties to avoid FK constraints for temporal versioning
+            entity.Ignore(e => e.Player);
+            entity.Ignore(e => e.Alliance);
         });
     }
 }

@@ -1,0 +1,37 @@
+﻿{
+  "tiles": [
+    {
+      "x": 100,
+      "y": 100,
+      "type": "city",
+      "level": 5,
+      "playerId": 12345,
+      "allianceId": "TEST001"
+    }
+  ],
+  "players": [
+    {
+      "playerId": "12345",
+      "name": "[990000]Španìaŕd",
+      "city": "1-й город",
+      "might": "1000000"
+    }
+  ],
+  "alliances": [
+    {
+      "allianceId": "TEST001",
+      "name": "Дракон Альянс"
+    }
+  ],
+  "allianceBases": [
+    {
+      "allianceId": "TEST001",
+      "name": "Дракон Альянс",
+      "overlord": "Španìaŕd",
+      "power": "5000000",
+      "fortressLevel": 10,
+      "fortressX": 100,
+      "fortressY": 100
+    }
+  ]
+}

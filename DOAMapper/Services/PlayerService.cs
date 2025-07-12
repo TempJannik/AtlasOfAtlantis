@@ -43,7 +43,6 @@ public class PlayerService : IPlayerService
         var totalCount = await playersQuery.CountAsync();
 
         var players = await playersQuery
-            .Include(p => p.Alliance)
             .OrderByDescending(p => p.Might)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -76,8 +75,6 @@ public class PlayerService : IPlayerService
         _logger.LogInformation("Getting player {PlayerId} for date {Date}", playerId, utcDate);
 
         var player = await _context.Players
-            .Include(p => p.Alliance)
-            .Include(p => p.Tiles.Where(t => t.IsActive && t.ValidFrom <= utcDate && (t.ValidTo == null || t.ValidTo > utcDate)))
             .FirstOrDefaultAsync(p => p.PlayerId == playerId &&
                                    p.IsActive &&
                                    p.ValidFrom <= utcDate &&
@@ -105,8 +102,6 @@ public class PlayerService : IPlayerService
         _logger.LogInformation("Getting tiles for player {PlayerId} for date {Date}", playerId, utcDate);
 
         var tiles = await _context.Tiles
-            .Include(t => t.Player)
-            .Include(t => t.Alliance)
             .Where(t => t.PlayerId == playerId &&
                        t.IsActive &&
                        t.ValidFrom <= utcDate &&
@@ -134,7 +129,6 @@ public class PlayerService : IPlayerService
         _logger.LogInformation("Getting history for player {PlayerId}", playerId);
 
         var playerHistory = await _context.Players
-            .Include(p => p.Alliance)
             .Where(p => p.PlayerId == playerId)
             .OrderByDescending(p => p.ValidFrom)
             .ToListAsync();

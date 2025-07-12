@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DOAMapper.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialCreateCleanTemporal : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -21,9 +21,17 @@ namespace DOAMapper.Migrations
                     Status = table.Column<string>(type: "TEXT", nullable: false),
                     RecordsProcessed = table.Column<int>(type: "INTEGER", nullable: false),
                     RecordsChanged = table.Column<int>(type: "INTEGER", nullable: false),
+                    ProgressPercentage = table.Column<int>(type: "INTEGER", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     CompletedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    ErrorMessage = table.Column<string>(type: "TEXT", nullable: true)
+                    ErrorMessage = table.Column<string>(type: "TEXT", nullable: true),
+                    CurrentPhase = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    StatusMessage = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
+                    TotalPhases = table.Column<int>(type: "INTEGER", nullable: false),
+                    CurrentPhaseNumber = table.Column<int>(type: "INTEGER", nullable: false),
+                    CurrentPhaseProgressPercentage = table.Column<int>(type: "INTEGER", nullable: false),
+                    LastProgressUpdate = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    PhaseDetailsJson = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -50,7 +58,6 @@ namespace DOAMapper.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Alliances", x => x.Id);
-                    table.UniqueConstraint("AK_Alliances_AllianceId", x => x.AllianceId);
                     table.ForeignKey(
                         name: "FK_Alliances_ImportSessions_ImportSessionId",
                         column: x => x.ImportSessionId,
@@ -77,12 +84,6 @@ namespace DOAMapper.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Players", x => x.Id);
-                    table.UniqueConstraint("AK_Players_PlayerId", x => x.PlayerId);
-                    table.ForeignKey(
-                        name: "FK_Players_Alliances_AllianceId",
-                        column: x => x.AllianceId,
-                        principalTable: "Alliances",
-                        principalColumn: "AllianceId");
                     table.ForeignKey(
                         name: "FK_Players_ImportSessions_ImportSessionId",
                         column: x => x.ImportSessionId,
@@ -111,21 +112,11 @@ namespace DOAMapper.Migrations
                 {
                     table.PrimaryKey("PK_Tiles", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Tiles_Alliances_AllianceId",
-                        column: x => x.AllianceId,
-                        principalTable: "Alliances",
-                        principalColumn: "AllianceId");
-                    table.ForeignKey(
                         name: "FK_Tiles_ImportSessions_ImportSessionId",
                         column: x => x.ImportSessionId,
                         principalTable: "ImportSessions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Tiles_Players_PlayerId",
-                        column: x => x.PlayerId,
-                        principalTable: "Players",
-                        principalColumn: "PlayerId");
                 });
 
             migrationBuilder.CreateIndex(
@@ -154,9 +145,19 @@ namespace DOAMapper.Migrations
                 column: "Name");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ImportSessions_CreatedAt",
+                table: "ImportSessions",
+                column: "CreatedAt");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ImportSessions_ImportDate",
                 table: "ImportSessions",
                 column: "ImportDate");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ImportSessions_Status",
+                table: "ImportSessions",
+                column: "Status");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Players_AllianceId",
@@ -228,13 +229,13 @@ namespace DOAMapper.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Tiles");
+                name: "Alliances");
 
             migrationBuilder.DropTable(
                 name: "Players");
 
             migrationBuilder.DropTable(
-                name: "Alliances");
+                name: "Tiles");
 
             migrationBuilder.DropTable(
                 name: "ImportSessions");

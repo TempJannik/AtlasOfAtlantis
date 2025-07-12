@@ -33,7 +33,6 @@ public class AllianceService : IAllianceService
         var totalCount = await alliancesQuery.CountAsync();
 
         var alliances = await alliancesQuery
-            .Include(a => a.Members.Where(m => m.IsActive && m.ValidFrom <= utcDate && (m.ValidTo == null || m.ValidTo > utcDate)))
             .OrderByDescending(a => a.Power)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -81,7 +80,6 @@ public class AllianceService : IAllianceService
         var totalCount = await alliancesQuery.CountAsync();
 
         var alliances = await alliancesQuery
-            .Include(a => a.Members.Where(m => m.IsActive && m.ValidFrom <= utcDate && (m.ValidTo == null || m.ValidTo > utcDate)))
             .OrderByDescending(a => a.Power)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -144,7 +142,6 @@ public class AllianceService : IAllianceService
             allianceId, utcDate, page, pageSize);
 
         var membersQuery = _context.Players
-            .Include(p => p.Alliance)
             .Where(p => p.AllianceId == allianceId &&
                        p.IsActive &&
                        p.ValidFrom <= utcDate &&
@@ -186,8 +183,6 @@ public class AllianceService : IAllianceService
         _logger.LogInformation("Getting tiles for alliance {AllianceId} for date {Date}", allianceId, utcDate);
 
         var tiles = await _context.Tiles
-            .Include(t => t.Player)
-            .Include(t => t.Alliance)
             .Where(t => t.AllianceId == allianceId &&
                        t.IsActive &&
                        t.ValidFrom <= utcDate &&

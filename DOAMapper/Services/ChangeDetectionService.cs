@@ -1,5 +1,6 @@
 ﻿using DOAMapper.Models.Entities;
 using DOAMapper.Services.Interfaces;
+using System.Collections.Concurrent;
 
 namespace DOAMapper.Services;
 
@@ -12,44 +13,85 @@ public class ChangeDetectionService : IChangeDetectionService
         _logger = logger;
     }
 
+    // Optimized tile key structure to avoid string allocations
+    private readonly struct TileKey : IEquatable<TileKey>
+    {
+        public readonly int X;
+        public readonly int Y;
+
+        public TileKey(int x, int y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        public bool Equals(TileKey other) => X == other.X && Y == other.Y;
+        public override bool Equals(object? obj) => obj is TileKey other && Equals(other);
+        public override int GetHashCode() => HashCode.Combine(X, Y);
+    }
+
     public async Task<ChangeSet<Tile>> DetectTileChangesAsync(List<Tile> incoming, List<Tile> current)
     {
-        _logger.LogInformation("Detecting tile changes. Incoming: {IncomingCount}, Current: {CurrentCount}", 
+        _logger.LogInformation("Detecting tile changes. Incoming: {IncomingCount}, Current: {CurrentCount}",
             incoming.Count, current.Count);
-            
+
         var changeSet = new ChangeSet<Tile>();
-        
-        // Create dictionaries for efficient lookup
-        var currentDict = current.ToDictionary(t => GetTileKey(t));
-        var incomingDict = incoming.ToDictionary(t => GetTileKey(t));
-        
-        // Find added tiles
-        changeSet.Added = incoming
-            .Where(t => !currentDict.ContainsKey(GetTileKey(t)))
-            .ToList();
-            
-        // Find removed tiles
-        changeSet.Removed = current
-            .Where(t => !incomingDict.ContainsKey(GetTileKey(t)))
-            .ToList();
-            
-        // Find modified tiles
-        foreach (var kvp in incomingDict)
+
+        // Pre-compute tile keys to avoid repeated string operations
+        var currentTileMap = new Dictionary<TileKey, Tile>(current.Count);
+        var incomingTileMap = new Dictionary<TileKey, Tile>(incoming.Count);
+
+        // Build current tiles map
+        foreach (var tile in current)
         {
-            if (currentDict.TryGetValue(kvp.Key, out var currentTile))
+            var key = new TileKey(tile.X, tile.Y);
+            currentTileMap[key] = tile;
+        }
+
+        // Build incoming tiles map and find added/modified tiles in one pass
+        var addedTiles = new List<Tile>();
+        var modifiedTiles = new List<Tile>();
+        var changes = new List<(Tile Old, Tile New)>();
+
+        foreach (var incomingTile in incoming)
+        {
+            var key = new TileKey(incomingTile.X, incomingTile.Y);
+            incomingTileMap[key] = incomingTile;
+
+            if (currentTileMap.TryGetValue(key, out var currentTile))
             {
-                var incomingTile = kvp.Value;
+                // Check if modified
                 if (!TilesEqual(currentTile, incomingTile))
                 {
-                    changeSet.Modified.Add(incomingTile);
-                    changeSet.Changes.Add((currentTile, incomingTile));
+                    modifiedTiles.Add(incomingTile);
+                    changes.Add((currentTile, incomingTile));
                 }
             }
+            else
+            {
+                // New tile
+                addedTiles.Add(incomingTile);
+            }
         }
-        
+
+        // Find removed tiles
+        var removedTiles = new List<Tile>();
+        foreach (var kvp in currentTileMap)
+        {
+            if (!incomingTileMap.ContainsKey(kvp.Key))
+            {
+                removedTiles.Add(kvp.Value);
+            }
+        }
+
+        changeSet.Added = addedTiles;
+        changeSet.Modified = modifiedTiles;
+        changeSet.Removed = removedTiles;
+        changeSet.Changes = changes;
+
         _logger.LogInformation("Tile changes detected. Added: {Added}, Modified: {Modified}, Removed: {Removed}",
             changeSet.Added.Count, changeSet.Modified.Count, changeSet.Removed.Count);
-            
+
         return changeSet;
     }
 
@@ -60,49 +102,75 @@ public class ChangeDetectionService : IChangeDetectionService
             
         var changeSet = new ChangeSet<Player>();
         
-        // Handle duplicate player IDs by keeping the first occurrence
-        var currentDict = current.GroupBy(p => p.PlayerId).ToDictionary(g => g.Key, g => g.First());
-        var incomingDict = incoming.GroupBy(p => p.PlayerId).ToDictionary(g => g.Key, g => g.First());
+        // Use HashSet for faster lookups and pre-size collections
+        var currentPlayerMap = new Dictionary<string, Player>(current.Count);
+        var incomingPlayerIds = new HashSet<string>(incoming.Count);
 
-        // Log if duplicates were found
-        var currentDuplicates = current.GroupBy(p => p.PlayerId).Where(g => g.Count() > 1).Count();
-        var incomingDuplicates = incoming.GroupBy(p => p.PlayerId).Where(g => g.Count() > 1).Count();
+        // Build current players map and check for duplicates
+        var currentDuplicates = 0;
+        foreach (var player in current)
+        {
+            if (!currentPlayerMap.TryAdd(player.PlayerId, player))
+                currentDuplicates++;
+        }
 
+        // Process incoming players in one pass
+        var addedPlayers = new List<Player>();
+        var modifiedPlayers = new List<Player>();
+        var changes = new List<(Player Old, Player New)>();
+        var incomingDuplicates = 0;
+
+        foreach (var incomingPlayer in incoming)
+        {
+            if (!incomingPlayerIds.Add(incomingPlayer.PlayerId))
+            {
+                incomingDuplicates++;
+                continue; // Skip duplicates
+            }
+
+            if (currentPlayerMap.TryGetValue(incomingPlayer.PlayerId, out var currentPlayer))
+            {
+                // Check if modified
+                if (!PlayersEqual(currentPlayer, incomingPlayer))
+                {
+                    modifiedPlayers.Add(incomingPlayer);
+                    changes.Add((currentPlayer, incomingPlayer));
+                }
+            }
+            else
+            {
+                // New player
+                addedPlayers.Add(incomingPlayer);
+            }
+        }
+
+        // Find removed players
+        var removedPlayers = new List<Player>();
+        foreach (var kvp in currentPlayerMap)
+        {
+            if (!incomingPlayerIds.Contains(kvp.Key))
+            {
+                removedPlayers.Add(kvp.Value);
+            }
+        }
+
+        changeSet.Added = addedPlayers;
+        changeSet.Modified = modifiedPlayers;
+        changeSet.Removed = removedPlayers;
+        changeSet.Changes = changes;
+
+        // Log warnings for duplicates
         if (currentDuplicates > 0)
             _logger.LogWarning("Found {Count} duplicate player IDs in current data", currentDuplicates);
         if (incomingDuplicates > 0)
             _logger.LogWarning("Found {Count} duplicate player IDs in incoming data", incomingDuplicates);
-        
-        // Find added players
-        changeSet.Added = incoming
-            .Where(p => !currentDict.ContainsKey(p.PlayerId))
-            .ToList();
-            
-        // Find removed players
-        changeSet.Removed = current
-            .Where(p => !incomingDict.ContainsKey(p.PlayerId))
-            .ToList();
-            
-        // Find modified players
-        foreach (var kvp in incomingDict)
-        {
-            if (currentDict.TryGetValue(kvp.Key, out var currentPlayer))
-            {
-                var incomingPlayer = kvp.Value;
-                if (!PlayersEqual(currentPlayer, incomingPlayer))
-                {
-                    changeSet.Modified.Add(incomingPlayer);
-                    changeSet.Changes.Add((currentPlayer, incomingPlayer));
-                }
-            }
-        }
-        
-        _logger.LogInformation("?? Player changes detected. Added: {Added}, Modified: {Modified}, Removed: {Removed}",
+
+        _logger.LogInformation("Player changes detected. Added: {Added}, Modified: {Modified}, Removed: {Removed}",
             changeSet.Added.Count, changeSet.Modified.Count, changeSet.Removed.Count);
 
         if (changeSet.Removed.Any())
         {
-            _logger.LogInformation("??? Players to be removed: {RemovedPlayers}",
+            _logger.LogInformation("Players to be removed: {RemovedPlayers}",
                 string.Join(", ", changeSet.Removed.Select(p => $"{p.Name} (ID: {p.PlayerId})")));
         }
             
@@ -116,50 +184,58 @@ public class ChangeDetectionService : IChangeDetectionService
 
         var changeSet = new ChangeSet<Player>();
 
-        // Handle duplicate player IDs by keeping the first occurrence
-        var currentDict = current.GroupBy(p => p.PlayerId).ToDictionary(g => g.Key, g => g.First());
-        var incomingDict = incoming.GroupBy(p => p.PlayerId).ToDictionary(g => g.Key, g => g.First());
+        // Build optimized tile indexes for fast lookups
+        var currentTilesByPlayer = BuildPlayerTileIndex(currentTiles);
+        var incomingTilesByPlayer = BuildPlayerTileIndex(incomingTiles);
 
-        // Log if duplicates were found
-        var currentDuplicates = current.GroupBy(p => p.PlayerId).Where(g => g.Count() > 1).Count();
-        var incomingDuplicates = incoming.GroupBy(p => p.PlayerId).Where(g => g.Count() > 1).Count();
+        // Use HashSet for faster lookups and pre-size collections
+        var currentPlayerMap = new Dictionary<string, Player>(current.Count);
+        var incomingPlayerIds = new HashSet<string>(incoming.Count);
 
-        if (currentDuplicates > 0)
-            _logger.LogWarning("Found {Count} duplicate player IDs in current data", currentDuplicates);
-        if (incomingDuplicates > 0)
-            _logger.LogWarning("Found {Count} duplicate player IDs in incoming data", incomingDuplicates);
-
-        // Find added players
-        changeSet.Added = incoming
-            .Where(p => !currentDict.ContainsKey(p.PlayerId))
-            .ToList();
-
-        // Find removed players
-        changeSet.Removed = current
-            .Where(p => !incomingDict.ContainsKey(p.PlayerId))
-            .ToList();
-
-        // Find modified players (including city coordinate and wilderness changes)
-        foreach (var kvp in incomingDict)
+        // Build current players map and check for duplicates
+        var currentDuplicates = 0;
+        foreach (var player in current)
         {
-            if (currentDict.TryGetValue(kvp.Key, out var currentPlayer))
+            if (!currentPlayerMap.TryAdd(player.PlayerId, player))
+                currentDuplicates++;
+        }
+
+        // Process incoming players in one pass
+        var addedPlayers = new List<Player>();
+        var modifiedPlayers = new List<Player>();
+        var changes = new List<(Player Old, Player New)>();
+        var incomingDuplicates = 0;
+
+        foreach (var incomingPlayer in incoming)
+        {
+            if (!incomingPlayerIds.Add(incomingPlayer.PlayerId))
             {
-                var incomingPlayer = kvp.Value;
+                incomingDuplicates++;
+                continue; // Skip duplicates
+            }
+
+            if (currentPlayerMap.TryGetValue(incomingPlayer.PlayerId, out var currentPlayer))
+            {
+                // Check basic changes
                 var hasBasicChanges = !PlayersEqual(currentPlayer, incomingPlayer);
-                var hasCityCoordChanges = HasCityCoordinateChanged(currentPlayer.PlayerId, currentTiles, incomingTiles);
-                var wildernessChanges = GetWildernessOwnershipChanges(currentPlayer.PlayerId, currentTiles, incomingTiles);
-                var hasWildernessChanges = wildernessChanges.Gained.Any() || wildernessChanges.Lost.Any();
+
+                // Check city coordinate changes using indexed lookups
+                var hasCityCoordChanges = HasCityCoordinateChangedOptimized(currentPlayer.PlayerId, currentTilesByPlayer, incomingTilesByPlayer);
+
+                // Check wilderness changes using indexed lookups
+                var wildernessChangeResult = GetWildernessOwnershipChangesOptimized(currentPlayer.PlayerId, currentTilesByPlayer, incomingTilesByPlayer);
+                var hasWildernessChanges = wildernessChangeResult.Gained > 0 || wildernessChangeResult.Lost > 0;
 
                 if (hasBasicChanges || hasCityCoordChanges || hasWildernessChanges)
                 {
-                    changeSet.Modified.Add(incomingPlayer);
-                    changeSet.Changes.Add((currentPlayer, incomingPlayer));
+                    modifiedPlayers.Add(incomingPlayer);
+                    changes.Add((currentPlayer, incomingPlayer));
 
-                    // Log detailed change information
+                    // Log detailed change information (original logging style)
                     if (hasCityCoordChanges)
                     {
-                        var currentCoords = GetPlayerCityCoordinates(currentPlayer.PlayerId, currentTiles);
-                        var incomingCoords = GetPlayerCityCoordinates(incomingPlayer.PlayerId, incomingTiles);
+                        var currentCoords = GetPlayerCityCoordinatesOptimized(currentPlayer.PlayerId, currentTilesByPlayer);
+                        var incomingCoords = GetPlayerCityCoordinatesOptimized(incomingPlayer.PlayerId, incomingTilesByPlayer);
                         _logger.LogInformation("Player {PlayerName} (ID: {PlayerId}) city moved from ({OldX},{OldY}) to ({NewX},{NewY})",
                             currentPlayer.Name, currentPlayer.PlayerId, currentCoords.X, currentCoords.Y, incomingCoords.X, incomingCoords.Y);
                     }
@@ -167,11 +243,39 @@ public class ChangeDetectionService : IChangeDetectionService
                     if (hasWildernessChanges)
                     {
                         _logger.LogInformation("Player {PlayerName} (ID: {PlayerId}) wilderness changes: +{Gained} gained, -{Lost} lost",
-                            currentPlayer.Name, currentPlayer.PlayerId, wildernessChanges.Gained.Count, wildernessChanges.Lost.Count);
+                            currentPlayer.Name, currentPlayer.PlayerId, wildernessChangeResult.Gained, wildernessChangeResult.Lost);
                     }
                 }
             }
+            else
+            {
+                // New player
+                addedPlayers.Add(incomingPlayer);
+            }
         }
+
+        // Find removed players
+        var removedPlayers = new List<Player>();
+        foreach (var kvp in currentPlayerMap)
+        {
+            if (!incomingPlayerIds.Contains(kvp.Key))
+            {
+                removedPlayers.Add(kvp.Value);
+            }
+        }
+
+        changeSet.Added = addedPlayers;
+        changeSet.Modified = modifiedPlayers;
+        changeSet.Removed = removedPlayers;
+        changeSet.Changes = changes;
+
+        // Log warnings for duplicates (original logging style)
+        if (currentDuplicates > 0)
+            _logger.LogWarning("Found {Count} duplicate player IDs in current data", currentDuplicates);
+        if (incomingDuplicates > 0)
+            _logger.LogWarning("Found {Count} duplicate player IDs in incoming data", incomingDuplicates);
+
+
 
         _logger.LogInformation("Player changes detected with tile analysis. Added: {Added}, Modified: {Modified}, Removed: {Removed}",
             changeSet.Added.Count, changeSet.Modified.Count, changeSet.Removed.Count);
@@ -242,7 +346,7 @@ public class ChangeDetectionService : IChangeDetectionService
     }
 
     // Helper methods for entity comparison
-    private static string GetTileKey(Tile tile) => $"{tile.X},{tile.Y}";
+    private static string GetTileKey(Tile tile) => $"{tile.X},{tile.Y}"; // Legacy method for compatibility
 
     private static bool TilesEqual(Tile current, Tile incoming)
     {
@@ -307,6 +411,81 @@ public class ChangeDetectionService : IChangeDetectionService
 
         var gained = incomingWilderness.Where(t => !currentKeys.Contains(GetTileKey(t))).ToList();
         var lost = currentWilderness.Where(t => !incomingKeys.Contains(GetTileKey(t))).ToList();
+
+        return (gained, lost);
+    }
+
+    // Optimized helper methods for better performance with large datasets
+    private static Dictionary<string, List<Tile>> BuildPlayerTileIndex(List<Tile> tiles)
+    {
+        var index = new Dictionary<string, List<Tile>>();
+
+        foreach (var tile in tiles)
+        {
+            if (!string.IsNullOrEmpty(tile.PlayerId) && tile.PlayerId != "0")
+            {
+                if (!index.TryGetValue(tile.PlayerId, out var playerTiles))
+                {
+                    playerTiles = new List<Tile>();
+                    index[tile.PlayerId] = playerTiles;
+                }
+                playerTiles.Add(tile);
+            }
+        }
+
+        return index;
+    }
+
+    private static (int? X, int? Y) GetPlayerCityCoordinatesOptimized(string playerId, Dictionary<string, List<Tile>> tileIndex)
+    {
+        if (tileIndex.TryGetValue(playerId, out var playerTiles))
+        {
+            var cityTile = playerTiles.FirstOrDefault(t => t.Type == "City");
+            return cityTile != null ? (cityTile.X, cityTile.Y) : (null, null);
+        }
+        return (null, null);
+    }
+
+    private static bool HasCityCoordinateChangedOptimized(string playerId, Dictionary<string, List<Tile>> currentTileIndex, Dictionary<string, List<Tile>> incomingTileIndex)
+    {
+        var currentCoords = GetPlayerCityCoordinatesOptimized(playerId, currentTileIndex);
+        var incomingCoords = GetPlayerCityCoordinatesOptimized(playerId, incomingTileIndex);
+
+        return currentCoords.X != incomingCoords.X || currentCoords.Y != incomingCoords.Y;
+    }
+
+    private static (int Gained, int Lost) GetWildernessOwnershipChangesOptimized(string playerId, Dictionary<string, List<Tile>> currentTileIndex, Dictionary<string, List<Tile>> incomingTileIndex)
+    {
+        var currentWildernessKeys = new HashSet<TileKey>();
+        var incomingWildernessKeys = new HashSet<TileKey>();
+
+        // Count current wilderness tiles
+        if (currentTileIndex.TryGetValue(playerId, out var currentPlayerTiles))
+        {
+            foreach (var tile in currentPlayerTiles)
+            {
+                if (IsWildernessTile(tile))
+                {
+                    currentWildernessKeys.Add(new TileKey(tile.X, tile.Y));
+                }
+            }
+        }
+
+        // Count incoming wilderness tiles
+        if (incomingTileIndex.TryGetValue(playerId, out var incomingPlayerTiles))
+        {
+            foreach (var tile in incomingPlayerTiles)
+            {
+                if (IsWildernessTile(tile))
+                {
+                    incomingWildernessKeys.Add(new TileKey(tile.X, tile.Y));
+                }
+            }
+        }
+
+        // Calculate gained and lost counts
+        var gained = incomingWildernessKeys.Count(key => !currentWildernessKeys.Contains(key));
+        var lost = currentWildernessKeys.Count(key => !incomingWildernessKeys.Contains(key));
 
         return (gained, lost);
     }

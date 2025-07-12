@@ -46,8 +46,6 @@ public class MapService : IMapService
         }
 
         var tiles = await _context.Tiles
-            .Include(t => t.Player)
-            .Include(t => t.Alliance)
             .Where(t => t.X >= minX && t.X <= maxX &&
                        t.Y >= minY && t.Y <= maxY &&
                        t.IsActive &&
@@ -76,11 +74,9 @@ public class MapService : IMapService
         _logger.LogInformation("Getting tile at ({X},{Y}) for date {Date}", x, y, date);
 
         var tile = await _context.Tiles
-            .Include(t => t.Player)
-            .Include(t => t.Alliance)
-            .FirstOrDefaultAsync(t => t.X == x && t.Y == y && 
-                                   t.IsActive && 
-                                   t.ValidFrom <= date && 
+            .FirstOrDefaultAsync(t => t.X == x && t.Y == y &&
+                                   t.IsActive &&
+                                   t.ValidFrom <= date &&
                                    (t.ValidTo == null || t.ValidTo > date));
 
         if (tile == null)
@@ -102,8 +98,6 @@ public class MapService : IMapService
         _logger.LogInformation("Getting history for tile at ({X},{Y})", x, y);
 
         var tileHistory = await _context.Tiles
-            .Include(t => t.Player)
-            .Include(t => t.Alliance)
             .Where(t => t.X == x && t.Y == y)
             .OrderByDescending(t => t.ValidFrom)
             .ToListAsync();
