@@ -7,77 +7,77 @@
 
 <PageTitle>@(Player?.Name ?? "Player Details") - AoA</PageTitle>
 
-<div class="player-details">
+<div class="dragon-container">
+    <div class="dragon-header">
+        <div class="dragon-logo">🐉</div>
+        <h1 class="dragon-title">Player Details</h1>
+        <p class="dragon-subtitle">Explore Player Information</p>
+    </div>
+
     @if (Player != null)
     {
-        <div class="player-header">
-            <div class="player-title">
-                <h1>@Player.Name</h1>
-                <p class="city-name">@Player.CityName</p>
+        <div class="dragon-content">
+            <div class="dragon-detail-header">
+                <div class="dragon-detail-title">
+                    <h2 class="dragon-item-name">⚔️ @Player.Name</h2>
+                    <p class="dragon-text-secondary">🏰 @Player.CityName</p>
+                </div>
+                <div class="dragon-detail-actions">
+                    <DateSelector @bind-SelectedDate="CurrentDate" AvailableDates="AvailableDates" />
+                    <button class="dragon-btn dragon-btn-primary" @onclick="ShowHistory">
+                        🕒 View History
+                    </button>
+                    <a href="/players" class="dragon-btn">← Back to Players</a>
+                </div>
             </div>
-            <div class="player-actions">
-                <DateSelector @bind-SelectedDate="CurrentDate" AvailableDates="AvailableDates" />
-                <button class="btn btn-outline-secondary" @onclick="ShowHistory">
-                    <i class="bi bi-clock-history"></i> View History
-                </button>
-            </div>
-        </div>
-        
-        <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
-        
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Player Stats</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="stat-item">
-                            <label>Player ID:</label>
-                            <span>@Player.PlayerId</span>
+
+            <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
+
+            <div class="dragon-detail-grid">
+                <div class="dragon-stats-card">
+                    <h3 class="dragon-card-title">⚔️ Player Stats</h3>
+                    <div class="dragon-stats-list">
+                        <div class="dragon-stat-item">
+                            <span class="dragon-stat-label">🆔 Player ID:</span>
+                            <span class="dragon-stat-value">@Player.PlayerId</span>
                         </div>
-                        <div class="stat-item">
-                            <label>Might:</label>
-                            <span class="might-value">@Player.Might.ToString("N0")</span>
+                        <div class="dragon-stat-item">
+                            <span class="dragon-stat-label">💪 Might:</span>
+                            <span class="dragon-stat-value dragon-might-value">@Player.Might.ToString("N0")</span>
                         </div>
                         @if (Player.Alliance != null)
                         {
-                            <div class="stat-item">
-                                <label>Alliance:</label>
+                            <div class="dragon-stat-item">
+                                <span class="dragon-stat-label">🛡️ Alliance:</span>
                                 <a href="/alliances/@Player.Alliance.AllianceId?date=@CurrentDate?.ToString("yyyy-MM-dd")"
-                                   class="alliance-link">
-                                    <i class="shield-icon">🛡️</i>
+                                   class="dragon-alliance-link">
                                     @Player.Alliance.Name
                                 </a>
                             </div>
                         }
                     </div>
                 </div>
-            </div>
-            
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Owned tiles: @(PlayerTiles?.Count ?? 0)</h5>
-                    </div>
-                    <div class="card-body">
+
+                <div class="dragon-tiles-card">
+                    <h3 class="dragon-card-title">🗺️ Owned Tiles: @(PlayerTiles?.Count ?? 0)</h3>
+                    <div class="dragon-tiles-content">
                         @if (PlayerTiles?.Any() == true)
                         {
-                            <div class="tile-summary">
+                            <div class="dragon-tile-summary">
                                 @foreach (var tileGroup in PlayerTiles.GroupBy(t => t.Type))
                                 {
-                                    <div class="tile-type-group">
-                                        <h6>@tileGroup.Key (@tileGroup.Count())</h6>
-                                        <div class="tile-list">
+                                    <div class="dragon-tile-group">
+                                        <h4 class="dragon-tile-type">🏞️ @tileGroup.Key (@tileGroup.Count())</h4>
+                                        <div class="dragon-tile-list">
                                             @foreach (var tile in tileGroup.Take(10))
                                             {
-                                                <span class="tile-badge" title="Level @tile.Level">
-                                                    (@tile.X, @tile.Y) | Level @tile.Level
+                                                <span class="dragon-tile-badge" title="Level @tile.Level">
+                                                    📍 (@tile.X, @tile.Y) | Lv.@tile.Level
                                                 </span>
                                             }
                                             @if (tileGroup.Count() > 10)
                                             {
-                                                <span class="text-muted">... and @(tileGroup.Count() - 10) more</span>
+                                                <span class="dragon-text-muted">... and @(tileGroup.Count() - 10) more</span>
                                             }
                                         </div>
                                     </div>
@@ -86,24 +86,22 @@
                         }
                         else
                         {
-                            <p class="text-muted">No tiles owned by this player.</p>
+                            <p class="dragon-text-muted">🚫 No tiles owned by this player.</p>
                         }
                     </div>
                 </div>
             </div>
+
+            @if (ShowPlayerHistory && PlayerHistory?.Any() == true)
+            {
+                <div class="dragon-history-card">
+                    <h3 class="dragon-card-title">📈 Player History</h3>
+                    <div class="dragon-history-content">
+                        <PlayerHistoryChart Data="PlayerHistory" />
+                    </div>
+                </div>
+            }
         </div>
-        
-        @if (ShowPlayerHistory && PlayerHistory?.Any() == true)
-        {
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h5>Player History</h5>
-                </div>
-                <div class="card-body">
-                    <PlayerHistoryChart Data="PlayerHistory" />
-                </div>
-            </div>
-        }
     }
     else if (IsLoading)
     {
@@ -111,8 +109,8 @@
     }
     else
     {
-        <div class="alert alert-warning">
-            Player not found for the selected date.
+        <div class="dragon-error">
+            ⚠️ Player not found for the selected date.
         </div>
     }
 </div>

@@ -7,84 +7,89 @@
 
 <PageTitle>@(Alliance?.Name ?? "Alliance Details") - AoA</PageTitle>
 
-<div class="alliance-details">
+<div class="dragon-container">
+    <div class="dragon-header">
+        <div class="dragon-logo">🐉</div>
+        <h1 class="dragon-title">Alliance Details</h1>
+        <p class="dragon-subtitle">Explore Alliance Information</p>
+    </div>
+
     @if (Alliance != null)
     {
-        <div class="alliance-header">
-            <div class="alliance-title">
-                <h1>@Alliance.Name</h1>
-                <p class="overlord">Led by @Alliance.OverlordName</p>
+        <div class="dragon-content">
+            <div class="dragon-detail-header">
+                <div class="dragon-detail-title">
+                    <h2 class="dragon-item-name">🛡️ @Alliance.Name</h2>
+                    <p class="dragon-text-secondary">👑 Led by @Alliance.OverlordName</p>
+                </div>
+                <div class="dragon-detail-actions">
+                    <DateSelector @bind-SelectedDate="CurrentDate" AvailableDates="AvailableDates" />
+                    <button class="dragon-btn dragon-btn-primary" @onclick="ShowHistory">
+                        🕒 View History
+                    </button>
+                    <a href="/alliances" class="dragon-btn">← Back to Alliances</a>
+                </div>
             </div>
-            <div class="alliance-actions">
-                <DateSelector @bind-SelectedDate="CurrentDate" AvailableDates="AvailableDates" />
-                <button class="btn btn-outline-secondary" @onclick="ShowHistory">
-                    <i class="bi bi-clock-history"></i> View History
-                </button>
-            </div>
-        </div>
-        
-        <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
-        
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Alliance Stats</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="stat-item">
-                            <label>Alliance ID:</label>
-                            <span>@Alliance.AllianceId</span>
+
+            <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
+
+            <div class="dragon-detail-grid">
+                <div class="dragon-stats-card">
+                    <h3 class="dragon-card-title">🛡️ Alliance Stats</h3>
+                    <div class="dragon-stats-list">
+                        <div class="dragon-stat-item">
+                            <span class="dragon-stat-label">🆔 Alliance ID:</span>
+                            <span class="dragon-stat-value">@Alliance.AllianceId</span>
                         </div>
-                        <div class="stat-item">
-                            <label>Power:</label>
-                            <span class="power-value">@Alliance.Power.ToString("N0")</span>
+                        <div class="dragon-stat-item">
+                            <span class="dragon-stat-label">⚡ Power:</span>
+                            <span class="dragon-stat-value dragon-power-value">@Alliance.Power.ToString("N0")</span>
                         </div>
-                        <div class="stat-item">
-                            <label>Members:</label>
-                            <span>@Alliance.MemberCount</span>
+                        <div class="dragon-stat-item">
+                            <span class="dragon-stat-label">👥 Members:</span>
+                            <span class="dragon-stat-value">@Alliance.MemberCount</span>
                         </div>
-                        <div class="stat-item">
-                            <label>Fortress:</label>
-                            <span>Level @Alliance.FortressLevel</span>
+                        <div class="dragon-stat-item">
+                            <span class="dragon-stat-label">🏰 Fortress:</span>
+                            <span class="dragon-stat-value">Level @Alliance.FortressLevel</span>
                         </div>
-                        <div class="stat-item">
-                            <label>Location:</label>
-                            <span>(@Alliance.FortressX, @Alliance.FortressY)</span>
+                        <div class="dragon-stat-item">
+                            <span class="dragon-stat-label">📍 Location:</span>
+                            <span class="dragon-stat-value">(@Alliance.FortressX, @Alliance.FortressY)</span>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5>Members: @(AllianceMembers?.TotalCount ?? 0)</h5>
-                        <button class="btn btn-sm btn-outline-primary" @onclick="LoadMembers" disabled="@IsLoadingMembers">
+
+                <div class="dragon-members-card">
+                    <div class="dragon-members-header">
+                        <h3 class="dragon-card-title">👥 Members: @(AllianceMembers?.TotalCount ?? 0)</h3>
+                        <button class="dragon-btn dragon-btn-primary" @onclick="LoadMembers" disabled="@IsLoadingMembers">
                             @if (IsLoadingMembers)
                             {
-                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                <span class="dragon-spinner-sm"></span>
                             }
-                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                            🔄 Refresh
                         </button>
                     </div>
-                    <div class="card-body">
+                    <div class="dragon-members-content">
                         @if (IsLoadingMembers)
                         {
                             <LoadingSpinner LoadingText="Loading members..." />
                         }
                         else if (AllianceMembers?.Items?.Any() == true)
                         {
-                            <div class="member-list">
+                            <div class="dragon-member-list">
                                 @foreach (var member in AllianceMembers.Items)
                                 {
-                                    <div class="member-item" @onclick="() => NavigateToPlayer(member.PlayerId)">
-                                        <div class="member-info">
-                                            <strong>@member.Name</strong>
-                                            <small class="text-muted d-block">@member.CityName</small>
-                                        </div>
-                                        <div class="member-might">
-                                            @member.Might.ToString("N0")
+                                    <div class="dragon-list-item dragon-member-item" @onclick="() => NavigateToPlayer(member.PlayerId)">
+                                        <div class="dragon-item-header">
+                                            <div class="dragon-member-info">
+                                                <span class="dragon-item-name">⚔️ @member.Name</span>
+                                                <small class="dragon-text-secondary">🏰 @member.CityName</small>
+                                            </div>
+                                            <div class="dragon-item-badge">
+                                                @member.Might.ToString("N0")
+                                            </div>
                                         </div>
                                     </div>
                                 }
@@ -95,38 +100,35 @@
                         }
                         else
                         {
-                            <p class="text-muted">No members found for this alliance.</p>
+                            <p class="dragon-text-muted">🚫 No members found for this alliance.</p>
                         }
                     </div>
                 </div>
             </div>
-        </div>
 
-        @if (ShowAllianceHistory && AllianceHistory?.Any() == true)
-        {
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h5>Alliance History</h5>
-                </div>
-                <div class="card-body">
-                    <div class="history-timeline">
-                        @foreach (var entry in AllianceHistory.OrderByDescending(h => h.ValidFrom))
-                        {
-                            <div class="timeline-item">
-                                <div class="timeline-date">
-                                    @entry.ValidFrom.ToString("MMM dd, yyyy")
-                                </div>
-                                <div class="timeline-content">
-                                    <div class="change-type badge bg-@GetChangeTypeBadgeColor(entry.ChangeType)">
-                                        @entry.ChangeType
+            @if (ShowAllianceHistory && AllianceHistory?.Any() == true)
+            {
+                <div class="dragon-history-card">
+                    <h3 class="dragon-card-title">📈 Alliance History</h3>
+                    <div class="dragon-history-content">
+                        <div class="dragon-history-timeline">
+                            @foreach (var entry in AllianceHistory.OrderByDescending(h => h.ValidFrom))
+                            {
+                                <div class="dragon-timeline-item">
+                                    <div class="dragon-timeline-date">
+                                        📅 @entry.ValidFrom.ToString("MMM dd, yyyy")
                                     </div>
-                                    <div class="alliance-data">
-                                        <strong>@entry.Data.Name</strong>
-                                        <br />
-                                        <small class="text-muted">
-                                            Power: @entry.Data.Power.ToString("N0") | 
-                                            Members: @entry.Data.MemberCount |
-                                            Fortress: Level @entry.Data.FortressLevel
+                                    <div class="dragon-timeline-content">
+                                        <div class="dragon-change-badge dragon-change-@entry.ChangeType.ToLower()">
+                                            @entry.ChangeType
+                                        </div>
+                                        <div class="dragon-alliance-data">
+                                            <strong>🛡️ @entry.Data.Name</strong>
+                                            <br />
+                                        <small class="dragon-text-muted">
+                                            ⚡ Power: @entry.Data.Power.ToString("N0") |
+                                            👥 Members: @entry.Data.MemberCount |
+                                            🏰 Fortress: Level @entry.Data.FortressLevel
                                         </small>
                                     </div>
                                 </div>
@@ -135,7 +137,8 @@
                     </div>
                 </div>
             </div>
-        }
+            }
+        </div>
     }
     else if (IsLoading)
     {
@@ -143,8 +146,8 @@
     }
     else
     {
-        <div class="alert alert-warning">
-            Alliance not found for the selected date.
+        <div class="dragon-error">
+            ⚠️ Alliance not found for the selected date.
         </div>
     }
 </div>

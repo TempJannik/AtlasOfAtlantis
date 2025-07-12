@@ -8,306 +8,66 @@
 
 <PageTitle>Login - AoA</PageTitle>
 
-<div class="login-container">
-    <div class="login-card">
-        <div class="login-header">
-            <h2>Atlas of Atlantis</h2>
-            <p class="text-muted">Dragons of Atlantis Map Tracker</p>
+<div class="dragon-login-container">
+    <div class="dragon-login-card">
+        <div class="dragon-login-header">
+            <div class="dragon-logo">🐉</div>
+            <h2 class="dragon-title">Dragon Realm Explorer</h2>
+            <p class="dragon-subtitle">Navigate the Ancient Territories</p>
         </div>
 
-        <div class="login-form">
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" 
-                       class="form-control @(HasError ? "is-invalid" : "")" 
-                       id="password" 
-                       @bind="Password" 
+        <div class="dragon-login-form">
+            <div class="dragon-form-group">
+                <label for="password" class="dragon-form-label">🔐 Password</label>
+                <input type="password"
+                       class="dragon-input @(HasError ? "dragon-input-error" : "")"
+                       id="password"
+                       @bind="Password"
                        @onkeypress="OnKeyPress"
                        placeholder="Enter password"
                        disabled="@IsLoading" />
                 @if (HasError)
                 {
-                    <div class="invalid-feedback">
+                    <div class="dragon-error-message">
                         @ErrorMessage
                     </div>
                 }
             </div>
 
-            <div class="d-grid">
-                <button type="button" 
-                        class="btn btn-primary" 
+            <div class="dragon-form-actions">
+                <button type="button"
+                        class="dragon-btn dragon-btn-primary dragon-btn-full"
                         @onclick="HandleLogin"
                         disabled="@IsLoading">
                     @if (IsLoading)
                     {
-                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span class="dragon-spinner-sm"></span>
                         <span>Logging in...</span>
                     }
                     else
                     {
-                        <span>Login</span>
+                        <span>🚀 Enter Realm</span>
                     }
                 </button>
             </div>
 
             @if (!string.IsNullOrEmpty(SuccessMessage))
             {
-                <div class="alert alert-success mt-3" role="alert">
+                <div class="dragon-success">
                     @SuccessMessage
                 </div>
             }
         </div>
 
-        <div class="login-footer">
-            <small class="text-muted">
-                Enter your password to access the application
+        <div class="dragon-login-footer">
+            <small class="dragon-text-muted">
+                🗝️ Enter your password to access the ancient territories
             </small>
         </div>
     </div>
 </div>
 
-<style>
-    .login-container {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, var(--doa-bg-primary) 0%, var(--doa-bg-secondary) 100%);
-        padding: var(--doa-space-5);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .login-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background:
-            radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
-        animation: backgroundShift 20s ease-in-out infinite;
-    }
-
-    @@keyframes backgroundShift {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.8; }
-    }
-
-    .login-card {
-        background: linear-gradient(135deg, var(--doa-bg-surface) 0%, var(--doa-bg-elevated) 100%);
-        border: 1px solid var(--doa-border-primary);
-        border-radius: var(--doa-radius-2xl);
-        box-shadow: var(--doa-shadow-2xl);
-        padding: var(--doa-space-10);
-        width: 100%;
-        max-width: 450px;
-        position: relative;
-        overflow: hidden;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-    }
-
-    .login-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, var(--doa-gold-600), var(--doa-secondary-600), var(--doa-gold-600));
-        animation: shimmerTop 3s ease-in-out infinite;
-    }
-
-    @@keyframes shimmerTop {
-        0%, 100% {
-            background: linear-gradient(90deg, var(--doa-gold-600), var(--doa-secondary-600), var(--doa-gold-600));
-        }
-        50% {
-            background: linear-gradient(90deg, var(--doa-secondary-600), var(--doa-gold-600), var(--doa-secondary-600));
-        }
-    }
-
-    .login-header {
-        text-align: center;
-        margin-bottom: var(--doa-space-8);
-        position: relative;
-    }
-
-    .login-header h2 {
-        background: linear-gradient(135deg, var(--doa-gold-400), var(--doa-gold-600));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: var(--doa-space-2);
-        font-weight: var(--doa-font-bold);
-        font-size: var(--doa-text-3xl);
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        position: relative;
-    }
-
-    .login-header h2::before {
-        content: '🏰';
-        position: absolute;
-        left: -40px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: var(--doa-text-2xl);
-        filter: sepia(1) hue-rotate(30deg) saturate(1.5);
-    }
-
-    .login-header h2::after {
-        content: '🐉';
-        position: absolute;
-        right: -40px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: var(--doa-text-2xl);
-        filter: sepia(1) hue-rotate(270deg) saturate(1.5);
-    }
-
-    .login-header .text-muted {
-        color: var(--doa-text-tertiary);
-        font-style: italic;
-        font-weight: var(--doa-font-medium);
-    }
-
-    .login-form {
-        margin-bottom: var(--doa-space-6);
-    }
-
-    .login-footer {
-        text-align: center;
-        color: var(--doa-text-tertiary);
-        font-size: var(--doa-text-sm);
-    }
-
-    .form-control {
-        background: linear-gradient(135deg, var(--doa-bg-surface) 0%, var(--doa-bg-elevated) 100%);
-        border: 1px solid var(--doa-border-primary);
-        color: var(--doa-text-primary);
-        border-radius: var(--doa-radius-lg);
-        padding: var(--doa-space-4);
-        font-weight: var(--doa-font-medium);
-        transition: var(--doa-transition-base);
-    }
-
-    .form-control:focus {
-        border-color: var(--doa-border-focus);
-        box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25), 0 0 20px rgba(139, 92, 246, 0.1);
-        background: linear-gradient(135deg, var(--doa-bg-elevated) 0%, var(--doa-bg-surface) 100%);
-        transform: translateY(-1px);
-    }
-
-    .form-control::placeholder {
-        color: var(--doa-text-muted);
-        font-style: italic;
-    }
-
-    .form-label {
-        color: var(--doa-text-secondary);
-        font-weight: var(--doa-font-semibold);
-        font-size: var(--doa-text-sm);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: var(--doa-space-2);
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, var(--doa-secondary-600), var(--doa-secondary-700));
-        border-color: var(--doa-secondary-600);
-        color: var(--doa-text-primary);
-        font-weight: var(--doa-font-semibold);
-        padding: var(--doa-space-4);
-        border-radius: var(--doa-radius-lg);
-        transition: var(--doa-transition-base);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .btn-primary::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: var(--doa-transition-base);
-    }
-
-    .btn-primary:hover {
-        background: linear-gradient(135deg, var(--doa-secondary-500), var(--doa-secondary-600));
-        border-color: var(--doa-secondary-500);
-        transform: translateY(-2px);
-        box-shadow: var(--doa-shadow-lg), var(--doa-shadow-glow);
-    }
-
-    .btn-primary:hover::before {
-        left: 100%;
-    }
-
-    .btn-primary:active {
-        transform: translateY(0);
-        box-shadow: var(--doa-shadow-sm);
-    }
-
-    .btn-primary:disabled {
-        background: var(--doa-bg-secondary);
-        border-color: var(--doa-border-secondary);
-        color: var(--doa-text-muted);
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-    }
-
-    .spinner-border-sm {
-        color: var(--doa-text-primary);
-    }
-
-    .invalid-feedback {
-        color: var(--doa-danger-400);
-        font-weight: var(--doa-font-medium);
-        font-size: var(--doa-text-sm);
-        margin-top: var(--doa-space-1);
-    }
-
-    .is-invalid {
-        border-color: var(--doa-danger-500);
-        box-shadow: 0 0 0 0.2rem rgba(239, 68, 68, 0.25);
-        animation: shake 0.5s ease-in-out;
-    }
-
-    @@keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-2px); }
-        75% { transform: translateX(2px); }
-    }
-
-    /* Mobile responsive */
-    @@media (max-width: 768px) {
-        .login-container {
-            padding: var(--doa-space-4);
-        }
-
-        .login-card {
-            padding: var(--doa-space-6);
-            max-width: 100%;
-        }
-
-        .login-header h2::before,
-        .login-header h2::after {
-            display: none;
-        }
-
-        .login-header h2 {
-            font-size: var(--doa-text-2xl);
-        }
-    }
-</style>
+@* Dragon theme styles are loaded from server-doamapper.css *@
 
 @code {
     private string Password = string.Empty;
