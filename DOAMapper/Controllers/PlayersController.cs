@@ -113,7 +113,7 @@ public class PlayersController : ControllerBase
     }
 
     [HttpGet("{playerId}/history")]
-    [RequireAdmin]
+    [RequireAuth]
     public async Task<ActionResult<List<HistoryEntryDto<PlayerDto>>>> GetPlayerHistory(string playerId)
     {
         try

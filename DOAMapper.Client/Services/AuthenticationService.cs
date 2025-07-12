@@ -141,4 +141,9 @@ public class AuthenticationService : IAuthenticationService
     {
         return AdminPassword;
     }
+
+    public string GetUserPassword()
+    {
+        return UserPassword;
+    }
 }

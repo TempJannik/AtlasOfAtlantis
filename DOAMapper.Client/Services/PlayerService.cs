@@ -55,14 +55,21 @@ public class PlayerService : IPlayerService
 
     private async Task AddAuthHeadersAsync(HttpRequestMessage request)
     {
-        var isAdmin = await _authService.IsAdminAsync();
-        if (isAdmin)
+        var isAuthenticated = await _authService.IsAuthenticatedAsync();
+        if (isAuthenticated)
         {
-            // Get the admin password from the authentication service
+            var isAdmin = await _authService.IsAdminAsync();
             var authService = _authService as AuthenticationService;
             if (authService != null)
             {
-                request.Headers.Add("X-Admin-Password", authService.GetAdminPassword());
+                if (isAdmin)
+                {
+                    request.Headers.Add("X-Admin-Password", authService.GetAdminPassword());
+                }
+                else
+                {
+                    request.Headers.Add("X-User-Password", authService.GetUserPassword());
+                }
             }
         }
     }

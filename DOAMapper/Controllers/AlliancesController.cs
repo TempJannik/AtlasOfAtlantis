@@ -178,7 +178,7 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("{allianceId}/history")]
-    [RequireAdmin]
+    [RequireAuth]
     public async Task<ActionResult<List<HistoryEntryDto<AllianceDto>>>> GetAllianceHistory(string allianceId)
     {
         try
