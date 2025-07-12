@@ -1563,8 +1563,9 @@ public class ImportService : IImportService
     {
         _logger.LogInformation("Starting player alliance ID update phase");
 
-        // Get all active players for this import session
+        // Get all active players for this import session with explicit tracking enabled
         var players = await _context.Players
+            .AsTracking() // Explicitly enable tracking for these entities
             .Where(p => p.IsActive && p.ImportSessionId == sessionId)
             .ToListAsync();
 
@@ -1576,6 +1577,7 @@ public class ImportService : IImportService
         await ImportProgressReporter.ReportPhaseProgressAsync(progressCallback, "Player Alliance Updates", 0, players.Count, "Loading city tiles...");
 
         var cityTiles = await _context.Tiles
+            .AsNoTracking() // No need to track tiles since we're only reading them
             .Where(t => t.IsActive &&
                        t.Type == "City" &&
                        t.ImportSessionId == sessionId &&
@@ -1605,9 +1607,22 @@ public class ImportService : IImportService
             {
                 if (playerAllianceMap.TryGetValue(player.PlayerId, out var allianceId))
                 {
-                    if (player.AllianceId != allianceId)
+                    var currentAllianceId = player.AllianceId ?? string.Empty;
+                    if (currentAllianceId != allianceId)
                     {
+                        _logger.LogDebug("Updating player {PlayerId} alliance ID from '{CurrentId}' to '{NewId}'",
+                            player.PlayerId, currentAllianceId, allianceId);
                         player.AllianceId = allianceId;
+                        updatedCount++;
+                    }
+                }
+                else
+                {
+                    // Player has no city tile with alliance data, ensure AllianceId is null
+                    if (!string.IsNullOrEmpty(player.AllianceId))
+                    {
+                        _logger.LogDebug("Clearing alliance ID for player {PlayerId} (no city tile found)", player.PlayerId);
+                        player.AllianceId = null;
                         updatedCount++;
                     }
                 }
@@ -1620,8 +1635,9 @@ public class ImportService : IImportService
             await ImportProgressReporter.ReportBatchProgressAsync(progressCallback, "Player Alliance Updates",
                 (i / batchSize) + 1, (players.Count + batchSize - 1) / batchSize, batch.Count, processed, players.Count);
 
-            _logger.LogDebug("Processed batch {BatchNumber}: {Processed}/{Total} players",
-                (i / batchSize) + 1, processed, players.Count);
+            _logger.LogDebug("Processed batch {BatchNumber}: {Processed}/{Total} players, {Updated} updated in this batch",
+                (i / batchSize) + 1, processed, players.Count, batch.Count(p => playerAllianceMap.ContainsKey(p.PlayerId) ?
+                    (p.AllianceId ?? string.Empty) != playerAllianceMap[p.PlayerId] : !string.IsNullOrEmpty(p.AllianceId)));
         }
 
         await ImportProgressReporter.ReportPhaseCompletionAsync(progressCallback, "Player Alliance Updates", players.Count, updatedCount);
