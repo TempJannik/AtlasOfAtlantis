@@ -619,7 +619,7 @@ body::before {
 
 /* === TILES SECTION === */
 .dragon-tiles-content {
-    max-height: 400px;
+    max-height: 500px;
     overflow-y: auto;
 }
 
@@ -658,15 +658,8 @@ body::before {
 }
 
 /* === MEMBERS SECTION === */
-.dragon-members-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--dragon-space-4);
-}
-
 .dragon-members-content {
-    max-height: 500px;
+    max-height: 600px;
     overflow-y: auto;
 }
 
@@ -682,6 +675,16 @@ body::before {
     margin-bottom: 0;
 }
 
+.dragon-member-item-slim {
+    cursor: pointer;
+    margin-bottom: 0;
+    padding: var(--dragon-space-3) var(--dragon-space-4);
+}
+
+.dragon-member-item-slim .dragon-item-header {
+    margin-bottom: 0;
+}
+
 .dragon-member-info {
     display: flex;
     flex-direction: column;
@@ -690,7 +693,7 @@ body::before {
 
 /* === HISTORY SECTION === */
 .dragon-history-content {
-    max-height: 400px;
+    max-height: 500px;
     overflow-y: auto;
 }
 

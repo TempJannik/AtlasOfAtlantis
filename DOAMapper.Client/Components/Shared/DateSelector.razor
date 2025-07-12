@@ -12,12 +12,6 @@
             </option>
         }
     </select>
-    @if (DateState.SelectedDate != null)
-    {
-        <small style="color: var(--dragon-text-muted); font-size: 0.85rem; margin-top: var(--dragon-space-2); display: block;">
-            Showing data imported on @DateState.SelectedDate.Value.ToString("MMMM dd, yyyy")
-        </small>
-    }
 </div>
 
 @code {

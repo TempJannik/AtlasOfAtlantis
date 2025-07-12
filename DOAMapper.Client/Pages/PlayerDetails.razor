@@ -8,12 +8,6 @@
 <PageTitle>@(Player?.Name ?? "Player Details") - AoA</PageTitle>
 
 <div class="dragon-container">
-    <div class="dragon-header">
-        <div class="dragon-logo">🐉</div>
-        <h1 class="dragon-title">Player Details</h1>
-        <p class="dragon-subtitle">Explore Player Information</p>
-    </div>
-
     @if (Player != null)
     {
         <div class="dragon-content">
@@ -42,7 +36,7 @@
                             <span class="dragon-stat-value">@Player.PlayerId</span>
                         </div>
                         <div class="dragon-stat-item">
-                            <span class="dragon-stat-label">💪 Might:</span>
+                            <span class="dragon-stat-label">💪 Power:</span>
                             <span class="dragon-stat-value dragon-might-value">@Player.Might.ToString("N0")</span>
                         </div>
                         @if (Player.Alliance != null)

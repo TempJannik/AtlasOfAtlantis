@@ -8,12 +8,6 @@
 <PageTitle>@(Alliance?.Name ?? "Alliance Details") - AoA</PageTitle>
 
 <div class="dragon-container">
-    <div class="dragon-header">
-        <div class="dragon-logo">🐉</div>
-        <h1 class="dragon-title">Alliance Details</h1>
-        <p class="dragon-subtitle">Explore Alliance Information</p>
-    </div>
-
     @if (Alliance != null)
     {
         <div class="dragon-content">
@@ -61,16 +55,7 @@
                 </div>
 
                 <div class="dragon-members-card">
-                    <div class="dragon-members-header">
-                        <h3 class="dragon-card-title">👥 Members: @(AllianceMembers?.TotalCount ?? 0)</h3>
-                        <button class="dragon-btn dragon-btn-primary" @onclick="LoadMembers" disabled="@IsLoadingMembers">
-                            @if (IsLoadingMembers)
-                            {
-                                <span class="dragon-spinner-sm"></span>
-                            }
-                            🔄 Refresh
-                        </button>
-                    </div>
+                    <h3 class="dragon-card-title">👥 Members: @(AllianceMembers?.TotalCount ?? 0)</h3>
                     <div class="dragon-members-content">
                         @if (IsLoadingMembers)
                         {
@@ -81,12 +66,9 @@
                             <div class="dragon-member-list">
                                 @foreach (var member in AllianceMembers.Items)
                                 {
-                                    <div class="dragon-list-item dragon-member-item" @onclick="() => NavigateToPlayer(member.PlayerId)">
+                                    <div class="dragon-list-item dragon-member-item-slim" @onclick="() => NavigateToPlayer(member.PlayerId)">
                                         <div class="dragon-item-header">
-                                            <div class="dragon-member-info">
-                                                <span class="dragon-item-name">⚔️ @member.Name</span>
-                                                <small class="dragon-text-secondary">🏰 @member.CityName</small>
-                                            </div>
+                                            <span class="dragon-item-name">⚔️ @member.Name</span>
                                             <div class="dragon-item-badge">
                                                 @member.Might.ToString("N0")
                                             </div>
