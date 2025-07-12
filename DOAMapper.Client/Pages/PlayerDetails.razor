@@ -18,9 +18,6 @@
                 </div>
                 <div class="dragon-detail-actions">
                     <DateSelector @bind-SelectedDate="CurrentDate" AvailableDates="AvailableDates" />
-                    <button class="dragon-btn dragon-btn-primary" @onclick="ShowHistory">
-                        🕒 View History
-                    </button>
                     <a href="/players" class="dragon-btn">← Back to Players</a>
                 </div>
             </div>
@@ -86,7 +83,7 @@
                 </div>
             </div>
 
-            @if (ShowPlayerHistory && PlayerHistory?.Any() == true)
+            @if (PlayerHistory?.Any() == true)
             {
                 <div class="dragon-history-card">
                     <h3 class="dragon-card-title">📈 Player History</h3>
@@ -115,7 +112,6 @@
 
     private DateTime? CurrentDate;
     private bool IsLoading = true;
-    private bool ShowPlayerHistory = false;
     private string? ErrorMessage;
 
     private PlayerDetailDto? Player;
@@ -165,6 +161,12 @@
         {
             Player = await PlayerService.GetPlayerAsync(PlayerId, CurrentDate.Value);
             PlayerTiles = await PlayerService.GetPlayerTilesAsync(PlayerId, CurrentDate.Value);
+
+            // Always load history
+            if (PlayerHistory == null)
+            {
+                PlayerHistory = await PlayerService.GetPlayerHistoryAsync(PlayerId);
+            }
         }
         catch (Exception)
         {
@@ -176,22 +178,7 @@
         }
     }
 
-    private async Task ShowHistory()
-    {
-        if (PlayerHistory == null)
-        {
-            try
-            {
-                PlayerHistory = await PlayerService.GetPlayerHistoryAsync(PlayerId);
-            }
-            catch (Exception)
-            {
-                ErrorMessage = "Failed to load player history. Please try again.";
-                return;
-            }
-        }
-        ShowPlayerHistory = !ShowPlayerHistory;
-    }
+
 
     private void ClearError()
     {

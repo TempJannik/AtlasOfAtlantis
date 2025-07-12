@@ -556,6 +556,7 @@ body::before {
     gap: var(--dragon-space-3);
     align-items: center;
     flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .dragon-detail-grid {
