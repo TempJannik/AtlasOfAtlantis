@@ -745,6 +745,7 @@ a:hover {
     background: var(--doa-bg-surface);
     border: 1px solid var(--doa-border-primary);
     border-radius: var(--doa-radius-lg);
+    overflow: hidden;
     box-shadow: var(--doa-shadow-card);
 }
 
