@@ -10,6 +10,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddScoped<IPlayerService, PlayerService>();
 builder.Services.AddScoped<IAllianceService, AllianceService>();
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<IAuthenticationHttpService, AuthenticationHttpService>();
 builder.Services.AddSingleton<DOAMapper.Shared.Services.IAuthenticationService, DOAMapper.Client.Services.AuthenticationService>();
 builder.Services.AddSingleton<DOAMapper.Shared.Services.IAuthenticationStateService, DOAMapper.Client.Services.AuthenticationStateService>();
 builder.Services.AddSingleton<DateStateService>();

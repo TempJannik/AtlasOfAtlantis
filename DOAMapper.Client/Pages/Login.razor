@@ -47,7 +47,7 @@
                     }
                     else
                     {
-                        <span>🚀 Enter Realm</span>
+                        <span>Enter Site</span>
                     }
                 </button>
             </div>
@@ -115,8 +115,8 @@
                 // Small delay to show success message
                 await Task.Delay(500);
                 
-                // Redirect to players page (new home)
-                Navigation.NavigateTo("/players", true);
+                // Redirect to players page (new home) - no force reload to preserve auth state
+                Navigation.NavigateTo("/players");
             }
             else
             {
