@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dragon Realm Explorer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(139, 69, 19, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(101, 67, 33, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(139, 69, 19, 0.6), transparent);
+            z-index: -1;
+        }
+        
+        .logo {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #8b4513, #a0522d);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #e0e0e0;
+            border: 2px solid rgba(139, 69, 19, 0.5);
+            box-shadow: 
+                0 8px 32px rgba(139, 69, 19, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #e0e0e0;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #e0e0e0, #8b4513);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: #a0a0a0;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+        
+        .data-day-selector {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 30px;
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            border: 1px solid rgba(139, 69, 19, 0.3);
+            backdrop-filter: blur(10px);
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: 30px;
+        }
+        
+        .data-day-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #e0e0e0;
+            white-space: nowrap;
+        }
+        
+        .data-day-dropdown {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(139, 69, 19, 0.4);
+            border-radius: 12px;
+            color: #e0e0e0;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 12px 16px;
+            padding-right: 40px;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a0a0a0' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            min-width: 150px;
+        }
+        
+        .data-day-dropdown:hover {
+            border-color: rgba(139, 69, 19, 0.6);
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        
+        .data-day-dropdown:focus {
+            border-color: #8b4513;
+            box-shadow: 
+                0 0 0 3px rgba(139, 69, 19, 0.2),
+                0 8px 32px rgba(139, 69, 19, 0.15);
+        }
+        
+        .data-day-dropdown option {
+            background: #2d2d2d;
+            color: #e0e0e0;
+            padding: 10px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 40px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            padding: 8px;
+            border: 1px solid rgba(139, 69, 19, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .nav-tab {
+            padding: 14px 32px;
+            background: transparent;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-tab::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(139, 69, 19, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .nav-tab:hover::before {
+            left: 100%;
+        }
+        
+        .nav-tab:hover {
+            color: #e0e0e0;
+            transform: translateY(-1px);
+        }
+        
+        .nav-tab.active {
+            background: linear-gradient(135deg, #8b4513, #a0522d);
+            color: #ffffff;
+            box-shadow: 
+                0 4px 16px rgba(139, 69, 19, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+        
+        .content-area {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 20px;
+            padding: 32px;
+            border: 1px solid rgba(139, 69, 19, 0.3);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .content-area::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(139, 69, 19, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .search-bar {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 30px;
+            display: block;
+            padding: 16px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(139, 69, 19, 0.4);
+            border-radius: 12px;
+            color: #e0e0e0;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .search-bar:focus {
+            border-color: #8b4513;
+            box-shadow: 
+                0 0 0 3px rgba(139, 69, 19, 0.2),
+                0 8px 32px rgba(139, 69, 19, 0.15);
+        }
+        
+        .search-bar::placeholder {
+            color: #666;
+        }
+        
+        .list-item {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(139, 69, 19, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        
+        .list-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(139, 69, 19, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .list-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 
+                0 12px 40px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(139, 69, 19, 0.4);
+            border-color: rgba(139, 69, 19, 0.6);
+        }
+        
+        .list-item:hover::before {
+            left: 100%;
+        }
+        
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .item-name {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+        
+        .item-level {
+            background: linear-gradient(135deg, #8b4513, #a0522d);
+            color: #ffffff;
+            padding: 6px 14px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 2px 8px rgba(139, 69, 19, 0.3);
+        }
+        
+        .item-details {
+            display: flex;
+            justify-content: space-between;
+            color: #a0a0a0;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+            gap: 10px;
+        }
+        
+        .pagination button {
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(139, 69, 19, 0.4);
+            border-radius: 12px;
+            color: #a0a0a0;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .pagination button:hover {
+            background: rgba(139, 69, 19, 0.2);
+            color: #e0e0e0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(139, 69, 19, 0.2);
+        }
+        
+        .pagination button.active {
+            background: linear-gradient(135deg, #8b4513, #a0522d);
+            color: #ffffff;
+            box-shadow: 0 4px 16px rgba(139, 69, 19, 0.4);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .compass-decoration {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            opacity: 0.2;
+            z-index: 1;
+        }
+        
+        .compass-decoration::before {
+            content: '⚓';
+            font-size: 1.5rem;
+            color: #8b4513;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(139, 69, 19, 0.3);
+        }
+        
+        .discord-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #5865f2, #4752c4);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(88, 101, 242, 0.3);
+        }
+        
+        .discord-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(88, 101, 242, 0.4);
+            background: linear-gradient(135deg, #4752c4, #3c45a5);
+        }
+        
+        .discord-link svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .data-day-selector {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+            
+            .data-day-dropdown {
+                min-width: 200px;
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+                border-radius: 16px;
+                gap: 4px;
+            }
+            
+            .nav-tab {
+                border-radius: 12px;
+            }
+            
+            .item-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            
+            .item-details {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .title {
+                font-size: 2rem;
+            }
+            
+            .content-area {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="compass-decoration"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="logo">🐉</div>
+            <h1 class="title">Dragon Realm Explorer</h1>
+            <p class="subtitle">Navigate the Ancient Territories</p>
+        </div>
+        
+        <div class="data-day-selector">
+            <label class="data-day-label">📅 Data Day:</label>
+            <select class="data-day-dropdown" id="dataDay">
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="2-days-ago">2 Days Ago</option>
+                <option value="3-days-ago">3 Days Ago</option>
+                <option value="4-days-ago">4 Days Ago</option>
+                <option value="5-days-ago">5 Days Ago</option>
+                <option value="6-days-ago">6 Days Ago</option>
+                <option value="1-week-ago">1 Week Ago</option>
+                <option value="2-weeks-ago">2 Weeks Ago</option>
+                <option value="1-month-ago">1 Month Ago</option>
+            </select>
+        </div>
+        
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="players">Players</button>
+            <button class="nav-tab" data-tab="alliances">Alliances</button>
+        </div>
+        
+        <div class="content-area">
+            <div class="tab-content active" id="players">
+                <input type="text" class="search-bar" placeholder="Search for players...">
+                
+                <div class="list-item">
+                    <div class="item-header">
+                        <span class="item-name">DragonSlayer_99</span>
+                        <span class="item-level">Level 42</span>
+                    </div>
+                    <div class="item-details">
+                        <span>Alliance: Shadow Guardians</span>
+                        <span>Power: 1,247,831</span>
+                        <span>Kills: 156</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="item-header">
+                        <span class="item-name">MysticWarrior</span>
+                        <span class="item-level">Level 38</span>
+                    </div>
+                    <div class="item-details">
+                        <span>Alliance: Fire Clan</span>
+                        <span>Power: 987,234</span>
+                        <span>Kills: 89</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="item-header">
+                        <span class="item-name">StormKnight</span>
+                        <span class="item-level">Level 35</span>
+                    </div>
+                    <div class="item-details">
+                        <span>Alliance: Thunder Legion</span>
+                        <span>Power: 756,891</span>
+                        <span>Kills: 67</span>
+                    </div>
+                </div>
+                
+                <div class="pagination">
+                    <button class="active">1</button>
+                    <button>2</button>
+                    <button>3</button>
+                    <button>Next</button>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="alliances">
+                <input type="text" class="search-bar" placeholder="Search for alliances...">
+                
+                <div class="list-item">
+                    <div class="item-header">
+                        <span class="item-name">Shadow Guardians</span>
+                        <span class="item-level">Rank #1</span>
+                    </div>
+                    <div class="item-details">
+                        <span>Members: 47/50</span>
+                        <span>Total Power: 47,892,156</span>
+                        <span>Territory: Northern Peaks</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="item-header">
+                        <span class="item-name">Fire Clan</span>
+                        <span class="item-level">Rank #2</span>
+                    </div>
+                    <div class="item-details">
+                        <span>Members: 42/50</span>
+                        <span>Total Power: 38,567,234</span>
+                        <span>Territory: Volcanic Reaches</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="item-header">
+                        <span class="item-name">Thunder Legion</span>
+                        <span class="item-level">Rank #3</span>
+                    </div>
+                    <div class="item-details">
+                        <span>Members: 39/50</span>
+                        <span>Total Power: 29,445,789</span>
+                        <span>Territory: Storm Valley</span>
+                    </div>
+                </div>
+                
+                <div class="pagination">
+                    <button class="active">1</button>
+                    <button>2</button>
+                    <button>3</button>
+                    <button>Next</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <a href="https://discord.gg/your-server-link" class="discord-link" target="_blank">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/>
+                </svg>
+                Join our Discord
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        // Tab switching functionality
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs and content
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                this.classList.add('active');
+                
+                // Show corresponding content
+                const tabId = this.dataset.tab;
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // Data day selection functionality
+        document.getElementById('dataDay').addEventListener('change', function() {
+            const selectedDay = this.value;
+            console.log('Selected data day:', selectedDay);
+            
+            // Here you would typically trigger a data refresh based on the selected day
+            // For now, we'll just show a visual indication that the data is being updated
+            showDataUpdateIndicator(selectedDay);
+        });
+        
+        function showDataUpdateIndicator(selectedDay) {
+            // Create a temporary loading indicator
+            const contentArea = document.querySelector('.content-area');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading-indicator';
+            loadingDiv.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #e0e0e0;
+                font-size: 1.1rem;
+                z-index: 10;
+                border-radius: 20px;
+                backdrop-filter: blur(5px);
+            `;
+            
+            const dayLabels = {
+                'today': 'Today',
+                'yesterday': 'Yesterday',
+                '2-days-ago': '2 Days Ago',
+                '3-days-ago': '3 Days Ago',
+                '4-days-ago': '4 Days Ago',
+                '5-days-ago': '5 Days Ago',
+                '6-days-ago': '6 Days Ago',
+                '1-week-ago': '1 Week Ago',
+                '2-weeks-ago': '2 Weeks Ago',
+                '1-month-ago': '1 Month Ago'
+            };
+            
+            loadingDiv.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; margin-bottom: 10px;">⏳</div>
+                    <div>Loading data for ${dayLabels[selectedDay]}...</div>
+                </div>
+            `;
+            
+            contentArea.appendChild(loadingDiv);
+            
+            // Remove the loading indicator after 1.5 seconds
+            setTimeout(() => {
+                loadingDiv.remove();
+            }, 1500);
+        }
+        
+        // List item click functionality
+        document.querySelectorAll('.list-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // Switch to details tab
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                document.querySelector('[data-tab="details"]').classList.add('active');
+                document.getElementById('details').classList.add('active');
+                
+                // Here you would typically load the detailed view
+                // For now, we'll just show a placeholder
+                document.getElementById('details').innerHTML = `
+                    <div style="text-align: center; color: #e0e0e0; font-size: 1.1rem; margin-top: 40px;">
+                        <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 20px; font-weight: 600;">Loading Details...</h3>
+                        <p style="font-weight: 300;">Detailed information for "${this.querySelector('.item-name').textContent}" would appear here.</p>
+                    </div>
+                `;
+            });
+        });
+        
+        // Search functionality (placeholder)
+        document.querySelectorAll('.search-bar').forEach(searchBar => {
+            searchBar.addEventListener('input', function() {
+                // Placeholder for search functionality
+                console.log('Searching for:', this.value);
+            });
+        });
+    </script>
+</body>
+</html>

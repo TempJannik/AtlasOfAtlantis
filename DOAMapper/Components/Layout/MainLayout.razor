@@ -1,21 +1,17 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu/>
+<div class="dragon-compass"></div>
+
+<div class="dragon-container">
+    <div class="dragon-header">
+        <div class="dragon-logo">🐉</div>
+        <h1 class="dragon-title">Dragon Realm Explorer</h1>
+        <p class="dragon-subtitle">Navigate the Ancient Territories</p>
     </div>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="/history" class="text-decoration-none">
-                <i class="bi bi-info-circle me-1"></i>About Atlas of Atlantis
-            </a>
-        </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
+    <div class="dragon-content">
+        @Body
+    </div>
 </div>
 
 <NetworkStatus />

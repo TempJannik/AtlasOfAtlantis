@@ -1,14 +1,18 @@
 ﻿@if (!string.IsNullOrEmpty(ErrorMessage))
 {
-    <div class="alert alert-@AlertType alert-dismissible fade show" role="alert">
+    <div class="dragon-@AlertType" role="alert" style="position: relative;">
         @if (ShowIcon)
         {
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <i class="bi bi-exclamation-triangle-fill" style="margin-right: var(--dragon-space-2);"></i>
         }
         @ErrorMessage
         @if (Dismissible)
         {
-            <button type="button" class="btn-close" @onclick="ClearError" aria-label="Close"></button>
+            <button type="button" class="dragon-btn"
+                    style="position: absolute; right: var(--dragon-space-3); top: 50%; transform: translateY(-50%); padding: var(--dragon-space-1);"
+                    @onclick="ClearError" aria-label="Close">
+                ✕
+            </button>
         }
     </div>
 }

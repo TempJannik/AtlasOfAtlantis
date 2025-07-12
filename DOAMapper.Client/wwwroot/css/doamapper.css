@@ -1,6 +1,8 @@
 ﻿/* DOAMapper Custom Styles */
 /* Import Design System */
 @import url('./design-system.css');
+/* Import Dragon Theme */
+@import url('./dragon-theme.css');
 
 /* === BASE STYLES === */
 

@@ -1,0 +1,571 @@
+﻿@page "/"
+@page "/players"
+@page "/alliances"
+@page "/browse"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using DOAMapper.Shared.Services
+@using DOAMapper.Client.Components
+@using DOAMapper.Shared.Models.Authentication
+@inject IPlayerService PlayerService
+@inject IAllianceService AllianceService
+@inject DateStateService DateState
+@inject NavigationManager Navigation
+@inject IAuthenticationService AuthService
+@implements IDisposable
+
+<PageTitle>Dragon Realm Explorer - AoA</PageTitle>
+
+<AuthenticationGuard>
+    <!-- Data Day Selector -->
+    <div class="dragon-data-selector">
+        <label class="dragon-data-label">📅 Data Day:</label>
+        <select class="dragon-select" @onchange="OnDateChanged">
+            @if (AvailableDates?.Any() == true)
+            {
+                @foreach (var date in AvailableDates.OrderByDescending(d => d))
+                {
+                    <option value="@date.ToString("yyyy-MM-dd")" selected="@(date.Date == CurrentDate?.Date)">
+                        @date.ToString("MMM dd, yyyy")
+                    </option>
+                }
+            }
+            else
+            {
+                <option value="">No data available</option>
+            }
+        </select>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="dragon-tabs">
+        <button class="dragon-tab @(ActiveTab == "players" ? "active" : "")"
+                @onclick="SetPlayersTab">
+            Players
+        </button>
+        <button class="dragon-tab @(ActiveTab == "alliances" ? "active" : "")"
+                @onclick="SetAlliancesTab">
+            Alliances
+        </button>
+        @if (IsAdmin)
+        {
+            <button class="dragon-tab @(ActiveTab == "import" ? "active" : "")"
+                    @onclick="SetImportTab">
+                Import Data
+            </button>
+            <button class="dragon-tab @(ActiveTab == "history" ? "active" : "")"
+                    @onclick="SetHistoryTab">
+                History/Analytics
+            </button>
+        }
+    </div>
+
+    <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
+
+    <!-- Players Tab Content -->
+    @if (ActiveTab == "players")
+    {
+        <div class="dragon-search">
+            <input type="text" class="dragon-input" placeholder="Search for players..."
+                   value="@PlayerSearchQuery" @oninput="OnPlayerSearchInput" />
+        </div>
+
+        @if (IsLoadingPlayers)
+        {
+            <div class="dragon-loading">
+                <div class="dragon-spinner"></div>
+                <span>@(string.IsNullOrWhiteSpace(PlayerSearchQuery) ? "Loading players..." : "Searching players...")</span>
+            </div>
+        }
+        else if (PlayerResults?.Items.Any() == true)
+        {
+            <div class="dragon-mb-4">
+                <span class="dragon-text-secondary">@PlayerResults.TotalCount players found</span>
+                <small class="dragon-text-muted d-block">Sorted by might (highest first)</small>
+            </div>
+
+            @foreach (var player in PlayerResults.Items)
+            {
+                <div class="dragon-list-item" @onclick="() => NavigateToPlayer(player.PlayerId)">
+                    <div class="dragon-item-header">
+                        <span class="dragon-item-name">@player.Name</span>
+                        <span class="dragon-item-badge">Might: @player.Might.ToString("N0")</span>
+                    </div>
+                    <div class="dragon-item-details">
+                        <span>City: @player.CityName</span>
+                        @if (!string.IsNullOrEmpty(player.AllianceName))
+                        {
+                            <span>🛡️ [@player.AllianceName]</span>
+                        }
+                        else
+                        {
+                            <span>No Alliance</span>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="dragon-pagination">
+                @if (PlayerCurrentPage > 1)
+                {
+                    <button class="dragon-btn" @onclick="() => OnPlayerPageChanged(PlayerCurrentPage - 1)">
+                        Previous
+                    </button>
+                }
+
+                @for (int i = Math.Max(1, PlayerCurrentPage - 2); i <= Math.Min(PlayerResults.TotalPages, PlayerCurrentPage + 2); i++)
+                {
+                    var pageNumber = i;
+                    <button class="dragon-btn @(pageNumber == PlayerCurrentPage ? "active" : "")" 
+                            @onclick="() => OnPlayerPageChanged(pageNumber)">
+                        @pageNumber
+                    </button>
+                }
+
+                @if (PlayerCurrentPage < PlayerResults.TotalPages)
+                {
+                    <button class="dragon-btn" @onclick="() => OnPlayerPageChanged(PlayerCurrentPage + 1)">
+                        Next
+                    </button>
+                }
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(PlayerSearchQuery))
+        {
+            <div class="dragon-error">
+                No players found matching "@PlayerSearchQuery"
+            </div>
+        }
+        else if (PlayerResults != null && !PlayerResults.Items.Any())
+        {
+            <div class="dragon-error">
+                No players found for the selected date.
+            </div>
+        }
+    }
+
+    <!-- Alliances Tab Content -->
+    @if (ActiveTab == "alliances")
+    {
+        <div class="dragon-search">
+            <input type="text" class="dragon-input" placeholder="Search for alliances..."
+                   value="@AllianceSearchQuery" @oninput="OnAllianceSearchInput" />
+        </div>
+
+        @if (IsLoadingAlliances)
+        {
+            <div class="dragon-loading">
+                <div class="dragon-spinner"></div>
+                <span>Loading alliances...</span>
+            </div>
+        }
+        else if (AllianceResults?.Items.Any() == true)
+        {
+            <div class="dragon-mb-4">
+                <span class="dragon-text-secondary">@AllianceResults.TotalCount alliances found</span>
+                <small class="dragon-text-muted d-block">Sorted by power (highest first)</small>
+            </div>
+
+            @foreach (var alliance in AllianceResults.Items)
+            {
+                <div class="dragon-list-item" @onclick="() => NavigateToAlliance(alliance.AllianceId)">
+                    <div class="dragon-item-header">
+                        <span class="dragon-item-name">@alliance.Name</span>
+                        <span class="dragon-item-badge">Rank #@(AllianceResults.Items.ToList().IndexOf(alliance) + 1 + (AllianceCurrentPage - 1) * AlliancePageSize)</span>
+                    </div>
+                    <div class="dragon-item-details">
+                        <span>Led by @alliance.OverlordName</span>
+                        <span>Power: @alliance.Power.ToString("N0")</span>
+                        <span>Members: @alliance.MemberCount</span>
+                        <span>Fortress: Level @alliance.FortressLevel (@alliance.FortressX, @alliance.FortressY)</span>
+                    </div>
+                </div>
+            }
+
+            <div class="dragon-pagination">
+                @if (AllianceCurrentPage > 1)
+                {
+                    <button class="dragon-btn" @onclick="() => OnAlliancePageChanged(AllianceCurrentPage - 1)">
+                        Previous
+                    </button>
+                }
+
+                @for (int i = Math.Max(1, AllianceCurrentPage - 2); i <= Math.Min(AllianceResults.TotalPages, AllianceCurrentPage + 2); i++)
+                {
+                    var pageNumber = i;
+                    <button class="dragon-btn @(pageNumber == AllianceCurrentPage ? "active" : "")" 
+                            @onclick="() => OnAlliancePageChanged(pageNumber)">
+                        @pageNumber
+                    </button>
+                }
+
+                @if (AllianceCurrentPage < AllianceResults.TotalPages)
+                {
+                    <button class="dragon-btn" @onclick="() => OnAlliancePageChanged(AllianceCurrentPage + 1)">
+                        Next
+                    </button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="dragon-error">
+                No alliances found for the selected date.
+            </div>
+        }
+    }
+
+    <!-- Admin Tabs Content -->
+    @if (ActiveTab == "import" && IsAdmin)
+    {
+        <div class="dragon-surface" style="padding: var(--dragon-space-6); text-align: center;">
+            <h3 style="color: var(--dragon-text-primary); margin-bottom: var(--dragon-space-4);">Import Data</h3>
+            <p style="color: var(--dragon-text-secondary); margin-bottom: var(--dragon-space-6);">
+                Access the full import interface for uploading map data files.
+            </p>
+            <button class="dragon-btn dragon-btn-primary" @onclick="NavigateToImport">
+                Go to Import Page
+            </button>
+        </div>
+    }
+
+    @if (ActiveTab == "history" && IsAdmin)
+    {
+        <div class="dragon-surface" style="padding: var(--dragon-space-6); text-align: center;">
+            <h3 style="color: var(--dragon-text-primary); margin-bottom: var(--dragon-space-4);">History & Analytics</h3>
+            <p style="color: var(--dragon-text-secondary); margin-bottom: var(--dragon-space-6);">
+                View import history and analytics data.
+            </p>
+            <button class="dragon-btn dragon-btn-primary" @onclick="NavigateToHistory">
+                Go to History Page
+            </button>
+        </div>
+    }
+</AuthenticationGuard>
+
+@code {
+    private DateTime? CurrentDate => DateState.SelectedDate;
+    private string ActiveTab = "players";
+    private string? ErrorMessage;
+    private bool IsAuthenticated = false;
+    private bool IsAdmin = false;
+
+    // Player-related state
+    private string PlayerSearchQuery = "";
+    private bool IsLoadingPlayers = false;
+    private int PlayerCurrentPage = 1;
+    private const int PlayerPageSize = 20;
+    private Timer? _playerSearchTimer;
+    private const int SearchDelayMs = 300;
+    private PagedResult<PlayerDto>? PlayerResults;
+
+    // Alliance-related state  
+    private string AllianceSearchQuery = "";
+    private bool IsLoadingAlliances = false;
+    private int AllianceCurrentPage = 1;
+    private const int AlliancePageSize = 20;
+    private Timer? _allianceSearchTimer;
+    private PagedResult<AllianceDto>? AllianceResults;
+
+    private List<DateTime> AvailableDates => DateState.AvailableDates;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check authentication state
+        try
+        {
+            IsAuthenticated = await AuthService.IsAuthenticatedAsync();
+            IsAdmin = await AuthService.IsAdminAsync();
+        }
+        catch (Exception)
+        {
+            IsAuthenticated = false;
+            IsAdmin = false;
+        }
+
+        // Determine initial tab based on current route
+        var uri = Navigation.Uri;
+        if (uri.Contains("/alliances"))
+        {
+            ActiveTab = "alliances";
+        }
+        else if (uri.Contains("/import") && IsAdmin)
+        {
+            ActiveTab = "import";
+        }
+        else if (uri.Contains("/history") && IsAdmin)
+        {
+            ActiveTab = "history";
+        }
+        else
+        {
+            ActiveTab = "players";
+        }
+
+        DateState.DateChanged += OnDateStateChanged;
+
+        try
+        {
+            // Load available dates from both services
+            var playerDates = await PlayerService.GetAvailableDatesAsync();
+            var allianceDates = await AllianceService.GetAvailableDatesAsync();
+            
+            // Combine and deduplicate dates
+            var allDates = playerDates.Union(allianceDates).OrderByDescending(d => d).ToList();
+            DateState.SetAvailableDates(allDates);
+
+            if (DateState.SelectedDate.HasValue)
+            {
+                await LoadCurrentTabData();
+            }
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load available dates. Please try again.";
+        }
+    }
+
+    private async Task LoadCurrentTabData()
+    {
+        if (ActiveTab == "players")
+        {
+            await LoadPlayers();
+        }
+        else if (ActiveTab == "alliances")
+        {
+            await LoadAlliances();
+        }
+    }
+
+    private async Task LoadPlayers()
+    {
+        if (!CurrentDate.HasValue) return;
+
+        IsLoadingPlayers = true;
+        ErrorMessage = null;
+        try
+        {
+            var query = string.IsNullOrWhiteSpace(PlayerSearchQuery) ? "" : PlayerSearchQuery;
+            PlayerResults = await PlayerService.SearchPlayersAsync(query, CurrentDate.Value, PlayerCurrentPage, PlayerPageSize);
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load players. Please try again.";
+        }
+        finally
+        {
+            IsLoadingPlayers = false;
+        }
+    }
+
+    private async Task LoadAlliances()
+    {
+        if (!CurrentDate.HasValue) return;
+
+        IsLoadingAlliances = true;
+        ErrorMessage = null;
+        try
+        {
+            // For now, we'll use the basic GetAlliancesAsync method
+            // In the future, we could implement search functionality for alliances
+            AllianceResults = await AllianceService.GetAlliancesAsync(CurrentDate.Value, AllianceCurrentPage, AlliancePageSize);
+
+            // If there's a search query, filter the results client-side for now
+            if (!string.IsNullOrWhiteSpace(AllianceSearchQuery) && AllianceResults?.Items != null)
+            {
+                var filteredItems = AllianceResults.Items
+                    .Where(a => a.Name.Contains(AllianceSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                               a.OverlordName.Contains(AllianceSearchQuery, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                // Create a new PagedResult with filtered data
+                AllianceResults = new PagedResult<AllianceDto>
+                {
+                    Items = filteredItems,
+                    TotalCount = filteredItems.Count
+                };
+            }
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load alliances. Please try again.";
+        }
+        finally
+        {
+            IsLoadingAlliances = false;
+        }
+    }
+
+    private async Task SetActiveTab(string tab)
+    {
+        if (ActiveTab == tab) return;
+
+        ActiveTab = tab;
+
+        // Update URL without triggering navigation for data tabs
+        if (tab == "players" || tab == "alliances")
+        {
+            var newUrl = tab == "alliances" ? "/alliances" : "/players";
+            Navigation.NavigateTo(newUrl, false);
+
+            // Load data for the new tab if we have a date
+            if (CurrentDate.HasValue)
+            {
+                await LoadCurrentTabData();
+            }
+        }
+        // For admin tabs, just update the active tab (content is static)
+    }
+
+    private async Task OnDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var selectedDate))
+        {
+            DateState.SetSelectedDate(selectedDate);
+            PlayerCurrentPage = 1;
+            AllianceCurrentPage = 1;
+            await LoadCurrentTabData();
+        }
+    }
+
+    private async void OnPlayerSearchInput(ChangeEventArgs e)
+    {
+        PlayerSearchQuery = e.Value?.ToString() ?? "";
+
+        // Cancel any existing timer
+        _playerSearchTimer?.Dispose();
+
+        // Set up a new timer for debounced search
+        _playerSearchTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                PlayerCurrentPage = 1; // Reset to page 1 when searching
+                await LoadPlayers();
+                StateHasChanged();
+            });
+        }, null, SearchDelayMs, Timeout.Infinite);
+    }
+
+    private async void OnAllianceSearchInput(ChangeEventArgs e)
+    {
+        AllianceSearchQuery = e.Value?.ToString() ?? "";
+
+        // Cancel any existing timer
+        _allianceSearchTimer?.Dispose();
+
+        // Set up a new timer for debounced search
+        _allianceSearchTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                AllianceCurrentPage = 1; // Reset to page 1 when searching
+                await LoadAlliances();
+                StateHasChanged();
+            });
+        }, null, SearchDelayMs, Timeout.Infinite);
+    }
+
+    private async Task OnPlayerPageChanged(int page)
+    {
+        PlayerCurrentPage = page;
+        await LoadPlayers();
+    }
+
+    private async Task OnAlliancePageChanged(int page)
+    {
+        AllianceCurrentPage = page;
+        await LoadAlliances();
+    }
+
+    private void NavigateToPlayer(string playerId)
+    {
+        Navigation.NavigateTo($"/players/{playerId}?date={CurrentDate:yyyy-MM-dd}");
+    }
+
+    private void NavigateToAlliance(string allianceId)
+    {
+        Navigation.NavigateTo($"/alliances/{allianceId}?date={CurrentDate:yyyy-MM-dd}");
+    }
+
+    private async void OnDateStateChanged(DateTime? newDate)
+    {
+        await InvokeAsync(async () =>
+        {
+            PlayerCurrentPage = 1;
+            AllianceCurrentPage = 1;
+            StateHasChanged();
+            await LoadCurrentTabData();
+        });
+    }
+
+    private void ClearError()
+    {
+        ErrorMessage = null;
+    }
+
+    private string GetDateDisplayText(DateTime date)
+    {
+        var today = DateTime.Today;
+        var daysDiff = (today - date.Date).Days;
+
+        return daysDiff switch
+        {
+            0 => "Today",
+            1 => "Yesterday",
+            <= 7 => $"{daysDiff} Days Ago",
+            <= 14 => $"{daysDiff / 7} Week{(daysDiff / 7 > 1 ? "s" : "")} Ago",
+            <= 30 => $"{daysDiff / 7} Weeks Ago",
+            _ => date.ToString("MMM dd, yyyy")
+        };
+    }
+
+    private async Task Logout()
+    {
+        try
+        {
+            await AuthService.LogoutAsync();
+            // Navigation will be handled by the authentication state change
+        }
+        catch (Exception)
+        {
+            // Handle logout errors silently
+        }
+    }
+
+    private void NavigateToImport()
+    {
+        Navigation.NavigateTo("/import");
+    }
+
+    private void NavigateToHistory()
+    {
+        Navigation.NavigateTo("/history");
+    }
+
+    private async Task SetPlayersTab()
+    {
+        await SetActiveTab("players");
+    }
+
+    private async Task SetAlliancesTab()
+    {
+        await SetActiveTab("alliances");
+    }
+
+    private async Task SetImportTab()
+    {
+        await SetActiveTab("import");
+    }
+
+    private async Task SetHistoryTab()
+    {
+        await SetActiveTab("history");
+    }
+
+    public void Dispose()
+    {
+        DateState.DateChanged -= OnDateStateChanged;
+        _playerSearchTimer?.Dispose();
+        _allianceSearchTimer?.Dispose();
+    }
+}

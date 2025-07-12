@@ -1,9 +1,9 @@
 ﻿@inject DateStateService DateState
 @implements IDisposable
 
-<div class="date-selector-container">
-    <label class="form-label">View Data From:</label>
-    <select class="form-select" @bind="SelectedDateString" @bind:after="OnDateChanged">
+<div class="dragon-data-selector">
+    <label class="dragon-data-label">📅 View Data From:</label>
+    <select class="dragon-select" @bind="SelectedDateString" @bind:after="OnDateChanged">
         <option value="">Select Date...</option>
         @foreach (var date in DateState.AvailableDates)
         {
@@ -14,7 +14,7 @@
     </select>
     @if (DateState.SelectedDate != null)
     {
-        <small class="text-muted">
+        <small style="color: var(--dragon-text-muted); font-size: 0.85rem; margin-top: var(--dragon-space-2); display: block;">
             Showing data imported on @DateState.SelectedDate.Value.ToString("MMMM dd, yyyy")
         </small>
     }
@@ -76,6 +76,22 @@
     private async void OnAvailableDatesChanged(List<DateTime> newDates)
     {
         await InvokeAsync(StateHasChanged);
+    }
+
+    private string GetDateDisplayText(DateTime date)
+    {
+        var today = DateTime.Today;
+        var daysDiff = (today - date.Date).Days;
+
+        return daysDiff switch
+        {
+            0 => "Today",
+            1 => "Yesterday",
+            <= 7 => $"{daysDiff} Days Ago",
+            <= 14 => $"{daysDiff / 7} Week{(daysDiff / 7 > 1 ? "s" : "")} Ago",
+            <= 30 => $"{daysDiff / 7} Weeks Ago",
+            _ => date.ToString("MMM dd, yyyy")
+        };
     }
 
     public void Dispose()

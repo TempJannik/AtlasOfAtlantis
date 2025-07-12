@@ -4,69 +4,12 @@
 @inject IAuthenticationStateService AuthStateService
 @implements IDisposable
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">
-            <img src="logo.jpeg" alt="Atlas of Atlantis" height="30" class="me-2" />
-            AoA
-        </a>
-    </div>
-</div>
+@*
+Client sidebar navigation disabled - replaced by dragon theme tabbed navigation in DragonRealmBrowse.razor
+All navigation functionality including admin access and logout is now handled in the main tabbed interface.
+*@
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="players" Match="NavLinkMatch.All">
-                <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> Players
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="alliances">
-                <span class="bi bi-shield-fill-nav-menu" aria-hidden="true"></span> Alliances
-            </NavLink>
-        </div>
-
-        @if (IsAdmin)
-        {
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="import">
-                    <span class="bi bi-upload-nav-menu" aria-hidden="true"></span> Import Data
-                </NavLink>
-            </div>
-
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="history">
-                    <span class="bi bi-clock-history-nav-menu" aria-hidden="true"></span> History/Analytics
-                </NavLink>
-            </div>
-        }
-
-        @if (IsAuthenticated)
-        {
-            <div class="nav-item px-3 mt-3">
-                <div class="nav-link text-muted">
-                    @if (IsAdmin)
-                    {
-                        <span class="badge bg-danger me-2">Admin</span>
-                    }
-                    else
-                    {
-                        <span class="badge bg-primary me-2">User</span>
-                    }
-                </div>
-            </div>
-            
-            <div class="nav-item px-3">
-                <button class="btn btn-sm btn-outline-light w-100" @onclick="Logout">
-                    <i class="bi bi-box-arrow-right me-1"></i>Logout
-                </button>
-            </div>
-        }
-    </nav>
-</div>
+<!-- Navigation is now handled by the dragon theme tabbed interface -->
 
 <style>
     /* User status section */

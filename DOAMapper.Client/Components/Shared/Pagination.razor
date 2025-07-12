@@ -1,29 +1,26 @@
-﻿<nav aria-label="Page navigation">
-    <ul class="pagination justify-content-center">
-        <li class="page-item @(CurrentPage <= 1 ? "disabled" : "")">
-            <button class="page-link" @onclick="() => OnPageChanged.InvokeAsync(CurrentPage - 1)" 
-                    disabled="@(CurrentPage <= 1)">
-                Previous
-            </button>
-        </li>
-        
-        @for (int i = Math.Max(1, CurrentPage - 2); i <= Math.Min(TotalPages, CurrentPage + 2); i++)
-        {
-            var pageNumber = i; // Capture the loop variable by value
-            <li class="page-item @(pageNumber == CurrentPage ? "active" : "")">
-                <button class="page-link" @onclick="() => OnPageChanged.InvokeAsync(pageNumber)">
-                    @pageNumber
-                </button>
-            </li>
-        }
-        
-        <li class="page-item @(CurrentPage >= TotalPages ? "disabled" : "")">
-            <button class="page-link" @onclick="() => OnPageChanged.InvokeAsync(CurrentPage + 1)"
-                    disabled="@(CurrentPage >= TotalPages)">
-                Next
-            </button>
-        </li>
-    </ul>
+﻿<nav aria-label="Page navigation" class="dragon-pagination">
+    @if (CurrentPage > 1)
+    {
+        <button class="dragon-btn" @onclick="() => OnPageChanged.InvokeAsync(CurrentPage - 1)">
+            Previous
+        </button>
+    }
+
+    @for (int i = Math.Max(1, CurrentPage - 2); i <= Math.Min(TotalPages, CurrentPage + 2); i++)
+    {
+        var pageNumber = i; // Capture the loop variable by value
+        <button class="dragon-btn @(pageNumber == CurrentPage ? "active" : "")"
+                @onclick="() => OnPageChanged.InvokeAsync(pageNumber)">
+            @pageNumber
+        </button>
+    }
+
+    @if (CurrentPage < TotalPages)
+    {
+        <button class="dragon-btn" @onclick="() => OnPageChanged.InvokeAsync(CurrentPage + 1)">
+            Next
+        </button>
+    }
 </nav>
 
 @code {

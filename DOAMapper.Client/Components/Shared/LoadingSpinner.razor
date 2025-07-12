@@ -1,28 +1,26 @@
-﻿<div class="text-center p-4">
+﻿<div class="dragon-loading">
     @if (LoadingType == LoadingType.Spinner)
     {
-        <div class="spinner-border @SizeClass" role="status">
+        <div class="dragon-spinner @SizeClass" role="status">
             <span class="visually-hidden">@LoadingText</span>
         </div>
     }
     else if (LoadingType == LoadingType.Dots)
     {
-        <div class="loading-dots">
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
+        <div class="dragon-loading-dots">
+            <div class="dragon-dot"></div>
+            <div class="dragon-dot"></div>
+            <div class="dragon-dot"></div>
         </div>
     }
     else if (LoadingType == LoadingType.Pulse)
     {
-        <div class="loading-pulse @SizeClass"></div>
+        <div class="dragon-loading-pulse @SizeClass"></div>
     }
 
     @if (!string.IsNullOrEmpty(LoadingText))
     {
-        <div class="mt-2">
-            <small class="text-muted">@LoadingText</small>
-        </div>
+        <span style="color: var(--dragon-text-secondary);">@LoadingText</span>
     }
 
     @if (ShowProgress && ProgressPercentage.HasValue)
