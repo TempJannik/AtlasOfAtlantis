@@ -475,6 +475,17 @@ body::before {
     margin-bottom: var(--dragon-space-8);
 }
 
+.dragon-logo-img {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(139, 69, 19, 0.5);
+    box-shadow:
+        0 8px 32px rgba(139, 69, 19, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
 .dragon-login-form {
     margin-bottom: var(--dragon-space-6);
 }
