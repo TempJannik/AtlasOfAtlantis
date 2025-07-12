@@ -2,6 +2,7 @@
 using DOAMapper.Services.Interfaces;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace DOAMapper.Controllers;
 
@@ -19,6 +20,8 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet]
+    [EnableRateLimiting("api")]
+    [ResponseCache(Duration = 900, VaryByQueryKeys = new[] { "date", "page", "size" })]
     public async Task<ActionResult<PagedResult<AllianceDto>>> GetAlliances(
         [FromQuery] DateTime? date = null,
         [FromQuery] int page = 1,
@@ -51,6 +54,8 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("search")]
+    [EnableRateLimiting("search")]
+    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "query", "date", "page", "size" })]
     public async Task<ActionResult<PagedResult<AllianceDto>>> SearchAlliances(
         [FromQuery] string query = "",
         [FromQuery] DateTime? date = null,
@@ -84,6 +89,8 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("{allianceId}")]
+    [EnableRateLimiting("details")]
+    [ResponseCache(Duration = 900, VaryByQueryKeys = new[] { "date" })]
     public async Task<ActionResult<AllianceDto>> GetAlliance(
         string allianceId,
         [FromQuery] DateTime? date = null)
@@ -117,6 +124,7 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("{allianceId}/members")]
+    [EnableRateLimiting("details")]
     public async Task<ActionResult<PagedResult<PlayerDto>>> GetAllianceMembers(
         string allianceId,
         [FromQuery] DateTime? date = null,
@@ -150,6 +158,7 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("{allianceId}/tiles")]
+    [EnableRateLimiting("details")]
     public async Task<ActionResult<List<TileDto>>> GetAllianceTiles(
         string allianceId,
         [FromQuery] DateTime? date = null)
@@ -179,6 +188,7 @@ public class AlliancesController : ControllerBase
 
     [HttpGet("{allianceId}/history")]
     [RequireAuth]
+    [EnableRateLimiting("details")]
     public async Task<ActionResult<List<HistoryEntryDto<AllianceDto>>>> GetAllianceHistory(string allianceId)
     {
         try
@@ -194,6 +204,8 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("dates")]
+    [EnableRateLimiting("api")]
+    [ResponseCache(Duration = 3600)]
     public async Task<ActionResult<List<DateTime>>> GetAvailableDates()
     {
         try
