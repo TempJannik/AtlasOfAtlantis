@@ -6,9 +6,6 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Caching.Memory;
-using System.Threading.RateLimiting;
 using Serilog;
 using System.Text;
 
@@ -132,138 +129,13 @@ else
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
 
-// Configure Rate Limiting
-builder.Services.AddRateLimiter(options =>
-{
-    // Global IP-based rate limiter as fallback
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 100,
-                Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 10
-            }));
-
-    // Policy for search endpoints (more restrictive)
-    options.AddFixedWindowLimiter("search", opt =>
-    {
-        opt.PermitLimit = 30;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 5;
-    });
-
-    // Policy for detail endpoints (moderate)
-    options.AddFixedWindowLimiter("details", opt =>
-    {
-        opt.PermitLimit = 60;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 10;
-    });
-
-    // Policy for import endpoints (very restrictive)
-    options.AddFixedWindowLimiter("import", opt =>
-    {
-        opt.PermitLimit = 5;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 2;
-    });
-
-    // Policy for authentication endpoints (restrictive)
-    options.AddFixedWindowLimiter("auth", opt =>
-    {
-        opt.PermitLimit = 10;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 3;
-    });
-
-    // Policy for general API endpoints (moderate)
-    options.AddFixedWindowLimiter("api", opt =>
-    {
-        opt.PermitLimit = 50;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 8;
-    });
-
-    // Custom rejection handler
-    options.OnRejected = async (context, cancellationToken) =>
-    {
-        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-
-        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-        {
-            context.HttpContext.Response.Headers["Retry-After"] =
-                ((int)retryAfter.TotalSeconds).ToString();
-        }
-
-        await context.HttpContext.Response.WriteAsync(
-            "Rate limit exceeded. Please try again later.", cancellationToken);
-    };
-});
-
-// Configure Memory Caching
-builder.Services.AddMemoryCache(options =>
-{
-    // Set cache size limit to 100MB
-    options.SizeLimit = 100 * 1024 * 1024; // 100MB in bytes
-
-    // Configure compaction percentage (remove 20% of cache when limit is reached)
-    options.CompactionPercentage = 0.20;
-
-    // Scan for expired items every 5 minutes
-    options.ExpirationScanFrequency = TimeSpan.FromMinutes(5);
-});
-
-// Configure Response Caching
-builder.Services.AddResponseCaching(options =>
-{
-    // Maximum size for response cache (50MB)
-    options.MaximumBodySize = 50 * 1024 * 1024;
-
-    // Use case-sensitive paths for caching
-    options.UseCaseSensitivePaths = false;
-});
-
 // Register services
 builder.Services.AddScoped<DOAMapper.Services.Interfaces.IChangeDetectionService, DOAMapper.Services.ChangeDetectionService>();
 builder.Services.AddScoped<DOAMapper.Services.Interfaces.ITemporalDataService, DOAMapper.Services.TemporalDataService>();
 builder.Services.AddScoped<DOAMapper.Services.Interfaces.IImportService, DOAMapper.Services.ImportService>();
-
-// Register core services first, then wrap with cached decorators
-builder.Services.AddScoped<DOAMapper.Services.PlayerService>();
-builder.Services.AddScoped<DOAMapper.Services.Interfaces.IPlayerService>(provider =>
-{
-    var playerService = provider.GetRequiredService<DOAMapper.Services.PlayerService>();
-    var cache = provider.GetRequiredService<IMemoryCache>();
-    var logger = provider.GetRequiredService<ILogger<DOAMapper.Services.CachedPlayerService>>();
-    return new DOAMapper.Services.CachedPlayerService(playerService, cache, logger);
-});
-
-builder.Services.AddScoped<DOAMapper.Services.AllianceService>();
-builder.Services.AddScoped<DOAMapper.Services.Interfaces.IAllianceService>(provider =>
-{
-    var allianceService = provider.GetRequiredService<DOAMapper.Services.AllianceService>();
-    var cache = provider.GetRequiredService<IMemoryCache>();
-    var logger = provider.GetRequiredService<ILogger<DOAMapper.Services.CachedAllianceService>>();
-    return new DOAMapper.Services.CachedAllianceService(allianceService, cache, logger);
-});
-
-builder.Services.AddScoped<DOAMapper.Services.MapService>();
-builder.Services.AddScoped<DOAMapper.Services.Interfaces.IMapService>(provider =>
-{
-    var mapService = provider.GetRequiredService<DOAMapper.Services.MapService>();
-    var cache = provider.GetRequiredService<IMemoryCache>();
-    var logger = provider.GetRequiredService<ILogger<DOAMapper.Services.CachedMapService>>();
-    return new DOAMapper.Services.CachedMapService(mapService, cache, logger);
-});
-
+builder.Services.AddScoped<DOAMapper.Services.Interfaces.IPlayerService, DOAMapper.Services.PlayerService>();
+builder.Services.AddScoped<DOAMapper.Services.Interfaces.IAllianceService, DOAMapper.Services.AllianceService>();
+builder.Services.AddScoped<DOAMapper.Services.Interfaces.IMapService, DOAMapper.Services.MapService>();
 builder.Services.AddSingleton<DOAMapper.Shared.Services.IAuthenticationService, DOAMapper.Services.AuthenticationService>();
 builder.Services.AddSingleton<DOAMapper.Shared.Services.IAuthenticationStateService, DOAMapper.Services.AuthenticationStateService>();
 builder.Services.AddSingleton<DOAMapper.Services.ErrorHandlingService>();
@@ -320,11 +192,6 @@ else
 // Comment out HTTPS redirection for Railway deployment (Railway handles HTTPS at load balancer level)
 // app.UseHttpsRedirection();
 
-// Add response caching middleware (before routing)
-app.UseResponseCaching();
-
-// Add rate limiting middleware (after routing, before endpoints)
-app.UseRateLimiter();
 
 app.UseAntiforgery();
 

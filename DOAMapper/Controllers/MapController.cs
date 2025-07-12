@@ -2,7 +2,6 @@
 using DOAMapper.Services.Interfaces;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 
 namespace DOAMapper.Controllers;
 
@@ -20,8 +19,6 @@ public class MapController : ControllerBase
     }
 
     [HttpGet("region")]
-    [EnableRateLimiting("api")]
-    [ResponseCache(Duration = 1200, VaryByQueryKeys = new[] { "x1", "y1", "x2", "y2", "date" })]
     public async Task<ActionResult<List<TileDto>>> GetRegionTiles(
         [FromQuery] int x1,
         [FromQuery] int y1,
@@ -60,8 +57,6 @@ public class MapController : ControllerBase
     }
 
     [HttpGet("tile")]
-    [EnableRateLimiting("details")]
-    [ResponseCache(Duration = 1800, VaryByQueryKeys = new[] { "x", "y", "date" })]
     public async Task<ActionResult<TileDto>> GetTile(
         [FromQuery] int x,
         [FromQuery] int y,
@@ -103,7 +98,6 @@ public class MapController : ControllerBase
 
     [HttpGet("tile/history")]
     [RequireAdmin]
-    [EnableRateLimiting("details")]
     public async Task<ActionResult<List<HistoryEntryDto<TileDto>>>> GetTileHistory(
         [FromQuery] int x,
         [FromQuery] int y)
@@ -128,7 +122,6 @@ public class MapController : ControllerBase
 
     [HttpGet("statistics")]
     [RequireAdmin]
-    [EnableRateLimiting("api")]
     public async Task<ActionResult<Dictionary<string, int>>> GetTileStatistics(
         [FromQuery] DateTime? date = null)
     {
@@ -156,8 +149,6 @@ public class MapController : ControllerBase
     }
 
     [HttpGet("dates")]
-    [EnableRateLimiting("api")]
-    [ResponseCache(Duration = 3600)]
     public async Task<ActionResult<List<DateTime>>> GetAvailableDates()
     {
         try

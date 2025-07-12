@@ -2,7 +2,6 @@ using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Services.Interfaces;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 
 namespace DOAMapper.Controllers;
 
@@ -20,8 +19,6 @@ public class PlayersController : ControllerBase
     }
 
     [HttpGet("search")]
-    [EnableRateLimiting("search")]
-    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "query", "date", "page", "size" })]
     public async Task<ActionResult<PagedResult<PlayerDto>>> SearchPlayers(
         [FromQuery] string query = "",
         [FromQuery] DateTime? date = null,
@@ -55,8 +52,6 @@ public class PlayersController : ControllerBase
     }
 
     [HttpGet("{playerId}")]
-    [EnableRateLimiting("details")]
-    [ResponseCache(Duration = 900, VaryByQueryKeys = new[] { "date" })]
     public async Task<ActionResult<PlayerDetailDto>> GetPlayer(
         string playerId,
         [FromQuery] DateTime? date = null)
@@ -119,7 +114,6 @@ public class PlayersController : ControllerBase
 
     [HttpGet("{playerId}/history")]
     [RequireAuth]
-    [EnableRateLimiting("details")]
     public async Task<ActionResult<List<HistoryEntryDto<PlayerDto>>>> GetPlayerHistory(string playerId)
     {
         try
@@ -135,8 +129,6 @@ public class PlayersController : ControllerBase
     }
 
     [HttpGet("dates")]
-    [EnableRateLimiting("api")]
-    [ResponseCache(Duration = 3600)]
     public async Task<ActionResult<List<DateTime>>> GetAvailableDates()
     {
         try

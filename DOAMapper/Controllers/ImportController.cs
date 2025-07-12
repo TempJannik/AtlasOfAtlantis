@@ -3,7 +3,6 @@ using DOAMapper.Services.Interfaces;
 using DOAMapper.Services;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 
 namespace DOAMapper.Controllers;
 
@@ -30,7 +29,6 @@ public class ImportController : ControllerBase
     }
 
     [HttpPost("upload")]
-    [EnableRateLimiting("import")]
     public async Task<ActionResult<ImportSessionDto>> UploadFile(IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -74,7 +72,6 @@ public class ImportController : ControllerBase
     }
 
     [HttpGet("status/{sessionId}")]
-    [EnableRateLimiting("api")]
     public async Task<ActionResult<ImportSessionDto>> GetImportStatus(Guid sessionId)
     {
         try
@@ -89,7 +86,6 @@ public class ImportController : ControllerBase
     }
 
     [HttpGet("history")]
-    [EnableRateLimiting("api")]
     public async Task<ActionResult<List<ImportSessionDto>>> GetImportHistory()
     {
         var history = await _importStatusService.GetImportHistoryAsync();
@@ -97,7 +93,6 @@ public class ImportController : ControllerBase
     }
 
     [HttpGet("dates")]
-    [EnableRateLimiting("api")]
     public async Task<ActionResult<List<DateTime>>> GetAvailableDates()
     {
         var dates = await _importService.GetAvailableImportDatesAsync();
@@ -105,7 +100,6 @@ public class ImportController : ControllerBase
     }
 
     [HttpPost("cancel/{sessionId}")]
-    [EnableRateLimiting("import")]
     public ActionResult CancelImport(Guid sessionId)
     {
         try
@@ -129,7 +123,6 @@ public class ImportController : ControllerBase
     }
 
     [HttpGet("active")]
-    [EnableRateLimiting("api")]
     public ActionResult<List<Guid>> GetActiveImports()
     {
         try

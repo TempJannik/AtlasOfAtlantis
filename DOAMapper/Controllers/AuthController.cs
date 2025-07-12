@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using DOAMapper.Shared.Models.Authentication;
 
 namespace DOAMapper.Controllers;
@@ -18,7 +17,6 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    [EnableRateLimiting("auth")]
     public ActionResult<LoginResponse> Login([FromBody] LoginRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Password))
