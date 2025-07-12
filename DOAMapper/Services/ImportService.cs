@@ -811,14 +811,17 @@ public class ImportService : IImportService
             // Clear change tracker after successful commit to free memory
             _context.ChangeTracker.Clear();
 
+            // Get the actual processed and changed counts from the progress callback
+            var (actualProcessed, actualChanged) = progressCallback.GetFinalCounts();
+
             // Now that transaction is committed, mark the import as completed
             // Mark import as completed using a separate scope to avoid DbContext issues
             using var completionScope = _serviceScopeFactory.CreateScope();
             var statusService = completionScope.ServiceProvider.GetRequiredService<ImportStatusService>();
-            await statusService.CompleteImportAsync(sessionId, totalRecords, totalRecords);
+            await statusService.CompleteImportAsync(sessionId, actualProcessed, actualChanged);
 
             _logger.LogInformation("Import session {SessionId} marked as completed with {Processed} processed, {Changed} changed",
-                sessionId, totalRecords, totalRecords);
+                sessionId, actualProcessed, actualChanged);
 
             _logger.LogInformation("Transaction {TransactionId} committed successfully for session {SessionId}. " +
                                  "All phases completed in {Duration:mm\\:ss}. Records processed: {TotalRecords}",

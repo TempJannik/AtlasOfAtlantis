@@ -52,6 +52,11 @@ public interface IImportProgressCallback
     Task UpdatePhaseProgressAsync(string phaseName, int processed, int total, string? statusMessage = null);
     Task CompletePhaseAsync(string phaseName, int totalProcessed, int totalChanged);
     Task ReportErrorAsync(string phaseName, Exception exception);
+
+    /// <summary>
+    /// Gets the final accumulated counts for processed and changed records
+    /// </summary>
+    (int ProcessedRecords, int ChangedRecords) GetFinalCounts();
 }
 
 /// <summary>
@@ -179,6 +184,11 @@ public class DatabaseImportProgressCallback : IImportProgressCallback
         {
             _logger.LogError(updateEx, "Failed to update session error status for session {SessionId}", _progress.SessionId);
         }
+    }
+
+    public (int ProcessedRecords, int ChangedRecords) GetFinalCounts()
+    {
+        return (_progress.ProcessedRecords, _progress.ChangedRecords);
     }
 
     public void Dispose()
