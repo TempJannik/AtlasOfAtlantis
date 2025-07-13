@@ -38,6 +38,20 @@ public class AllianceService : IAllianceService
             .Take(pageSize)
             .ToListAsync();
 
+        // Load member information for each alliance to get accurate member counts
+        foreach (var alliance in alliances)
+        {
+            var members = await _context.Players
+                .Where(p => p.AllianceId == alliance.AllianceId &&
+                           p.IsActive &&
+                           p.ValidFrom <= utcDate &&
+                           (p.ValidTo == null || p.ValidTo > utcDate))
+                .ToListAsync();
+
+            // Ensure Members collection is not null
+            alliance.Members = members ?? new List<Player>();
+        }
+
         var allianceDtos = _mapper.Map<List<AllianceDto>>(alliances);
 
         // Set the data date for each alliance
@@ -85,8 +99,22 @@ public class AllianceService : IAllianceService
             .Take(pageSize)
             .ToListAsync();
 
+        // Load member information for each alliance to get accurate member counts
+        foreach (var alliance in alliances)
+        {
+            var members = await _context.Players
+                .Where(p => p.AllianceId == alliance.AllianceId &&
+                           p.IsActive &&
+                           p.ValidFrom <= utcDate &&
+                           (p.ValidTo == null || p.ValidTo > utcDate))
+                .ToListAsync();
+
+            // Ensure Members collection is not null
+            alliance.Members = members ?? new List<Player>();
+        }
+
         var allianceDtos = _mapper.Map<List<AllianceDto>>(alliances);
-        
+
         // Set the data date for each alliance
         foreach (var dto in allianceDtos)
         {
@@ -112,7 +140,6 @@ public class AllianceService : IAllianceService
         _logger.LogInformation("Getting alliance {AllianceId} for date {Date}", allianceId, utcDate);
 
         var alliance = await _context.Alliances
-            .Include(a => a.Members.Where(m => m.IsActive && m.ValidFrom <= utcDate && (m.ValidTo == null || m.ValidTo > utcDate)))
             .FirstOrDefaultAsync(a => a.AllianceId == allianceId &&
                                    a.IsActive &&
                                    a.ValidFrom <= utcDate &&
@@ -123,6 +150,15 @@ public class AllianceService : IAllianceService
             _logger.LogWarning("Alliance {AllianceId} not found for date {Date}", allianceId, utcDate);
             return null;
         }
+
+        // Load members manually since navigation properties are ignored in EF configuration
+        var members = await _context.Players
+            .Where(p => p.AllianceId == alliance.AllianceId &&
+                       p.IsActive &&
+                       p.ValidFrom <= utcDate &&
+                       (p.ValidTo == null || p.ValidTo > utcDate))
+            .ToListAsync();
+        alliance.Members = members;
 
         var allianceDto = _mapper.Map<AllianceDto>(alliance);
         allianceDto.DataDate = utcDate;

@@ -770,7 +770,7 @@ public class ImportService : IImportService
             var totalRecords = importData.AllianceBases.Count + importData.Alliances.Count +
                               importData.Players.Count + importData.Tiles.Count;
 
-            _logger.LogInformation("Transaction {TransactionId}: Processing {TotalRecords} total records across 5 phases",
+            _logger.LogInformation("Transaction {TransactionId}: Processing {TotalRecords} total records across 3 phases",
                 transactionId, totalRecords);
 
             // PHASE 1: Import alliances (alliance bases + alliances merged)
@@ -794,12 +794,8 @@ public class ImportService : IImportService
                 await ImportTilesWithProgressAsync(sessionId, importData.Tiles, callback);
             }, progressCallback, cancellationToken);
 
-            // PHASE 4: Update player alliance IDs from city tiles
-            cancellationToken.ThrowIfCancellationRequested();
-            await ExecutePhaseWithProgressAsync("Player Alliance Updates", async (callback) =>
-            {
-                await UpdatePlayerAllianceIdsWithProgressAsync(sessionId, callback);
-            }, progressCallback, cancellationToken);
+            // Note: Player alliance IDs are already correctly assigned in Phase 2 during player creation
+            // No need for a separate alliance ID update phase
 
             // Verify transaction state before commit
             await VerifyTransactionIntegrity(sessionId, importData);
@@ -824,7 +820,7 @@ public class ImportService : IImportService
                 sessionId, actualProcessed, actualChanged);
 
             _logger.LogInformation("Transaction {TransactionId} committed successfully for session {SessionId}. " +
-                                 "All phases completed in {Duration:mm\\:ss}. Records processed: {TotalRecords}",
+                                 "All 3 phases completed in {Duration:mm\\:ss}. Records processed: {TotalRecords}",
                 transactionId, sessionId, duration, totalRecords);
         }
         catch (Exception ex)

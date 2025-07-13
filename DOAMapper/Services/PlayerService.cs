@@ -48,6 +48,16 @@ public class PlayerService : IPlayerService
             .Take(pageSize)
             .ToListAsync();
 
+        // Load alliance information for players that have alliance IDs
+        foreach (var player in players.Where(p => !string.IsNullOrEmpty(p.AllianceId)))
+        {
+            player.Alliance = await _context.Alliances
+                .FirstOrDefaultAsync(a => a.AllianceId == player.AllianceId &&
+                                       a.IsActive &&
+                                       a.ValidFrom <= utcDate &&
+                                       (a.ValidTo == null || a.ValidTo > utcDate));
+        }
+
         var playerDtos = _mapper.Map<List<PlayerDto>>(players);
         
         // Set the data date for each player
@@ -84,6 +94,25 @@ public class PlayerService : IPlayerService
         {
             _logger.LogWarning("Player {PlayerId} not found for date {Date}", playerId, utcDate);
             return null;
+        }
+
+        // Load tiles manually since navigation properties are ignored in EF configuration
+        var tiles = await _context.Tiles
+            .Where(t => t.PlayerId == player.PlayerId &&
+                       t.IsActive &&
+                       t.ValidFrom <= utcDate &&
+                       (t.ValidTo == null || t.ValidTo > utcDate))
+            .ToListAsync();
+        player.Tiles = tiles;
+
+        // Load the alliance if the player has an alliance ID
+        if (!string.IsNullOrEmpty(player.AllianceId))
+        {
+            player.Alliance = await _context.Alliances
+                .FirstOrDefaultAsync(a => a.AllianceId == player.AllianceId &&
+                                       a.IsActive &&
+                                       a.ValidFrom <= utcDate &&
+                                       (a.ValidTo == null || a.ValidTo > utcDate));
         }
 
         var playerDetail = _mapper.Map<PlayerDetailDto>(player);
