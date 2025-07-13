@@ -591,31 +591,78 @@ h6 { font-size: 1rem; }
         flex-direction: column;
         gap: var(--dragon-space-3);
         text-align: center;
+        margin-top: var(--dragon-space-6); /* Add top margin to avoid Discord button overlap */
+        padding: var(--dragon-space-3) var(--dragon-space-4); /* Reduce padding on mobile */
+        max-width: 350px; /* Slightly smaller max-width on mobile */
+    }
+
+    .dragon-data-label {
+        font-size: 0.9rem; /* Slightly smaller font on mobile */
     }
 
     .dragon-select {
-        min-width: 200px;
+        min-width: 180px; /* Reduce min-width for mobile */
+        font-size: 0.85rem; /* Smaller font for mobile */
+        padding: var(--dragon-space-2) var(--dragon-space-3);
     }
 
     .dragon-tabs {
         flex-direction: column;
         border-radius: var(--dragon-radius-lg);
         gap: var(--dragon-space-1);
+        padding: var(--dragon-space-3); /* Reduce padding on mobile */
+        margin-bottom: var(--dragon-space-6); /* Reduce bottom margin */
+        width: 100%; /* Ensure full width */
+        box-sizing: border-box;
     }
 
     .dragon-tab {
         border-radius: var(--dragon-radius-md);
+        padding: var(--dragon-space-3) var(--dragon-space-4); /* Reduce padding to prevent overflow */
+        font-size: 0.9rem; /* Slightly smaller font */
+        width: 100%; /* Full width tabs */
+        text-align: center;
+        white-space: nowrap; /* Prevent text wrapping */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-height: 44px; /* Touch-friendly height */
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .dragon-item-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: var(--dragon-space-3);
+        gap: var(--dragon-space-2);
+        width: 100%;
+    }
+
+    .dragon-item-name {
+        font-size: 1.1rem; /* Slightly smaller on mobile */
+        line-height: 1.3;
+        word-break: break-word; /* Handle long names */
+        width: 100%;
+    }
+
+    .dragon-item-badge {
+        font-size: 0.8rem;
+        padding: var(--dragon-space-1) var(--dragon-space-2);
+        max-width: 100%;
+        word-break: break-all; /* Handle very long power values */
+        text-align: center;
+        align-self: flex-start;
     }
 
     .dragon-item-details {
         flex-direction: column;
         gap: var(--dragon-space-2);
+        width: 100%;
+    }
+
+    .dragon-item-details span {
+        font-size: 0.85rem;
+        word-break: break-word;
     }
 
     .dragon-title {
@@ -624,6 +671,7 @@ h6 { font-size: 1rem; }
 
     .dragon-content {
         padding: var(--dragon-space-6);
+        padding-bottom: 80px; /* Add extra bottom padding to avoid Discord button overlap */
     }
 
     h1 { font-size: 2rem; }
@@ -632,7 +680,268 @@ h6 { font-size: 1rem; }
     h4 { font-size: 1.25rem; }
     h5 { font-size: 1.1rem; }
     h6 { font-size: 1rem; }
+
+    /* Search and input improvements */
+    .dragon-search {
+        margin-bottom: var(--dragon-space-6);
+        max-width: 100%;
+    }
+
+    .dragon-input {
+        font-size: 16px; /* Prevent zoom on iOS */
+        min-height: 44px; /* Touch-friendly height */
+        padding: var(--dragon-space-3) var(--dragon-space-4);
+    }
+
+    .dragon-btn {
+        min-height: 44px; /* Touch-friendly height */
+        padding: var(--dragon-space-3) var(--dragon-space-4);
+        font-size: 0.9rem;
+    }
+
+    .dragon-pagination {
+        flex-wrap: wrap;
+        gap: var(--dragon-space-1);
+        margin-top: var(--dragon-space-6);
+    }
+
+    .dragon-pagination .dragon-btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: var(--dragon-space-2);
+    }
+
+    /* Layout spacing improvements */
+    .dragon-mb-4 {
+        margin-bottom: var(--dragon-space-4) !important;
+    }
+
+    .dragon-text-secondary {
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+
+    .dragon-text-muted {
+        font-size: 0.85rem;
+        line-height: 1.3;
+    }
+
+    .dragon-loading {
+        padding: var(--dragon-space-6);
+        font-size: 0.9rem;
+    }
+
+    .dragon-error {
+        padding: var(--dragon-space-4);
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    /* Accessibility improvements */
+    .dragon-btn:focus,
+    .dragon-input:focus,
+    .dragon-select:focus,
+    .dragon-tab:focus {
+        outline: 2px solid var(--dragon-primary);
+        outline-offset: 2px;
+    }
+
+    .dragon-list-item {
+        cursor: pointer;
+        -webkit-tap-highlight-color: rgba(139, 69, 19, 0.1);
+    }
+
+    /* Responsive grid */
+    .dragon-detail-header {
+        flex-direction: column;
+        gap: var(--dragon-space-4);
+    }
+
+    .dragon-detail-actions {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .dragon-col-4,
+    .dragon-col-8 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .dragon-row {
+        margin: 0;
+    }
+
+    .dragon-col,
+    .dragon-col-4,
+    .dragon-col-8 {
+        padding: 0;
+    }
 }
+
+/* Additional mobile breakpoint for smaller screens */
+@media (max-width: 480px) {
+    .dragon-tabs {
+        padding: var(--dragon-space-2);
+        gap: var(--dragon-space-1);
+    }
+
+    .dragon-tab {
+        padding: var(--dragon-space-2) var(--dragon-space-3);
+        font-size: 0.85rem;
+        min-height: 40px;
+    }
+
+    .dragon-container {
+        padding: var(--dragon-space-3);
+    }
+
+    .dragon-content {
+        padding: var(--dragon-space-4);
+        padding-bottom: 70px; /* Extra bottom padding for smaller screens */
+    }
+
+    .dragon-data-selector {
+        margin-top: var(--dragon-space-4);
+        padding: var(--dragon-space-2) var(--dragon-space-3);
+        max-width: 300px;
+    }
+
+    .dragon-data-label {
+        font-size: 0.85rem;
+    }
+
+    .dragon-select {
+        min-width: 160px;
+        font-size: 0.8rem;
+        padding: var(--dragon-space-2);
+    }
+
+    .dragon-item-name {
+        font-size: 1rem;
+    }
+
+    .dragon-item-badge {
+        font-size: 0.75rem;
+        padding: var(--dragon-space-1);
+    }
+
+    .dragon-item-details span {
+        font-size: 0.8rem;
+    }
+
+    .dragon-list-item {
+        padding: var(--dragon-space-4);
+        margin-bottom: var(--dragon-space-3);
+    }
+
+    /* Search and input improvements */
+    .dragon-search {
+        margin-bottom: var(--dragon-space-4);
+    }
+
+    .dragon-input {
+        font-size: 16px;
+        min-height: 40px;
+        padding: var(--dragon-space-2) var(--dragon-space-3);
+    }
+
+    .dragon-btn {
+        min-height: 40px;
+        padding: var(--dragon-space-2) var(--dragon-space-3);
+        font-size: 0.85rem;
+    }
+
+    .dragon-pagination .dragon-btn {
+        min-width: 40px;
+        min-height: 40px;
+        padding: var(--dragon-space-1);
+        font-size: 0.8rem;
+    }
+
+    /* Text improvements */
+    .dragon-text-secondary {
+        font-size: 0.85rem;
+    }
+
+    .dragon-text-muted {
+        font-size: 0.8rem;
+    }
+
+    .dragon-loading {
+        padding: var(--dragon-space-4);
+        font-size: 0.85rem;
+    }
+
+    .dragon-error {
+        padding: var(--dragon-space-3);
+        font-size: 0.85rem;
+    }
+}
+
+/* Breakpoint for very small screens */
+@media (max-width: 360px) {
+    .dragon-tab {
+        padding: var(--dragon-space-2);
+        font-size: 0.8rem;
+        min-height: 36px;
+    }
+
+    .dragon-data-selector {
+        margin-top: var(--dragon-space-3);
+        padding: var(--dragon-space-2);
+        max-width: 280px;
+    }
+
+    .dragon-data-label {
+        font-size: 0.8rem;
+    }
+
+    .dragon-select {
+        min-width: 140px;
+        font-size: 0.75rem;
+        padding: var(--dragon-space-1) var(--dragon-space-2);
+    }
+
+    .dragon-item-name {
+        font-size: 0.95rem;
+    }
+
+    .dragon-item-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+
+    .dragon-item-details span {
+        font-size: 0.75rem;
+    }
+
+    .dragon-list-item {
+        padding: var(--dragon-space-3);
+        margin-bottom: var(--dragon-space-2);
+    }
+
+    /* Input improvements */
+    .dragon-input {
+        min-height: 36px;
+        padding: var(--dragon-space-2);
+        font-size: 15px;
+    }
+
+    .dragon-btn {
+        min-height: 36px;
+        padding: var(--dragon-space-2);
+        font-size: 0.8rem;
+    }
+
+    .dragon-pagination .dragon-btn {
+        min-width: 36px;
+        min-height: 36px;
+        font-size: 0.75rem;
+    }
+}
+
+/* Mobile CSS consolidated and organized */
 
 /* === LOADING STATES === */
 .dragon-loading {
@@ -961,31 +1270,4 @@ h6 { font-size: 1rem; }
     color: var(--dragon-text-primary);
 }
 
-/* === RESPONSIVE GRID === */
-@media (max-width: 768px) {
-    .dragon-detail-header {
-        flex-direction: column;
-        gap: var(--dragon-space-4);
-    }
-
-    .dragon-detail-actions {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .dragon-col-4,
-    .dragon-col-8 {
-        flex: 0 0 100%;
-        max-width: 100%;
-    }
-
-    .dragon-row {
-        margin: 0;
-    }
-
-    .dragon-col,
-    .dragon-col-4,
-    .dragon-col-8 {
-        padding: 0;
-    }
-}
+/* All responsive design consolidated above */

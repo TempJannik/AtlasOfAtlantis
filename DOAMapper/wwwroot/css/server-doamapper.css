@@ -804,16 +804,54 @@ body::before {
     }
 
     .discord-link {
-        top: 10px;
-        right: 10px;
-        padding: 8px 16px;
-        font-size: 0.85rem;
-        gap: 8px;
+        /* Position at bottom center for mobile */
+        position: fixed !important;
+        bottom: 20px !important;
+        left: 50% !important;
+        right: auto !important;
+        top: auto !important; /* Override any top positioning */
+        transform: translateX(-50%) !important; /* Center horizontally */
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        gap: 6px;
+        z-index: 1000; /* Higher z-index to stay above everything */
+        border-radius: 20px;
+        min-height: 36px; /* Ensure touch-friendly size */
+        max-height: 36px; /* Prevent stretching */
+        height: auto; /* Ensure natural height */
     }
 
     .discord-link svg {
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
+    }
+}
+
+/* Additional mobile breakpoint for very small screens */
+@media (max-width: 480px) {
+    .discord-link {
+        position: relative !important; /* Change from fixed to relative positioning */
+        bottom: auto !important; /* Remove fixed positioning */
+        left: auto !important; /* Remove fixed positioning */
+        right: auto !important; /* Remove fixed positioning */
+        top: auto !important; /* Remove fixed positioning */
+        transform: none !important; /* Remove transform */
+
+        margin: 40px auto 20px auto !important; /* Increased top margin for more space from pagination */
+        width: fit-content !important; /* Fit content width */
+        padding: 8px 16px;
+        display: inline-flex !important; /* Restore inline-flex for proper alignment */
+        align-items: center !important; /* Ensure vertical centering of content */
+        font-size: 0.75rem;
+        gap: 5px;
+        min-height: 32px;
+        max-height: 32px; /* Prevent stretching */
+        height: auto; /* Ensure natural height */
+    }
+
+    .discord-link svg {
+        width: 12px;
+        height: 12px;
     }
 }
 
