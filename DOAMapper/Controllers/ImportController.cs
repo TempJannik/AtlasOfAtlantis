@@ -29,7 +29,7 @@ public class ImportController : ControllerBase
     }
 
     [HttpPost("upload")]
-    public async Task<ActionResult<ImportSessionDto>> UploadFile(IFormFile file)
+    public async Task<ActionResult<ImportSessionDto>> UploadFile(IFormFile file, [FromForm] DateTime? importDate = null)
     {
         if (file == null || file.Length == 0)
         {
@@ -46,16 +46,29 @@ public class ImportController : ControllerBase
             return BadRequest("File size exceeds 100MB limit");
         }
 
+        // Validate import date if provided
+        if (importDate.HasValue)
+        {
+            var dateOnly = importDate.Value.Date;
+            var today = DateTime.UtcNow.Date;
+
+            // Allow dates from 1 year ago to 1 week in the future
+            if (dateOnly < today.AddYears(-1) || dateOnly > today.AddDays(7))
+            {
+                return BadRequest("Import date must be within the last year and not more than a week in the future");
+            }
+        }
+
         try
         {
             using var stream = file.OpenReadStream();
 
             // Use BackgroundImportService for background processing
-            var session = await _backgroundImportService.StartBackgroundImportAsync(stream, file.FileName);
+            var session = await _backgroundImportService.StartBackgroundImportAsync(stream, file.FileName, importDate);
             var sessionDto = await _importStatusService.GetImportStatusAsync(session.Id);
 
-            _logger.LogInformation("Background import started for file {FileName} with session {SessionId}",
-                file.FileName, session.Id);
+            _logger.LogInformation("Background import started for file {FileName} with session {SessionId} for date {ImportDate}",
+                file.FileName, session.Id, importDate?.ToString("yyyy-MM-dd") ?? "current");
 
             return Ok(sessionDto);
         }

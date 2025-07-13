@@ -21,11 +21,25 @@
             @if (CurrentImport == null)
             {
                 <div class="upload-area">
-                    <InputFile OnChange="OnFileSelected" accept=".json" class="form-control" />
-                    <div class="upload-help">
-                        <small class="text-muted">
-                            Select a JSON file containing map data. Maximum file size: 100MB
-                        </small>
+                    <div class="mb-3">
+                        <label for="importDate" class="form-label">Import Date</label>
+                        <input type="date" id="importDate" class="form-control" @bind="ImportDate" @bind:format="yyyy-MM-dd" />
+                        <div class="form-text">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Select the date for which this data should be imported. Defaults to today.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="fileInput" class="form-label">JSON File</label>
+                        <InputFile id="fileInput" OnChange="OnFileSelected" accept=".json" class="form-control" />
+                        <div class="form-text">
+                            <small class="text-muted">
+                                Select a JSON file containing map data. Maximum file size: 100MB
+                            </small>
+                        </div>
                     </div>
                     @if (SelectedFile != null)
                     {
@@ -152,6 +166,7 @@
     private string? ErrorMessage;
     private ImportSessionDto? CurrentImport;
     private List<ImportSessionDto>? ImportHistory;
+    private DateTime ImportDate = DateTime.Today;
 
     protected override async Task OnInitializedAsync()
     {
@@ -185,7 +200,7 @@
         ErrorMessage = null;
         try
         {
-            CurrentImport = await ImportService.StartImportAsync(SelectedFile);
+            CurrentImport = await ImportService.StartImportAsync(SelectedFile, ImportDate);
 
             // Start polling for updates
             _ = Task.Run(async () => await PollImportStatus(CurrentImport.Id));

@@ -26,7 +26,7 @@ public class BackgroundImportService
     /// <summary>
     /// Starts a background import operation
     /// </summary>
-    public async Task<ImportSession> StartBackgroundImportAsync(Stream jsonStream, string fileName)
+    public async Task<ImportSession> StartBackgroundImportAsync(Stream jsonStream, string fileName, DateTime? importDate = null)
     {
         // Check for active imports (business rule: only one import at a time)
         lock (_lockObject)
@@ -37,14 +37,18 @@ public class BackgroundImportService
             }
         }
 
+        // Use provided date or default to current date, normalized to midnight UTC
+        var effectiveImportDate = importDate?.Date ?? DateTime.UtcNow.Date;
+        var utcImportDate = DateTime.SpecifyKind(effectiveImportDate, DateTimeKind.Utc);
+
         // Create import session
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var importSession = new ImportSession
         {
             Id = Guid.NewGuid(),
-            ImportDate = DateTime.UtcNow,
+            ImportDate = utcImportDate,
             FileName = fileName,
             Status = ImportStatus.Processing,
             RecordsProcessed = 0,
@@ -63,7 +67,7 @@ public class BackgroundImportService
 
         // Start background processing
         var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMinutes(30)); // 30 minute timeout
-        
+
         lock (_lockObject)
         {
             _activeImports[importSession.Id] = cancellationTokenSource;
@@ -74,7 +78,7 @@ public class BackgroundImportService
         {
             try
             {
-                await ProcessImportInBackgroundAsync(importSession.Id, memoryStream, cancellationTokenSource.Token);
+                await ProcessImportInBackgroundAsync(importSession.Id, memoryStream, utcImportDate, cancellationTokenSource.Token);
             }
             finally
             {
@@ -87,8 +91,8 @@ public class BackgroundImportService
             }
         }, cancellationTokenSource.Token);
 
-        _logger.LogInformation("Background import started for session {SessionId} with file {FileName}", 
-            importSession.Id, fileName);
+        _logger.LogInformation("Background import started for session {SessionId} with file {FileName} for date {ImportDate}",
+            importSession.Id, fileName, utcImportDate.ToString("yyyy-MM-dd"));
 
         return importSession;
     }
@@ -96,24 +100,25 @@ public class BackgroundImportService
     /// <summary>
     /// Processes the import in a background task with proper scoping
     /// </summary>
-    private async Task ProcessImportInBackgroundAsync(Guid sessionId, Stream jsonStream, CancellationToken cancellationToken)
+    private async Task ProcessImportInBackgroundAsync(Guid sessionId, Stream jsonStream, DateTime importDate, CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<BackgroundImportService>>();
-        var progressCallback = new DatabaseImportProgressCallback(scope, sessionId, 
+        var progressCallback = new DatabaseImportProgressCallback(scope, sessionId,
             scope.ServiceProvider.GetRequiredService<ILogger<DatabaseImportProgressCallback>>());
 
         try
         {
-            logger.LogInformation("Starting background import processing for session {SessionId}", sessionId);
+            logger.LogInformation("Starting background import processing for session {SessionId} with import date {ImportDate}",
+                sessionId, importDate.ToString("yyyy-MM-dd"));
 
             // Get required services from scope
             var importService = scope.ServiceProvider.GetRequiredService<IImportService>();
-            
+
             // Cast to concrete type to access internal methods
             if (importService is ImportService concreteImportService)
             {
-                await concreteImportService.ProcessImportWithProgressAsync(sessionId, jsonStream, progressCallback, cancellationToken);
+                await concreteImportService.ProcessImportWithProgressAsync(sessionId, jsonStream, importDate, progressCallback, cancellationToken);
             }
             else
             {

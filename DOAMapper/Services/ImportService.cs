@@ -38,15 +38,19 @@ public class ImportService : IImportService
         _serviceScopeFactory = serviceScopeFactory;
     }
 
-    public async Task<ImportSession> StartImportAsync(Stream jsonStream, string fileName)
+    public async Task<ImportSession> StartImportAsync(Stream jsonStream, string fileName, DateTime? importDate = null)
     {
-        _logger.LogInformation("Starting import for file {FileName}", fileName);
+        // Use provided date or default to current date, normalized to midnight UTC
+        var effectiveImportDate = importDate?.Date ?? DateTime.UtcNow.Date;
+        var utcImportDate = DateTime.SpecifyKind(effectiveImportDate, DateTimeKind.Utc);
+
+        _logger.LogInformation("Starting import for file {FileName} with import date {ImportDate}", fileName, utcImportDate.ToString("yyyy-MM-dd"));
 
         // Create import session
         var importSession = new ImportSession
         {
             Id = Guid.NewGuid(),
-            ImportDate = DateTime.UtcNow,
+            ImportDate = utcImportDate,
             FileName = fileName,
             Status = ImportStatus.Processing,
             RecordsProcessed = 0,
@@ -61,7 +65,7 @@ public class ImportService : IImportService
         // Process import synchronously for now to avoid DbContext disposal issues
         try
         {
-            await ProcessImportWithTimeoutAsync(importSession.Id, jsonStream);
+            await ProcessImportWithTimeoutAsync(importSession.Id, jsonStream, utcImportDate);
         }
         catch (Exception ex)
         {
@@ -80,13 +84,14 @@ public class ImportService : IImportService
     /// <summary>
     /// Processes import with progress tracking for background execution
     /// </summary>
-    public async Task ProcessImportWithProgressAsync(Guid sessionId, Stream jsonStream, IImportProgressCallback progressCallback, CancellationToken cancellationToken = default)
+    public async Task ProcessImportWithProgressAsync(Guid sessionId, Stream jsonStream, DateTime importDate, IImportProgressCallback progressCallback, CancellationToken cancellationToken = default)
     {
         var startTime = DateTime.UtcNow;
 
         try
         {
-            _logger.LogInformation("Starting background import processing for session {SessionId}", sessionId);
+            _logger.LogInformation("Starting background import processing for session {SessionId} with import date {ImportDate}",
+                sessionId, importDate.ToString("yyyy-MM-dd"));
 
             // Phase 1: Parse JSON data
             await ImportProgressReporter.ReportPhaseStartAsync(progressCallback, "JSON Parsing", 1);
@@ -103,7 +108,7 @@ public class ImportService : IImportService
             await ImportProgressReporter.ReportPhaseCompletionAsync(progressCallback, "Data Validation", 1, 0);
 
             // Process import in transaction with rollback capability
-            await ProcessImportWithTransactionAndProgressAsync(sessionId, importData, progressCallback, cancellationToken);
+            await ProcessImportWithTransactionAndProgressAsync(sessionId, importData, importDate, progressCallback, cancellationToken);
 
             // The import completion will be handled by the DatabaseImportProgressCallback
             // when all phases are completed
@@ -165,7 +170,7 @@ public class ImportService : IImportService
         return dates.Select(d => DateTime.SpecifyKind(d, DateTimeKind.Utc)).ToList();
     }
 
-    private async Task ProcessImportWithTimeoutAsync(Guid sessionId, Stream jsonStream)
+    private async Task ProcessImportWithTimeoutAsync(Guid sessionId, Stream jsonStream, DateTime importDate)
     {
         const int timeoutSeconds = 300; // 5 minutes for large files
         using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
@@ -173,7 +178,7 @@ public class ImportService : IImportService
         try
         {
             _logger.LogInformation("Starting import with {TimeoutSeconds}s timeout for session {SessionId}", timeoutSeconds, sessionId);
-            await ProcessImportAsync(sessionId, jsonStream, cancellationTokenSource.Token);
+            await ProcessImportAsync(sessionId, jsonStream, importDate, cancellationTokenSource.Token);
         }
         catch (OperationCanceledException) when (cancellationTokenSource.Token.IsCancellationRequested)
         {
@@ -187,7 +192,7 @@ public class ImportService : IImportService
         }
     }
 
-    private async Task ProcessImportAsync(Guid sessionId, Stream jsonStream, CancellationToken cancellationToken = default)
+    private async Task ProcessImportAsync(Guid sessionId, Stream jsonStream, DateTime importDate, CancellationToken cancellationToken = default)
     {
         var session = await _context.ImportSessions.FindAsync(sessionId);
         if (session == null)
@@ -223,7 +228,7 @@ public class ImportService : IImportService
             await UpdateImportProgressAsync(sessionId, 30, "Processing import data...");
 
             // Process import in transaction with rollback capability
-            await ProcessImportWithTransactionAsync(sessionId, importData, cancellationToken);
+            await ProcessImportWithTransactionAsync(sessionId, importData, importDate, cancellationToken);
 
             // Mark as completed
             session.Status = ImportStatus.Completed;
@@ -748,7 +753,7 @@ public class ImportService : IImportService
         }
     }
 
-    private async Task ProcessImportWithTransactionAndProgressAsync(Guid sessionId, ImportDataModel importData, IImportProgressCallback progressCallback, CancellationToken cancellationToken = default)
+    private async Task ProcessImportWithTransactionAndProgressAsync(Guid sessionId, ImportDataModel importData, DateTime importDate, IImportProgressCallback progressCallback, CancellationToken cancellationToken = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
         var transactionId = transaction.TransactionId;
@@ -777,21 +782,21 @@ public class ImportService : IImportService
             cancellationToken.ThrowIfCancellationRequested();
             await ExecutePhaseWithProgressAsync("Alliance Bases", async (callback) =>
             {
-                await ImportMergedAlliancesWithProgressAsync(sessionId, importData.AllianceBases, importData.Alliances, callback);
+                await ImportMergedAlliancesWithProgressAsync(sessionId, importData.AllianceBases, importData.Alliances, importDate, callback);
             }, progressCallback, cancellationToken);
 
             // PHASE 2: Import players
             cancellationToken.ThrowIfCancellationRequested();
             await ExecutePhaseWithProgressAsync("Players", async (callback) =>
             {
-                await ImportPlayersWithProgressAsync(sessionId, importData.Players, importData.Tiles, callback);
+                await ImportPlayersWithProgressAsync(sessionId, importData.Players, importData.Tiles, importDate, callback);
             }, progressCallback, cancellationToken);
 
             // PHASE 3: Import tiles
             cancellationToken.ThrowIfCancellationRequested();
             await ExecutePhaseWithProgressAsync("Tiles", async (callback) =>
             {
-                await ImportTilesWithProgressAsync(sessionId, importData.Tiles, callback);
+                await ImportTilesWithProgressAsync(sessionId, importData.Tiles, importDate, callback);
             }, progressCallback, cancellationToken);
 
             // Note: Player alliance IDs are already correctly assigned in Phase 2 during player creation
@@ -830,7 +835,7 @@ public class ImportService : IImportService
         }
     }
 
-    private async Task ProcessImportWithTransactionAsync(Guid sessionId, ImportDataModel importData, CancellationToken cancellationToken = default)
+    private async Task ProcessImportWithTransactionAsync(Guid sessionId, ImportDataModel importData, DateTime importDate, CancellationToken cancellationToken = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
         var transactionId = transaction.TransactionId;
@@ -861,7 +866,7 @@ public class ImportService : IImportService
             await UpdateImportProgressAsync(sessionId, 40, "Importing alliances...");
             await ExecutePhaseWithErrorHandling(1, "Alliances", async () =>
             {
-                await ImportMergedAlliancesAsync(sessionId, importData.AllianceBases, importData.Alliances);
+                await ImportMergedAlliancesAsync(sessionId, importData.AllianceBases, importData.Alliances, importDate);
                 _logger.LogInformation("Phase 1 completed: {AllianceBaseCount} alliance bases + {AllianceCount} alliances imported and merged",
                     importData.AllianceBases.Count, importData.Alliances.Count);
             }, cancellationToken);
@@ -872,7 +877,7 @@ public class ImportService : IImportService
             await UpdateImportProgressAsync(sessionId, 60, "Importing players with alliance relationships...");
             await ExecutePhaseWithErrorHandling(2, "Players", async () =>
             {
-                await ImportPlayersWithAllianceIdsAsync(sessionId, importData.Players, importData.Tiles);
+                await ImportPlayersWithAllianceIdsAsync(sessionId, importData.Players, importData.Tiles, importDate);
                 _logger.LogInformation("Phase 2 completed: {PlayerCount} players imported with alliance relationships", importData.Players.Count);
             }, cancellationToken);
 
@@ -882,7 +887,7 @@ public class ImportService : IImportService
             await UpdateImportProgressAsync(sessionId, 90, "Importing tiles...");
             await ExecutePhaseWithErrorHandling(3, "Tiles", async () =>
             {
-                await ImportTilesAsync(sessionId, importData.Tiles);
+                await ImportTilesAsync(sessionId, importData.Tiles, importDate);
                 _logger.LogInformation("Phase 3 completed: {TileCount} tiles imported, establishing player-alliance relationships",
                     importData.Tiles.Count);
             }, cancellationToken);
@@ -1132,7 +1137,7 @@ public class ImportService : IImportService
         }
     }
 
-    private async Task ImportMergedAlliancesAsync(Guid sessionId, List<AllianceBaseImportModel> allianceBases, List<AllianceImportModel> alliances)
+    private async Task ImportMergedAlliancesAsync(Guid sessionId, List<AllianceBaseImportModel> allianceBases, List<AllianceImportModel> alliances, DateTime importDate)
     {
         _logger.LogInformation("Importing and merging {AllianceBaseCount} alliance bases and {AllianceCount} alliances",
             allianceBases.Count, alliances.Count);
@@ -1150,7 +1155,7 @@ public class ImportService : IImportService
             FortressX = ab.X,
             FortressY = ab.Y,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Step 2: Create Alliance entities from alliances (without fortress data)
@@ -1166,7 +1171,7 @@ public class ImportService : IImportService
             FortressX = 0,
             FortressY = 0,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Step 3: Merge alliance data - alliance bases take priority over alliance-only records
@@ -1184,13 +1189,13 @@ public class ImportService : IImportService
         var changes = await _changeDetectionService.DetectAllianceChangesAsync(mergedAlliances, currentAlliances);
 
         // Step 6: Apply changes
-        await _temporalDataService.ApplyAllianceChangesAsync(changes, sessionId);
+        await _temporalDataService.ApplyAllianceChangesAsync(changes, sessionId, importDate);
 
         _logger.LogInformation("Alliance import completed: {Added} added, {Modified} modified, {Removed} removed",
             changes.Added.Count, changes.Modified.Count, changes.Removed.Count);
     }
 
-    private async Task ImportMergedAlliancesWithProgressAsync(Guid sessionId, List<AllianceBaseImportModel> allianceBases, List<AllianceImportModel> alliances, IImportProgressCallback progressCallback)
+    private async Task ImportMergedAlliancesWithProgressAsync(Guid sessionId, List<AllianceBaseImportModel> allianceBases, List<AllianceImportModel> alliances, DateTime importDate, IImportProgressCallback progressCallback)
     {
         var totalRecords = allianceBases.Count + alliances.Count;
         await ImportProgressReporter.ReportPhaseStartAsync(progressCallback, "Alliance Bases", totalRecords);
@@ -1213,7 +1218,7 @@ public class ImportService : IImportService
             FortressX = ab.X,
             FortressY = ab.Y,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         await ImportProgressReporter.ReportPhaseProgressAsync(progressCallback, "Alliance Bases", allianceBases.Count, totalRecords, "Processing alliances...");
@@ -1231,7 +1236,7 @@ public class ImportService : IImportService
             FortressX = 0,
             FortressY = 0,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Step 3: Merge alliance data - alliance bases take priority over alliance-only records
@@ -1250,7 +1255,7 @@ public class ImportService : IImportService
         var changes = await _changeDetectionService.DetectAllianceChangesAsync(mergedAlliances, currentAlliances);
 
         // Step 6: Apply changes
-        await _temporalDataService.ApplyAllianceChangesAsync(changes, sessionId);
+        await _temporalDataService.ApplyAllianceChangesAsync(changes, sessionId, importDate);
 
         var totalChanged = changes.Added.Count + changes.Modified.Count + changes.Removed.Count;
         await ImportProgressReporter.ReportPhaseCompletionAsync(progressCallback, "Alliance Bases", totalRecords, totalChanged);
@@ -1259,7 +1264,7 @@ public class ImportService : IImportService
             changes.Added.Count, changes.Modified.Count, changes.Removed.Count);
     }
 
-    private async Task ImportPlayersWithProgressAsync(Guid sessionId, List<PlayerImportModel> players, List<TileImportModel> tiles, IImportProgressCallback progressCallback)
+    private async Task ImportPlayersWithProgressAsync(Guid sessionId, List<PlayerImportModel> players, List<TileImportModel> tiles, DateTime importDate, IImportProgressCallback progressCallback)
     {
         await ImportProgressReporter.ReportPhaseStartAsync(progressCallback, "Players", players.Count);
 
@@ -1291,7 +1296,7 @@ public class ImportService : IImportService
             Might = long.TryParse(p.Might, out var might) ? might : 0,
             AllianceId = playerAllianceMap.TryGetValue(p.PlayerId, out var allianceId) ? allianceId : null,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Log alliance assignment statistics
@@ -1311,7 +1316,7 @@ public class ImportService : IImportService
             PlayerId = t.PlayerId > 0 ? t.PlayerId.ToString() : null,
             AllianceId = t.AllianceId > 0 ? t.AllianceId.ToString() : null,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Get current players and tiles for change detection
@@ -1329,7 +1334,7 @@ public class ImportService : IImportService
         var changes = await _changeDetectionService.DetectPlayerChangesAsync(playerEntities, currentPlayers, tileEntities, currentTiles);
 
         // Apply changes
-        await _temporalDataService.ApplyPlayerChangesAsync(changes, sessionId);
+        await _temporalDataService.ApplyPlayerChangesAsync(changes, sessionId, importDate);
 
         var totalChanged = changes.Added.Count + changes.Modified.Count + changes.Removed.Count;
         await ImportProgressReporter.ReportPhaseCompletionAsync(progressCallback, "Players", players.Count, totalChanged);
@@ -1376,7 +1381,7 @@ public class ImportService : IImportService
         return mergedAlliances;
     }
 
-    private async Task ImportPlayersAsync(Guid sessionId, List<PlayerImportModel> players)
+    private async Task ImportPlayersAsync(Guid sessionId, List<PlayerImportModel> players, DateTime importDate)
     {
         _logger.LogInformation("Importing {Count} players", players.Count);
 
@@ -1391,7 +1396,7 @@ public class ImportService : IImportService
             Might = long.TryParse(p.Might, out var might) ? might : 0,
             AllianceId = null, // Will be set based on tile data
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Get current players for change detection
@@ -1403,13 +1408,13 @@ public class ImportService : IImportService
         var changes = await _changeDetectionService.DetectPlayerChangesAsync(playerEntities, currentPlayers);
 
         // Apply changes
-        await _temporalDataService.ApplyPlayerChangesAsync(changes, sessionId);
+        await _temporalDataService.ApplyPlayerChangesAsync(changes, sessionId, importDate);
 
         _logger.LogInformation("Players import completed: {Added} added, {Modified} modified, {Removed} removed",
             changes.Added.Count, changes.Modified.Count, changes.Removed.Count);
     }
 
-    private async Task ImportPlayersWithAllianceIdsAsync(Guid sessionId, List<PlayerImportModel> players, List<TileImportModel> tiles)
+    private async Task ImportPlayersWithAllianceIdsAsync(Guid sessionId, List<PlayerImportModel> players, List<TileImportModel> tiles, DateTime importDate)
     {
         _logger.LogInformation("Importing {Count} players with alliance relationships from City tiles", players.Count);
 
@@ -1435,7 +1440,7 @@ public class ImportService : IImportService
             Might = long.TryParse(p.Might, out var might) ? might : 0,
             AllianceId = playerAllianceMap.TryGetValue(p.PlayerId, out var allianceId) ? allianceId : null,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Log alliance assignment statistics
@@ -1455,7 +1460,7 @@ public class ImportService : IImportService
             PlayerId = t.PlayerId > 0 ? t.PlayerId.ToString() : null,
             AllianceId = t.AllianceId > 0 ? t.AllianceId.ToString() : null,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Get current players and tiles for change detection
@@ -1471,13 +1476,13 @@ public class ImportService : IImportService
         var changes = await _changeDetectionService.DetectPlayerChangesAsync(playerEntities, currentPlayers, tileEntities, currentTiles);
 
         // Apply changes
-        await _temporalDataService.ApplyPlayerChangesAsync(changes, sessionId);
+        await _temporalDataService.ApplyPlayerChangesAsync(changes, sessionId, importDate);
 
         _logger.LogInformation("Players import completed: {Added} added, {Modified} modified, {Removed} removed",
             changes.Added.Count, changes.Modified.Count, changes.Removed.Count);
     }
 
-    private async Task ImportTilesAsync(Guid sessionId, List<TileImportModel> tiles)
+    private async Task ImportTilesAsync(Guid sessionId, List<TileImportModel> tiles, DateTime importDate)
     {
         _logger.LogInformation("Importing {Count} tiles", tiles.Count);
         
@@ -1493,7 +1498,7 @@ public class ImportService : IImportService
             PlayerId = t.PlayerId > 0 ? t.PlayerId.ToString() : null,
             AllianceId = t.AllianceId > 0 ? t.AllianceId.ToString() : null,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Get current tiles for change detection
@@ -1505,13 +1510,13 @@ public class ImportService : IImportService
         var changes = await _changeDetectionService.DetectTileChangesAsync(tileEntities, currentTiles);
         
         // Apply changes
-        await _temporalDataService.ApplyTileChangesAsync(changes, sessionId);
+        await _temporalDataService.ApplyTileChangesAsync(changes, sessionId, importDate);
         
         _logger.LogInformation("Tiles import completed: {Added} added, {Modified} modified, {Removed} removed",
             changes.Added.Count, changes.Modified.Count, changes.Removed.Count);
     }
 
-    private async Task ImportTilesWithProgressAsync(Guid sessionId, List<TileImportModel> tiles, IImportProgressCallback progressCallback)
+    private async Task ImportTilesWithProgressAsync(Guid sessionId, List<TileImportModel> tiles, DateTime importDate, IImportProgressCallback progressCallback)
     {
         await ImportProgressReporter.ReportPhaseStartAsync(progressCallback, "Tiles", tiles.Count);
 
@@ -1531,7 +1536,7 @@ public class ImportService : IImportService
             PlayerId = t.PlayerId > 0 ? t.PlayerId.ToString() : null,
             AllianceId = t.AllianceId > 0 ? t.AllianceId.ToString() : null,
             IsActive = true,
-            ValidFrom = DateTime.UtcNow.Date
+            ValidFrom = importDate
         }).ToList();
 
         // Get current tiles for change detection
@@ -1546,7 +1551,7 @@ public class ImportService : IImportService
         var changes = await _changeDetectionService.DetectTileChangesAsync(tileEntities, currentTiles);
 
         // Apply changes
-        await _temporalDataService.ApplyTileChangesAsync(changes, sessionId);
+        await _temporalDataService.ApplyTileChangesAsync(changes, sessionId, importDate);
 
         var totalChanged = changes.Added.Count + changes.Modified.Count + changes.Removed.Count;
         await ImportProgressReporter.ReportPhaseCompletionAsync(progressCallback, "Tiles", tiles.Count, totalChanged);

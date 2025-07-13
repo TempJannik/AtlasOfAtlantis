@@ -16,9 +16,8 @@ public class TemporalDataService : ITemporalDataService
         _logger = logger;
     }
 
-    public async Task ApplyTileChangesAsync(ChangeSet<Tile> changes, Guid importSessionId)
+    public async Task ApplyTileChangesAsync(ChangeSet<Tile> changes, Guid importSessionId, DateTime importDate)
     {
-        var importDate = DateTime.UtcNow.Date;
         
         // Handle removed tiles - set ValidTo date
         if (changes.Removed.Any())
@@ -230,9 +229,8 @@ public class TemporalDataService : ITemporalDataService
         }
     }
 
-    public async Task ApplyPlayerChangesAsync(ChangeSet<Player> changes, Guid importSessionId)
+    public async Task ApplyPlayerChangesAsync(ChangeSet<Player> changes, Guid importSessionId, DateTime importDate)
     {
-        var importDate = DateTime.UtcNow.Date;
         
         // Handle removed players
         if (changes.Removed.Any())
@@ -404,9 +402,8 @@ public class TemporalDataService : ITemporalDataService
         }
     }
 
-    public async Task ApplyAllianceChangesAsync(ChangeSet<Alliance> changes, Guid importSessionId)
+    public async Task ApplyAllianceChangesAsync(ChangeSet<Alliance> changes, Guid importSessionId, DateTime importDate)
     {
-        var importDate = DateTime.UtcNow.Date;
         
         // Handle removed alliances
         if (changes.Removed.Any())

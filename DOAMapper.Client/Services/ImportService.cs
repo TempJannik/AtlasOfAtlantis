@@ -16,7 +16,7 @@ public class ImportService : IImportService
         _authService = authService;
     }
 
-    public async Task<ImportSessionDto> StartImportAsync(IBrowserFile file)
+    public async Task<ImportSessionDto> StartImportAsync(IBrowserFile file, DateTime? importDate = null)
     {
         using var content = new MultipartFormDataContent();
         using var fileStream = file.OpenReadStream(maxAllowedSize: 100 * 1024 * 1024); // 100MB
@@ -24,6 +24,12 @@ public class ImportService : IImportService
 
         streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
         content.Add(streamContent, "file", file.Name);
+
+        // Add import date if provided
+        if (importDate.HasValue)
+        {
+            content.Add(new StringContent(importDate.Value.ToString("yyyy-MM-dd")), "importDate");
+        }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "api/import/upload")
         {
