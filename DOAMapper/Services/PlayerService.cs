@@ -28,6 +28,8 @@ public class PlayerService : IPlayerService
         _logger.LogInformation("Searching players with query '{Query}' for date {Date}, page {Page}, size {PageSize}",
             query, utcDate, page, pageSize);
 
+        _logger.LogInformation("🔍 PLAYER QUERY: Querying players for date {QueryDate} (UTC: {UtcDate})", date, utcDate);
+
         var playersQuery = _context.Players
             .Where(p => p.IsActive && p.ValidFrom <= utcDate && (p.ValidTo == null || p.ValidTo > utcDate));
 
@@ -47,6 +49,10 @@ public class PlayerService : IPlayerService
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+
+        _logger.LogInformation("🎯 PLAYER QUERY: Found {Count} players for date {QueryDate}. Sample ValidTo values: {SampleValidTo}",
+            totalCount, utcDate,
+            string.Join(", ", players.Take(3).Select(p => $"{p.Name}[ValidTo:{p.ValidTo}]")));
 
         // Load alliance information for players that have alliance IDs
         foreach (var player in players.Where(p => !string.IsNullOrEmpty(p.AllianceId)))

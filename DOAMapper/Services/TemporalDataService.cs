@@ -39,27 +39,56 @@ public class TemporalDataService : ITemporalDataService
         // Handle modified tiles - deactivate old, add new
         if (changes.Modified.Any())
         {
+            _logger.LogInformation("🔄 TILE DEACTIVATION: Processing {Count} modified tiles for deactivation", changes.Modified.Count);
+
+            // Log the coordinates being searched for
+            var modifiedCoordinates = changes.Modified.Select(t => new { t.X, t.Y }).ToHashSet();
+            _logger.LogInformation("🔍 TILE DEACTIVATION: Searching for tiles at coordinates: {Coordinates}",
+                string.Join(", ", modifiedCoordinates.Take(10).Select(c => $"({c.X},{c.Y})")) +
+                (modifiedCoordinates.Count > 10 ? $" and {modifiedCoordinates.Count - 10} more..." : ""));
+
             // Get all active tiles first, then filter in memory
             var allActiveTiles = await _context.Tiles
                 .Where(t => t.IsActive)
                 .ToListAsync();
 
-            var modifiedCoordinates = changes.Modified.Select(t => new { t.X, t.Y }).ToHashSet();
+            _logger.LogInformation("📊 TILE DEACTIVATION: Found {TotalActive} total active tiles in database", allActiveTiles.Count);
+
             var tilesToUpdate = allActiveTiles
                 .Where(t => modifiedCoordinates.Contains(new { t.X, t.Y }))
                 .ToList();
-                
-            foreach (var tile in tilesToUpdate)
+
+            _logger.LogInformation("🎯 TILE DEACTIVATION: Found {FoundCount} existing tiles to deactivate out of {SearchCount} modified tiles",
+                tilesToUpdate.Count, changes.Modified.Count);
+
+            if (tilesToUpdate.Any())
             {
-                tile.IsActive = false;
-                tile.ValidTo = importDate;
+                _logger.LogInformation("📝 TILE DEACTIVATION: Tiles to deactivate: {TileDetails}",
+                    string.Join(", ", tilesToUpdate.Take(5).Select(t => $"({t.X},{t.Y})[ValidTo:{t.ValidTo}]")) +
+                    (tilesToUpdate.Count > 5 ? $" and {tilesToUpdate.Count - 5} more..." : ""));
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ TILE DEACTIVATION: No existing tiles found to deactivate! This may indicate a data matching issue.");
             }
 
-            // Save changes to commit the deactivation before adding new versions
-            await _context.SaveChangesAsync();
+            foreach (var tile in tilesToUpdate)
+            {
+                var oldValidTo = tile.ValidTo;
+                tile.IsActive = false;
+                tile.ValidTo = importDate;
+                _logger.LogInformation("🔧 TILE DEACTIVATION: Updated tile ({X},{Y}) - IsActive: true→false, ValidTo: {OldValidTo}→{NewValidTo} (ImportDate: {ImportDate})",
+                    tile.X, tile.Y, oldValidTo, importDate, importDate);
+            }
 
-            // Clear change tracker to avoid conflicts
-            _context.ChangeTracker.Clear();
+            _logger.LogInformation("💾 TILE DEACTIVATION: Prepared {Count} deactivated tiles for transaction commit", tilesToUpdate.Count);
+
+            // Note: Not calling SaveChanges() here as we're within a larger transaction
+            // The ValidTo updates will be committed when the main import transaction commits
+            _logger.LogInformation("✅ TILE DEACTIVATION: ValidTo updates prepared for {Count} tiles (will commit with main transaction)", tilesToUpdate.Count);
+
+            // Note: NOT clearing change tracker here as it would wipe out the ValidTo updates
+            // The ValidTo updates need to remain tracked until the main transaction commits
 
             // Add new versions
             foreach (var modifiedTile in changes.Modified)
@@ -254,22 +283,74 @@ public class TemporalDataService : ITemporalDataService
         // Handle modified players
         if (changes.Modified.Any())
         {
+            _logger.LogInformation("🔄 PLAYER DEACTIVATION: Processing {Count} modified players for deactivation", changes.Modified.Count);
+
             var modifiedIds = changes.Modified.Select(p => p.PlayerId).ToHashSet();
+            _logger.LogInformation("🔍 PLAYER DEACTIVATION: Searching for players with IDs: {PlayerIds}",
+                string.Join(", ", modifiedIds.Take(10)) +
+                (modifiedIds.Count > 10 ? $" and {modifiedIds.Count - 10} more..." : ""));
+
             var playersToUpdate = await _context.Players
                 .Where(p => p.IsActive && modifiedIds.Contains(p.PlayerId))
                 .ToListAsync();
-                
-            foreach (var player in playersToUpdate)
+
+            _logger.LogInformation("🎯 PLAYER DEACTIVATION: Found {FoundCount} existing players to deactivate out of {SearchCount} modified players",
+                playersToUpdate.Count, changes.Modified.Count);
+
+            if (playersToUpdate.Any())
             {
-                player.IsActive = false;
-                player.ValidTo = importDate;
+                _logger.LogInformation("📝 PLAYER DEACTIVATION: Players to deactivate: {PlayerDetails}",
+                    string.Join(", ", playersToUpdate.Take(5).Select(p => $"{p.Name}(ID:{p.PlayerId})[ValidTo:{p.ValidTo}]")) +
+                    (playersToUpdate.Count > 5 ? $" and {playersToUpdate.Count - 5} more..." : ""));
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ PLAYER DEACTIVATION: No existing players found to deactivate! This may indicate a data matching issue.");
             }
 
-            // Save changes to commit the deactivation before adding new versions
-            await _context.SaveChangesAsync();
+            foreach (var player in playersToUpdate)
+            {
+                var oldValidTo = player.ValidTo;
+                var entityEntry = _context.Entry(player);
+                _logger.LogInformation("🔍 EF STATE BEFORE: Player {Name}(ID:{PlayerId}) - State: {EntityState}, IsActive: {IsActive}, ValidTo: {ValidTo}",
+                    player.Name, player.PlayerId, entityEntry.State, player.IsActive, player.ValidTo);
 
-            // Clear change tracker to avoid conflicts
-            _context.ChangeTracker.Clear();
+                // FIX: If entity is detached, attach it to the context
+                if (entityEntry.State == EntityState.Detached)
+                {
+                    _context.Players.Attach(player);
+                    entityEntry = _context.Entry(player); // Refresh the entry
+                    _logger.LogInformation("🔧 EF ATTACH: Attached detached player {Name}(ID:{PlayerId}) - New State: {EntityState}",
+                        player.Name, player.PlayerId, entityEntry.State);
+                }
+
+                player.IsActive = false;
+                player.ValidTo = importDate;
+
+                // FIX: Explicitly mark the entity as modified to ensure EF tracks the changes
+                entityEntry.State = EntityState.Modified;
+
+                _logger.LogInformation("🔍 EF STATE AFTER: Player {Name}(ID:{PlayerId}) - State: {EntityState}, IsActive: {IsActive}, ValidTo: {ValidTo}",
+                    player.Name, player.PlayerId, entityEntry.State, player.IsActive, player.ValidTo);
+
+                // Check if EF detected the property changes
+                var isActiveProperty = entityEntry.Property(nameof(player.IsActive));
+                var validToProperty = entityEntry.Property(nameof(player.ValidTo));
+                _logger.LogInformation("🔍 EF CHANGE DETECTION: Player {Name}(ID:{PlayerId}) - IsActive.IsModified: {IsActiveModified}, ValidTo.IsModified: {ValidToModified}",
+                    player.Name, player.PlayerId, isActiveProperty.IsModified, validToProperty.IsModified);
+
+                _logger.LogInformation("🔧 PLAYER DEACTIVATION: Updated player {Name}(ID:{PlayerId}) - IsActive: true→false, ValidTo: {OldValidTo}→{NewValidTo} (ImportDate: {ImportDate})",
+                    player.Name, player.PlayerId, oldValidTo, importDate, importDate);
+            }
+
+            _logger.LogInformation("💾 PLAYER DEACTIVATION: Prepared {Count} deactivated players for transaction commit", playersToUpdate.Count);
+
+            // Note: Not calling SaveChanges() here as we're within a larger transaction
+            // The ValidTo updates will be committed when the main import transaction commits
+            _logger.LogInformation("✅ PLAYER DEACTIVATION: ValidTo updates prepared for {Count} players (will commit with main transaction)", playersToUpdate.Count);
+
+            // Note: NOT clearing change tracker here as it would wipe out the ValidTo updates
+            // The ValidTo updates need to remain tracked until the main transaction commits
 
             // Add new versions
             foreach (var modifiedPlayer in changes.Modified)
@@ -390,6 +471,29 @@ public class TemporalDataService : ITemporalDataService
         var finalPlayerCount = trackedPlayers.Count - duplicateGroups.Sum(g => g.Count() - 1) - existingActivePlayerIds.Count;
         _logger.LogInformation("About to save {Count} players to database", finalPlayerCount);
 
+        // Check what entities EF is tracking for changes before final SaveChanges
+        var allTrackedEntities = _context.ChangeTracker.Entries()
+            .Where(e => e.State == Microsoft.EntityFrameworkCore.EntityState.Modified || e.State == Microsoft.EntityFrameworkCore.EntityState.Added)
+            .ToList();
+        _logger.LogInformation("🔍 EF FINAL TRACKING: Found {ModifiedCount} modified + {AddedCount} added = {TotalCount} entities before final SaveChanges",
+            allTrackedEntities.Count(e => e.State == Microsoft.EntityFrameworkCore.EntityState.Modified),
+            allTrackedEntities.Count(e => e.State == Microsoft.EntityFrameworkCore.EntityState.Added),
+            allTrackedEntities.Count);
+
+        var modifiedPlayers = allTrackedEntities
+            .Where(e => e.State == Microsoft.EntityFrameworkCore.EntityState.Modified && e.Entity is Player)
+            .Take(3) // Log first 3 for brevity
+            .ToList();
+
+        foreach (var entry in modifiedPlayers)
+        {
+            if (entry.Entity is Player p)
+            {
+                _logger.LogInformation("🔍 EF TRACKED MODIFIED PLAYER: {Name}(ID:{PlayerId}) - IsActive: {IsActive}, ValidTo: {ValidTo}",
+                    p.Name, p.PlayerId, p.IsActive, p.ValidTo);
+            }
+        }
+
         try
         {
             await _context.SaveChangesAsync();
@@ -427,22 +531,48 @@ public class TemporalDataService : ITemporalDataService
         // Handle modified alliances
         if (changes.Modified.Any())
         {
+            _logger.LogInformation("🔄 ALLIANCE DEACTIVATION: Processing {Count} modified alliances for deactivation", changes.Modified.Count);
+
             var modifiedIds = changes.Modified.Select(a => a.AllianceId).ToHashSet();
+            _logger.LogInformation("🔍 ALLIANCE DEACTIVATION: Searching for alliances with IDs: {AllianceIds}",
+                string.Join(", ", modifiedIds.Take(10)) +
+                (modifiedIds.Count > 10 ? $" and {modifiedIds.Count - 10} more..." : ""));
+
             var alliancesToUpdate = await _context.Alliances
                 .Where(a => a.IsActive && modifiedIds.Contains(a.AllianceId))
                 .ToListAsync();
-                
-            foreach (var alliance in alliancesToUpdate)
+
+            _logger.LogInformation("🎯 ALLIANCE DEACTIVATION: Found {FoundCount} existing alliances to deactivate out of {SearchCount} modified alliances",
+                alliancesToUpdate.Count, changes.Modified.Count);
+
+            if (alliancesToUpdate.Any())
             {
-                alliance.IsActive = false;
-                alliance.ValidTo = importDate;
+                _logger.LogInformation("📝 ALLIANCE DEACTIVATION: Alliances to deactivate: {AllianceDetails}",
+                    string.Join(", ", alliancesToUpdate.Take(5).Select(a => $"{a.Name}(ID:{a.AllianceId})[ValidTo:{a.ValidTo}]")) +
+                    (alliancesToUpdate.Count > 5 ? $" and {alliancesToUpdate.Count - 5} more..." : ""));
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ ALLIANCE DEACTIVATION: No existing alliances found to deactivate! This may indicate a data matching issue.");
             }
 
-            // Save changes to commit the deactivation before adding new versions
-            await _context.SaveChangesAsync();
+            foreach (var alliance in alliancesToUpdate)
+            {
+                var oldValidTo = alliance.ValidTo;
+                alliance.IsActive = false;
+                alliance.ValidTo = importDate;
+                _logger.LogInformation("🔧 ALLIANCE DEACTIVATION: Updated alliance {Name}(ID:{AllianceId}) - IsActive: true→false, ValidTo: {OldValidTo}→{NewValidTo} (ImportDate: {ImportDate})",
+                    alliance.Name, alliance.AllianceId, oldValidTo, importDate, importDate);
+            }
 
-            // Clear change tracker to avoid conflicts
-            _context.ChangeTracker.Clear();
+            _logger.LogInformation("💾 ALLIANCE DEACTIVATION: Prepared {Count} deactivated alliances for transaction commit", alliancesToUpdate.Count);
+
+            // Note: Not calling SaveChanges() here as we're within a larger transaction
+            // The ValidTo updates will be committed when the main import transaction commits
+            _logger.LogInformation("✅ ALLIANCE DEACTIVATION: ValidTo updates prepared for {Count} alliances (will commit with main transaction)", alliancesToUpdate.Count);
+
+            // Note: NOT clearing change tracker here as it would wipe out the ValidTo updates
+            // The ValidTo updates need to remain tracked until the main transaction commits
 
             // Add new versions
             foreach (var modifiedAlliance in changes.Modified)

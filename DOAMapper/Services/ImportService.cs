@@ -805,8 +805,27 @@ public class ImportService : IImportService
             // Verify transaction state before commit
             await VerifyTransactionIntegrity(sessionId, importData);
 
-            // Commit transaction
+            // Commit transaction - this is when ValidTo updates are actually persisted
+            _logger.LogInformation("🔄 TRANSACTION COMMIT: About to commit transaction {TransactionId} - ValidTo updates will now be persisted", transactionId);
             await transaction.CommitAsync();
+            _logger.LogInformation("✅ TRANSACTION COMMIT: Successfully committed transaction {TransactionId} - ValidTo updates are now persisted in database", transactionId);
+
+            // Verify that ValidTo updates were actually committed by checking a sample
+            var sampleDeactivatedPlayer = await _context.Players
+                .Where(p => !p.IsActive && p.ValidTo != null)
+                .Select(p => new { p.PlayerId, p.Name, p.ValidTo, p.IsActive })
+                .FirstOrDefaultAsync();
+
+            if (sampleDeactivatedPlayer != null)
+            {
+                _logger.LogInformation("🔍 TRANSACTION VERIFICATION: Found deactivated player in DB: {PlayerName}(ID:{PlayerId})[ValidTo:{ValidTo},IsActive:{IsActive}]",
+                    sampleDeactivatedPlayer.Name, sampleDeactivatedPlayer.PlayerId, sampleDeactivatedPlayer.ValidTo, sampleDeactivatedPlayer.IsActive);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ TRANSACTION VERIFICATION: No deactivated players with ValidTo found in database after commit!");
+            }
+
             var duration = DateTime.UtcNow - startTime;
 
             // Clear change tracker after successful commit to free memory
