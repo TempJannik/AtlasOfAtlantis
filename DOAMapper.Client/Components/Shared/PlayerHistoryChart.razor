@@ -10,9 +10,15 @@
                         @entry.ValidFrom.ToString("MMM dd, yyyy")
                     </div>
                     <div class="timeline-content">
-                        <div class="change-type badge bg-@GetChangeTypeBadgeColor(entry.ChangeType)">
-                            @entry.ChangeType
-                        </div>
+                        @{
+                            var changeDescription = GetChangeDescription(entry, Data);
+                        }
+                        @if (!string.IsNullOrEmpty(changeDescription))
+                        {
+                            <div class="change-type badge bg-@GetChangeTypeBadgeColor(entry.ChangeType)">
+                                @changeDescription
+                            </div>
+                        }
                         <div class="player-data">
                             <strong>@entry.Data.Name</strong> - @entry.Data.CityName
                             <br />
@@ -46,8 +52,74 @@ else
         {
             "added" => "success",
             "modified" => "warning",
-            "removed" => "danger",
+            "removed" => "info", // Changed from danger to info for less alarming appearance
             _ => "secondary"
         };
+    }
+
+    private string GetChangeDescription(HistoryEntryDto<PlayerDto> entry, List<HistoryEntryDto<PlayerDto>> allData)
+    {
+        var orderedData = allData.OrderByDescending(d => d.ValidFrom).ToList();
+        var currentIndex = orderedData.IndexOf(entry);
+
+        // For the most recent entry (first in ordered list)
+        if (currentIndex == 0)
+        {
+            // If this is the only entry, it's the first time we've seen this player
+            if (orderedData.Count == 1)
+            {
+                return "FIRST SEEN";
+            }
+
+            // If there's a previous entry, show what changed from the previous to this one
+            if (orderedData.Count > 1)
+            {
+                var previousEntry = orderedData[1];
+                var changes = new List<string>();
+
+                if (entry.Data.Name != previousEntry.Data.Name)
+                {
+                    changes.Add($"NAME CHANGED FROM '{previousEntry.Data.Name}' TO '{entry.Data.Name}'");
+                }
+
+                if (entry.Data.Might != previousEntry.Data.Might)
+                {
+                    var mightChange = entry.Data.Might - previousEntry.Data.Might;
+                    var changeDirection = mightChange > 0 ? "INCREASED" : "DECREASED";
+                    changes.Add($"MIGHT {changeDirection} FROM {previousEntry.Data.Might:N0} TO {entry.Data.Might:N0}");
+                }
+
+                if (entry.Data.CityName != previousEntry.Data.CityName)
+                {
+                    changes.Add($"CITY MOVED FROM '{previousEntry.Data.CityName}' TO '{entry.Data.CityName}'");
+                }
+
+                if (entry.Data.AllianceName != previousEntry.Data.AllianceName)
+                {
+                    if (string.IsNullOrEmpty(previousEntry.Data.AllianceName) && !string.IsNullOrEmpty(entry.Data.AllianceName))
+                    {
+                        changes.Add($"JOINED ALLIANCE '{entry.Data.AllianceName}'");
+                    }
+                    else if (!string.IsNullOrEmpty(previousEntry.Data.AllianceName) && string.IsNullOrEmpty(entry.Data.AllianceName))
+                    {
+                        changes.Add($"LEFT ALLIANCE '{previousEntry.Data.AllianceName}'");
+                    }
+                    else if (!string.IsNullOrEmpty(previousEntry.Data.AllianceName) && !string.IsNullOrEmpty(entry.Data.AllianceName))
+                    {
+                        changes.Add($"CHANGED ALLIANCE FROM '{previousEntry.Data.AllianceName}' TO '{entry.Data.AllianceName}'");
+                    }
+                }
+
+                if (changes.Any())
+                {
+                    return string.Join("; ", changes);
+                }
+
+                return "UPDATED";
+            }
+        }
+
+        // For older entries, don't show any change description
+        return "";
     }
 }
