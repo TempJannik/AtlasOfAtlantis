@@ -28,7 +28,7 @@ public class AllianceService : IAllianceService
         _logger.LogInformation("Getting alliances for date {Date}, page {Page}, size {PageSize}", utcDate, page, pageSize);
 
         var alliancesQuery = _context.Alliances
-            .Where(a => a.IsActive && a.ValidFrom <= utcDate && (a.ValidTo == null || a.ValidTo > utcDate));
+            .Where(a => a.ValidFrom <= utcDate && (a.ValidTo == null || a.ValidTo > utcDate));
 
         var totalCount = await alliancesQuery.CountAsync();
 
@@ -43,7 +43,6 @@ public class AllianceService : IAllianceService
         {
             var members = await _context.Players
                 .Where(p => p.AllianceId == alliance.AllianceId &&
-                           p.IsActive &&
                            p.ValidFrom <= utcDate &&
                            (p.ValidTo == null || p.ValidTo > utcDate))
                 .ToListAsync();
@@ -80,7 +79,7 @@ public class AllianceService : IAllianceService
             query, utcDate, page, pageSize);
 
         var alliancesQuery = _context.Alliances
-            .Where(a => a.IsActive && a.ValidFrom <= utcDate && (a.ValidTo == null || a.ValidTo > utcDate));
+            .Where(a => a.ValidFrom <= utcDate && (a.ValidTo == null || a.ValidTo > utcDate));
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -104,7 +103,6 @@ public class AllianceService : IAllianceService
         {
             var members = await _context.Players
                 .Where(p => p.AllianceId == alliance.AllianceId &&
-                           p.IsActive &&
                            p.ValidFrom <= utcDate &&
                            (p.ValidTo == null || p.ValidTo > utcDate))
                 .ToListAsync();
@@ -141,7 +139,6 @@ public class AllianceService : IAllianceService
 
         var alliance = await _context.Alliances
             .FirstOrDefaultAsync(a => a.AllianceId == allianceId &&
-                                   a.IsActive &&
                                    a.ValidFrom <= utcDate &&
                                    (a.ValidTo == null || a.ValidTo > utcDate));
 
@@ -154,7 +151,6 @@ public class AllianceService : IAllianceService
         // Load members manually since navigation properties are ignored in EF configuration
         var members = await _context.Players
             .Where(p => p.AllianceId == alliance.AllianceId &&
-                       p.IsActive &&
                        p.ValidFrom <= utcDate &&
                        (p.ValidTo == null || p.ValidTo > utcDate))
             .ToListAsync();
@@ -179,7 +175,6 @@ public class AllianceService : IAllianceService
 
         var membersQuery = _context.Players
             .Where(p => p.AllianceId == allianceId &&
-                       p.IsActive &&
                        p.ValidFrom <= utcDate &&
                        (p.ValidTo == null || p.ValidTo > utcDate));
 
@@ -220,7 +215,6 @@ public class AllianceService : IAllianceService
 
         var tiles = await _context.Tiles
             .Where(t => t.AllianceId == allianceId &&
-                       t.IsActive &&
                        t.ValidFrom <= utcDate &&
                        (t.ValidTo == null || t.ValidTo > utcDate))
             .OrderBy(t => t.Type)

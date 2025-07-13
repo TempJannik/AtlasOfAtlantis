@@ -31,7 +31,7 @@ public class PlayerService : IPlayerService
         _logger.LogInformation("🔍 PLAYER QUERY: Querying players for date {QueryDate} (UTC: {UtcDate})", date, utcDate);
 
         var playersQuery = _context.Players
-            .Where(p => p.IsActive && p.ValidFrom <= utcDate && (p.ValidTo == null || p.ValidTo > utcDate));
+            .Where(p => p.ValidFrom <= utcDate && (p.ValidTo == null || p.ValidTo > utcDate));
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -59,7 +59,6 @@ public class PlayerService : IPlayerService
         {
             player.Alliance = await _context.Alliances
                 .FirstOrDefaultAsync(a => a.AllianceId == player.AllianceId &&
-                                       a.IsActive &&
                                        a.ValidFrom <= utcDate &&
                                        (a.ValidTo == null || a.ValidTo > utcDate));
         }
@@ -92,7 +91,6 @@ public class PlayerService : IPlayerService
 
         var player = await _context.Players
             .FirstOrDefaultAsync(p => p.PlayerId == playerId &&
-                                   p.IsActive &&
                                    p.ValidFrom <= utcDate &&
                                    (p.ValidTo == null || p.ValidTo > utcDate));
 
@@ -105,7 +103,6 @@ public class PlayerService : IPlayerService
         // Load tiles manually since navigation properties are ignored in EF configuration
         var tiles = await _context.Tiles
             .Where(t => t.PlayerId == player.PlayerId &&
-                       t.IsActive &&
                        t.ValidFrom <= utcDate &&
                        (t.ValidTo == null || t.ValidTo > utcDate))
             .ToListAsync();
@@ -116,7 +113,6 @@ public class PlayerService : IPlayerService
         {
             player.Alliance = await _context.Alliances
                 .FirstOrDefaultAsync(a => a.AllianceId == player.AllianceId &&
-                                       a.IsActive &&
                                        a.ValidFrom <= utcDate &&
                                        (a.ValidTo == null || a.ValidTo > utcDate));
         }
@@ -138,7 +134,6 @@ public class PlayerService : IPlayerService
 
         var tiles = await _context.Tiles
             .Where(t => t.PlayerId == playerId &&
-                       t.IsActive &&
                        t.ValidFrom <= utcDate &&
                        (t.ValidTo == null || t.ValidTo > utcDate))
             .OrderBy(t => t.Type)
@@ -247,14 +242,12 @@ public class PlayerService : IPlayerService
         // Get tiles for both dates
         var currentTiles = await _context.Tiles
             .Where(t => t.PlayerId == playerId &&
-                       t.IsActive &&
                        t.ValidFrom <= currentDate &&
                        (t.ValidTo == null || t.ValidTo > currentDate))
             .ToListAsync();
 
         var previousTiles = await _context.Tiles
             .Where(t => t.PlayerId == playerId &&
-                       t.IsActive &&
                        t.ValidFrom <= previousDate &&
                        (t.ValidTo == null || t.ValidTo > previousDate))
             .ToListAsync();

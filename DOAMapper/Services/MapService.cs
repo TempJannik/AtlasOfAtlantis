@@ -48,7 +48,6 @@ public class MapService : IMapService
         var tiles = await _context.Tiles
             .Where(t => t.X >= minX && t.X <= maxX &&
                        t.Y >= minY && t.Y <= maxY &&
-                       t.IsActive &&
                        t.ValidFrom <= utcDate &&
                        (t.ValidTo == null || t.ValidTo > utcDate))
             .OrderBy(t => t.X)
@@ -75,7 +74,6 @@ public class MapService : IMapService
 
         var tile = await _context.Tiles
             .FirstOrDefaultAsync(t => t.X == x && t.Y == y &&
-                                   t.IsActive &&
                                    t.ValidFrom <= date &&
                                    (t.ValidTo == null || t.ValidTo > date));
 
@@ -146,8 +144,7 @@ public class MapService : IMapService
         _logger.LogInformation("Getting tile statistics for date {Date}", date);
 
         var statistics = await _context.Tiles
-            .Where(t => t.IsActive && 
-                       t.ValidFrom <= date && 
+            .Where(t => t.ValidFrom <= date &&
                        (t.ValidTo == null || t.ValidTo > date))
             .GroupBy(t => t.Type)
             .Select(g => new { Type = g.Key, Count = g.Count() })
