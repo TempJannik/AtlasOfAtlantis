@@ -58,9 +58,11 @@ public class PlayerService : IPlayerService
         foreach (var player in players.Where(p => !string.IsNullOrEmpty(p.AllianceId)))
         {
             player.Alliance = await _context.Alliances
-                .FirstOrDefaultAsync(a => a.AllianceId == player.AllianceId &&
-                                       a.ValidFrom <= utcDate &&
-                                       (a.ValidTo == null || a.ValidTo > utcDate));
+                .Where(a => a.AllianceId == player.AllianceId &&
+                           a.ValidFrom <= utcDate &&
+                           (a.ValidTo == null || a.ValidTo > utcDate))
+                .OrderByDescending(a => a.ValidFrom)  // Get the most recent record that's valid for this date
+                .FirstOrDefaultAsync();
         }
 
         var playerDtos = _mapper.Map<List<PlayerDto>>(players);
@@ -90,9 +92,11 @@ public class PlayerService : IPlayerService
         _logger.LogInformation("Getting player {PlayerId} for date {Date}", playerId, utcDate);
 
         var player = await _context.Players
-            .FirstOrDefaultAsync(p => p.PlayerId == playerId &&
-                                   p.ValidFrom <= utcDate &&
-                                   (p.ValidTo == null || p.ValidTo > utcDate));
+            .Where(p => p.PlayerId == playerId &&
+                       p.ValidFrom <= utcDate &&
+                       (p.ValidTo == null || p.ValidTo > utcDate))
+            .OrderByDescending(p => p.ValidFrom)  // Get the most recent record that's valid for this date
+            .FirstOrDefaultAsync();
 
         if (player == null)
         {
@@ -112,9 +116,11 @@ public class PlayerService : IPlayerService
         if (!string.IsNullOrEmpty(player.AllianceId))
         {
             player.Alliance = await _context.Alliances
-                .FirstOrDefaultAsync(a => a.AllianceId == player.AllianceId &&
-                                       a.ValidFrom <= utcDate &&
-                                       (a.ValidTo == null || a.ValidTo > utcDate));
+                .Where(a => a.AllianceId == player.AllianceId &&
+                           a.ValidFrom <= utcDate &&
+                           (a.ValidTo == null || a.ValidTo > utcDate))
+                .OrderByDescending(a => a.ValidFrom)  // Get the most recent record that's valid for this date
+                .FirstOrDefaultAsync();
         }
 
         var playerDetail = _mapper.Map<PlayerDetailDto>(player);

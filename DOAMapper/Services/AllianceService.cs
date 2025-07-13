@@ -135,12 +135,33 @@ public class AllianceService : IAllianceService
         // Ensure date is UTC for PostgreSQL compatibility
         var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
 
-        _logger.LogInformation("Getting alliance {AllianceId} for date {Date}", allianceId, utcDate);
+        _logger.LogInformation("🔍 ALLIANCE SERVICE: Getting alliance {AllianceId} for date {Date}", allianceId, utcDate);
+
+        // First, let's see ALL alliance records for this ID
+        var allRecords = await _context.Alliances
+            .Where(a => a.AllianceId == allianceId)
+            .OrderBy(a => a.ValidFrom)
+            .ToListAsync();
+
+        _logger.LogInformation("🔍 ALLIANCE SERVICE: Found {Count} total records for alliance {AllianceId}", allRecords.Count, allianceId);
+        foreach (var record in allRecords)
+        {
+            _logger.LogInformation("🔍 ALLIANCE SERVICE: Record - ValidFrom: {ValidFrom}, ValidTo: {ValidTo}, Power: {Power}, IsActive: {IsActive}",
+                record.ValidFrom, record.ValidTo, record.Power, record.IsActive);
+        }
 
         var alliance = await _context.Alliances
-            .FirstOrDefaultAsync(a => a.AllianceId == allianceId &&
-                                   a.ValidFrom <= utcDate &&
-                                   (a.ValidTo == null || a.ValidTo > utcDate));
+            .Where(a => a.AllianceId == allianceId &&
+                       a.ValidFrom <= utcDate &&
+                       (a.ValidTo == null || a.ValidTo > utcDate))
+            .OrderByDescending(a => a.ValidFrom)  // Get the most recent record that's valid for this date
+            .FirstOrDefaultAsync();
+
+        if (alliance != null)
+        {
+            _logger.LogInformation("🔍 ALLIANCE SERVICE: Found alliance {Name} with power {Power} for date {Date}",
+                alliance.Name, alliance.Power, utcDate);
+        }
 
         if (alliance == null)
         {
@@ -253,9 +274,9 @@ public class AllianceService : IAllianceService
             // Get member count for this alliance at this point in time
             var memberCount = await _context.Players
                 .Where(p => p.AllianceId == allianceId &&
-                           p.IsActive &&
                            p.ValidFrom <= alliance.ValidFrom &&
                            (p.ValidTo == null || p.ValidTo > alliance.ValidFrom))
+                .GroupBy(p => p.PlayerId)  // Group by player ID to avoid counting duplicates
                 .CountAsync();
 
             var allianceDto = _mapper.Map<AllianceDto>(alliance);

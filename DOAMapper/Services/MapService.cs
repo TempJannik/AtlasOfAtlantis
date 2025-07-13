@@ -73,9 +73,11 @@ public class MapService : IMapService
         _logger.LogInformation("Getting tile at ({X},{Y}) for date {Date}", x, y, date);
 
         var tile = await _context.Tiles
-            .FirstOrDefaultAsync(t => t.X == x && t.Y == y &&
-                                   t.ValidFrom <= date &&
-                                   (t.ValidTo == null || t.ValidTo > date));
+            .Where(t => t.X == x && t.Y == y &&
+                       t.ValidFrom <= date &&
+                       (t.ValidTo == null || t.ValidTo > date))
+            .OrderByDescending(t => t.ValidFrom)  // Get the most recent record that's valid for this date
+            .FirstOrDefaultAsync();
 
         if (tile == null)
         {

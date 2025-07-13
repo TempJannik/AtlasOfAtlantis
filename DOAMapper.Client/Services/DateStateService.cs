@@ -15,7 +15,9 @@ public class DateStateService
         {
             if (_selectedDate != value)
             {
+                Console.WriteLine($"DateStateService: SelectedDate changing from {_selectedDate} to {value}");
                 _selectedDate = value;
+                Console.WriteLine($"DateStateService: Invoking DateChanged event with {_selectedDate}");
                 DateChanged?.Invoke(_selectedDate);
             }
         }
@@ -44,6 +46,7 @@ public class DateStateService
 
     public void SetSelectedDate(DateTime? date)
     {
+        Console.WriteLine($"DateStateService: SetSelectedDate called with {date}");
         SelectedDate = date;
     }
 

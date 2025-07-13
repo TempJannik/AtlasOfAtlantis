@@ -4,6 +4,8 @@
 @inject IAllianceService AllianceService
 @inject IAuthenticationService AuthService
 @inject NavigationManager Navigation
+@inject DateStateService DateState
+@implements IDisposable
 
 <PageTitle>@(Alliance?.Name ?? "Alliance Details") - AoA</PageTitle>
 
@@ -17,7 +19,7 @@
                     <p class="dragon-text-secondary">👑 Led by @Alliance.OverlordName</p>
                 </div>
                 <div class="dragon-detail-actions">
-                    <DateSelector @bind-SelectedDate="CurrentDate" AvailableDates="AvailableDates" />
+                    <DateSelector AvailableDates="AvailableDates" />
                     <a href="/alliances" class="dragon-btn">← Back to Alliances</a>
                 </div>
             </div>
@@ -141,7 +143,6 @@
     [Parameter] public string AllianceId { get; set; } = string.Empty;
     [SupplyParameterFromQuery] public string? Date { get; set; }
 
-    private DateTime? CurrentDate;
     private bool IsLoading = true;
     private bool IsLoadingMembers = false;
     private string? ErrorMessage;
@@ -164,17 +165,26 @@
             return;
         }
 
+        // Subscribe to date changes
+        DateState.DateChanged += OnDateStateChanged;
+
         try
         {
             AvailableDates = await AllianceService.GetAvailableDatesAsync();
 
+            // Only set available dates if they're not already set globally
+            if (!DateState.AvailableDates.Any())
+            {
+                DateState.SetAvailableDates(AvailableDates);
+            }
+
             if (!string.IsNullOrEmpty(Date) && DateTime.TryParse(Date, out var parsedDate))
             {
-                CurrentDate = parsedDate;
+                DateState.SetSelectedDate(parsedDate);
             }
-            else if (AvailableDates.Any())
+            else if (!DateState.SelectedDate.HasValue && AvailableDates.Any())
             {
-                CurrentDate = AvailableDates.First();
+                DateState.SetSelectedDate(AvailableDates.First());
             }
 
             await LoadAllianceData();
@@ -188,13 +198,23 @@
 
     private async Task LoadAllianceData()
     {
-        if (!CurrentDate.HasValue) return;
+        if (!DateState.SelectedDate.HasValue)
+        {
+            Console.WriteLine("AllianceDetails: LoadAllianceData called but no date selected");
+            return;
+        }
 
+        Console.WriteLine($"AllianceDetails: LoadAllianceData called for date: {DateState.SelectedDate.Value}");
         IsLoading = true;
         ErrorMessage = null;
         try
         {
-            Alliance = await AllianceService.GetAllianceAsync(AllianceId, CurrentDate.Value);
+            var loadedAlliance = await AllianceService.GetAllianceAsync(AllianceId, DateState.SelectedDate.Value);
+            Console.WriteLine($"AllianceDetails: Backend returned alliance {loadedAlliance?.Name} with power {loadedAlliance?.Power:N0} and {loadedAlliance?.MemberCount} members for date {DateState.SelectedDate.Value}");
+
+            Alliance = loadedAlliance;
+            Console.WriteLine($"AllianceDetails: Alliance property set to {Alliance?.Name} with power {Alliance?.Power:N0} and {Alliance?.MemberCount} members");
+
             await LoadMembers();
 
             // Always load history
@@ -203,24 +223,26 @@
                 AllianceHistory = await AllianceService.GetAllianceHistoryAsync(AllianceId);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine($"AllianceDetails: Error loading alliance data: {ex.Message}");
             ErrorMessage = "Failed to load alliance data. Please try again.";
         }
         finally
         {
             IsLoading = false;
+            StateHasChanged(); // Ensure UI updates when loading completes
         }
     }
 
     private async Task LoadMembers()
     {
-        if (!CurrentDate.HasValue) return;
+        if (!DateState.SelectedDate.HasValue) return;
 
         IsLoadingMembers = true;
         try
         {
-            AllianceMembers = await AllianceService.GetAllianceMembersAsync(AllianceId, CurrentDate.Value, CurrentMemberPage, MemberPageSize);
+            AllianceMembers = await AllianceService.GetAllianceMembersAsync(AllianceId, DateState.SelectedDate.Value, CurrentMemberPage, MemberPageSize);
         }
         catch (Exception)
         {
@@ -229,6 +251,7 @@
         finally
         {
             IsLoadingMembers = false;
+            StateHasChanged(); // Ensure UI updates when member loading completes
         }
     }
 
@@ -242,7 +265,7 @@
 
     private void NavigateToPlayer(string playerId)
     {
-        Navigation.NavigateTo($"/players/{playerId}?date={CurrentDate:yyyy-MM-dd}");
+        Navigation.NavigateTo($"/players/{playerId}?date={DateState.SelectedDate:yyyy-MM-dd}");
     }
 
     private string GetChangeTypeBadgeColor(string changeType)
@@ -327,5 +350,29 @@
 
         // For older entries, don't show any change description
         return "";
+    }
+
+    private async void OnDateStateChanged(DateTime? newDate)
+    {
+        Console.WriteLine($"AllianceDetails: OnDateStateChanged called with date: {newDate}");
+        await InvokeAsync(async () =>
+        {
+            Console.WriteLine($"AllianceDetails: About to reload alliance data for date: {DateState.SelectedDate}");
+
+            // Force complete refresh by clearing data first
+            Alliance = null;
+            AllianceMembers = null;
+            CurrentMemberPage = 1; // Reset to first page when date changes
+            StateHasChanged(); // Update UI to show loading state
+
+            await LoadAllianceData();
+            Console.WriteLine($"AllianceDetails: Alliance data reloaded for date: {DateState.SelectedDate}");
+            StateHasChanged(); // Force UI update AFTER data is loaded
+        });
+    }
+
+    public void Dispose()
+    {
+        DateState.DateChanged -= OnDateStateChanged;
     }
 }
