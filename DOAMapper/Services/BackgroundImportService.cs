@@ -3,6 +3,7 @@ using DOAMapper.Models;
 using DOAMapper.Models.Entities;
 using DOAMapper.Shared.Models.Enums;
 using DOAMapper.Services.Interfaces;
+using DOAMapper.Shared.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace DOAMapper.Services;
@@ -26,7 +27,7 @@ public class BackgroundImportService
     /// <summary>
     /// Starts a background import operation
     /// </summary>
-    public async Task<ImportSession> StartBackgroundImportAsync(Stream jsonStream, string fileName, DateTime? importDate = null)
+    public async Task<ImportSession> StartBackgroundImportAsync(Stream jsonStream, string fileName, string realmId, DateTime? importDate = null)
     {
         // Check for active imports (business rule: only one import at a time)
         lock (_lockObject)
@@ -44,6 +45,14 @@ public class BackgroundImportService
         // Create import session
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var realmService = scope.ServiceProvider.GetRequiredService<IRealmService>();
+
+        // Get the realm to ensure it exists and get the internal ID
+        var realm = await realmService.GetRealmAsync(realmId);
+        if (realm == null)
+        {
+            throw new InvalidOperationException($"Realm '{realmId}' not found");
+        }
 
         var importSession = new ImportSession
         {
@@ -54,7 +63,8 @@ public class BackgroundImportService
             RecordsProcessed = 0,
             RecordsChanged = 0,
             ProgressPercentage = 0,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            RealmId = realm.Id
         };
 
         context.ImportSessions.Add(importSession);

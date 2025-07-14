@@ -6,9 +6,12 @@
 @using DOAMapper.Shared.Services
 @using DOAMapper.Client.Components
 @using DOAMapper.Shared.Models.Authentication
+@using DOAMapper.Shared.Models.DTOs
 @inject IPlayerService PlayerService
 @inject IAllianceService AllianceService
+@inject IRealmService RealmService
 @inject DateStateService DateState
+@inject RealmStateService RealmState
 @inject NavigationManager Navigation
 @inject IAuthenticationService AuthService
 @implements IDisposable
@@ -17,24 +20,30 @@
 
 <AuthenticationGuard>
 
-    <!-- Data Day Selector -->
-    <div class="dragon-data-selector">
-        <label class="dragon-data-label">📅 Data Day:</label>
-        <select class="dragon-select" @onchange="OnDateChanged">
-            @if (AvailableDates?.Any() == true)
-            {
-                @foreach (var date in AvailableDates.OrderByDescending(d => d))
+    <!-- Realm and Data Day Selectors -->
+    <div class="dragon-selectors-container">
+        <RealmSelector AvailableRealms="AvailableRealms"
+                      SelectedRealm="CurrentRealm"
+                      SelectedRealmChanged="OnRealmChanged" />
+
+        <div class="dragon-data-selector">
+            <label class="dragon-data-label">📅 Data Day:</label>
+            <select class="dragon-select" @onchange="OnDateChanged">
+                @if (AvailableDates?.Any() == true)
                 {
-                    <option value="@date.ToString("yyyy-MM-dd")" selected="@(date.Date == CurrentDate?.Date)">
-                        @date.ToString("MMM dd, yyyy")
-                    </option>
+                    @foreach (var date in AvailableDates.OrderByDescending(d => d))
+                    {
+                        <option value="@date.ToString("yyyy-MM-dd")" selected="@(date.Date == CurrentDate?.Date)">
+                            @date.ToString("MMM dd, yyyy")
+                        </option>
+                    }
                 }
-            }
-            else
-            {
-                <option value="">No data available</option>
-            }
-        </select>
+                else
+                {
+                    <option value="">No data available</option>
+                }
+            </select>
+        </div>
     </div>
 
     <!-- Tab Navigation -->
@@ -253,6 +262,7 @@
 
 @code {
     private DateTime? CurrentDate => DateState.SelectedDate;
+    private RealmDto? CurrentRealm => RealmState.SelectedRealm;
     private string ActiveTab = "players";
     private string? ErrorMessage;
     private bool IsAuthenticated = false;
@@ -276,6 +286,7 @@
     private PagedResult<AllianceDto>? AllianceResults;
 
     private List<DateTime> AvailableDates => DateState.AvailableDates;
+    private List<RealmDto> AvailableRealms => RealmState.AvailableRealms;
 
     protected override async Task OnInitializedAsync()
     {
@@ -311,26 +322,77 @@
         }
 
         DateState.DateChanged += OnDateStateChanged;
+        RealmState.RealmChanged += OnRealmStateChanged;
 
         try
         {
-            // Load available dates from both services
-            var playerDates = await PlayerService.GetAvailableDatesAsync();
-            var allianceDates = await AllianceService.GetAvailableDatesAsync();
-            
-            // Combine and deduplicate dates
-            var allDates = playerDates.Union(allianceDates).OrderByDescending(d => d).ToList();
-            DateState.SetAvailableDates(allDates);
+            // Load available realms first
+            var availableRealms = await RealmService.GetAvailableRealmsAsync();
+            RealmState.SetAvailableRealms(availableRealms);
 
-            if (DateState.SelectedDate.HasValue)
+            // Initialize from local storage (this will restore the previously selected realm)
+            await RealmState.InitializeFromLocalStorageAsync();
+            
+            // Load available dates for the selected realm
+            if (RealmState.SelectedRealm != null)
+            {
+                await LoadAvailableDatesForRealm(RealmState.SelectedRealm.RealmId);
+            }
+
+            if (DateState.SelectedDate.HasValue && RealmState.SelectedRealm != null)
             {
                 await LoadCurrentTabData();
             }
         }
         catch (Exception)
         {
-            ErrorMessage = "Failed to load available dates. Please try again.";
+            ErrorMessage = "Failed to load realm and date information. Please try again.";
         }
+    }
+
+    private async Task LoadAvailableDatesForRealm(string realmId)
+    {
+        try
+        {
+            // Load available dates from both services for the specific realm
+            var playerDates = await PlayerService.GetAvailableDatesAsync(realmId);
+            var allianceDates = await AllianceService.GetAvailableDatesAsync(realmId);
+
+            // Combine and deduplicate dates
+            var allDates = playerDates.Union(allianceDates).OrderByDescending(d => d).ToList();
+            DateState.SetAvailableDates(allDates);
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load available dates for the selected realm.";
+        }
+    }
+
+    private async Task OnRealmChanged(RealmDto? newRealm)
+    {
+        if (newRealm != null)
+        {
+            // Load dates for the new realm
+            await LoadAvailableDatesForRealm(newRealm.RealmId);
+
+            // Reload current tab data with new realm
+            if (DateState.SelectedDate.HasValue)
+            {
+                await LoadCurrentTabData();
+            }
+        }
+    }
+
+    private async void OnRealmStateChanged(RealmDto? newRealm)
+    {
+        await InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            if (newRealm != null)
+            {
+                await OnRealmChanged(newRealm);
+            }
+        });
     }
 
     private async Task LoadCurrentTabData()
@@ -347,14 +409,14 @@
 
     private async Task LoadPlayers()
     {
-        if (!CurrentDate.HasValue) return;
+        if (!CurrentDate.HasValue || CurrentRealm == null) return;
 
         IsLoadingPlayers = true;
         ErrorMessage = null;
         try
         {
             var query = string.IsNullOrWhiteSpace(PlayerSearchQuery) ? "" : PlayerSearchQuery;
-            PlayerResults = await PlayerService.SearchPlayersAsync(query, CurrentDate.Value, PlayerCurrentPage, PlayerPageSize);
+            PlayerResults = await PlayerService.SearchPlayersAsync(query, CurrentRealm.RealmId, CurrentDate.Value, PlayerCurrentPage, PlayerPageSize);
         }
         catch (Exception)
         {
@@ -368,7 +430,7 @@
 
     private async Task LoadAlliances()
     {
-        if (!CurrentDate.HasValue) return;
+        if (!CurrentDate.HasValue || CurrentRealm == null) return;
 
         IsLoadingAlliances = true;
         ErrorMessage = null;
@@ -376,7 +438,7 @@
         {
             // For now, we'll use the basic GetAlliancesAsync method
             // In the future, we could implement search functionality for alliances
-            AllianceResults = await AllianceService.GetAlliancesAsync(CurrentDate.Value, AllianceCurrentPage, AlliancePageSize);
+            AllianceResults = await AllianceService.GetAlliancesAsync(CurrentRealm.RealmId, CurrentDate.Value, AllianceCurrentPage, AlliancePageSize);
 
             // If there's a search query, filter the results client-side for now
             if (!string.IsNullOrWhiteSpace(AllianceSearchQuery) && AllianceResults?.Items != null)
@@ -574,6 +636,7 @@
     public void Dispose()
     {
         DateState.DateChanged -= OnDateStateChanged;
+        RealmState.RealmChanged -= OnRealmStateChanged;
         _playerSearchTimer?.Dispose();
         _allianceSearchTimer?.Dispose();
     }

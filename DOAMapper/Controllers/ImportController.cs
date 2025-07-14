@@ -12,24 +12,27 @@ namespace DOAMapper.Controllers;
 public class ImportController : ControllerBase
 {
     private readonly IImportService _importService;
+    private readonly IRealmService _realmService;
     private readonly BackgroundImportService _backgroundImportService;
     private readonly ImportStatusService _importStatusService;
     private readonly ILogger<ImportController> _logger;
 
     public ImportController(
         IImportService importService,
+        IRealmService realmService,
         BackgroundImportService backgroundImportService,
         ImportStatusService importStatusService,
         ILogger<ImportController> logger)
     {
         _importService = importService;
+        _realmService = realmService;
         _backgroundImportService = backgroundImportService;
         _importStatusService = importStatusService;
         _logger = logger;
     }
 
     [HttpPost("upload")]
-    public async Task<ActionResult<ImportSessionDto>> UploadFile(IFormFile file, [FromForm] DateTime? importDate = null)
+    public async Task<ActionResult<ImportSessionDto>> UploadFile(IFormFile file, [FromForm] string? realmId = null, [FromForm] DateTime? importDate = null)
     {
         if (file == null || file.Length == 0)
         {
@@ -59,16 +62,32 @@ public class ImportController : ControllerBase
             }
         }
 
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+        else
+        {
+            // Validate that the specified realm exists
+            var realmExists = await _realmService.RealmExistsAsync(realmId);
+            if (!realmExists)
+            {
+                return BadRequest($"Realm '{realmId}' does not exist");
+            }
+        }
+
         try
         {
             using var stream = file.OpenReadStream();
 
             // Use BackgroundImportService for background processing
-            var session = await _backgroundImportService.StartBackgroundImportAsync(stream, file.FileName, importDate);
+            var session = await _backgroundImportService.StartBackgroundImportAsync(stream, file.FileName, realmId, importDate);
             var sessionDto = await _importStatusService.GetImportStatusAsync(session.Id);
 
-            _logger.LogInformation("Background import started for file {FileName} with session {SessionId} for date {ImportDate}",
-                file.FileName, session.Id, importDate?.ToString("yyyy-MM-dd") ?? "current");
+            _logger.LogInformation("Background import started for file {FileName} with session {SessionId} for realm {RealmId} and date {ImportDate}",
+                file.FileName, session.Id, realmId, importDate?.ToString("yyyy-MM-dd") ?? "current");
 
             return Ok(sessionDto);
         }
@@ -99,16 +118,30 @@ public class ImportController : ControllerBase
     }
 
     [HttpGet("history")]
-    public async Task<ActionResult<List<ImportSessionDto>>> GetImportHistory()
+    public async Task<ActionResult<List<ImportSessionDto>>> GetImportHistory([FromQuery] string? realmId = null)
     {
-        var history = await _importStatusService.GetImportHistoryAsync();
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
+        var history = await _importService.GetImportHistoryAsync(realmId);
         return Ok(history);
     }
 
     [HttpGet("dates")]
-    public async Task<ActionResult<List<DateTime>>> GetAvailableDates()
+    public async Task<ActionResult<List<DateTime>>> GetAvailableDates([FromQuery] string? realmId = null)
     {
-        var dates = await _importService.GetAvailableImportDatesAsync();
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
+        var dates = await _importService.GetAvailableImportDatesAsync(realmId);
         return Ok(dates);
     }
 

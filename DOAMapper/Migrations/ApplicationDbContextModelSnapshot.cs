@@ -120,6 +120,9 @@ namespace DOAMapper.Migrations
                     b.Property<int>("ProgressPercentage")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid>("RealmId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("RecordsChanged")
                         .HasColumnType("INTEGER");
 
@@ -144,7 +147,11 @@ namespace DOAMapper.Migrations
 
                     b.HasIndex("ImportDate");
 
+                    b.HasIndex("RealmId");
+
                     b.HasIndex("Status");
+
+                    b.HasIndex("RealmId", "ImportDate");
 
                     b.ToTable("ImportSessions");
                 });
@@ -204,6 +211,40 @@ namespace DOAMapper.Migrations
                     b.HasIndex("PlayerId", "ValidFrom");
 
                     b.ToTable("Players");
+                });
+
+            modelBuilder.Entity("DOAMapper.Models.Entities.Realm", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RealmId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("RealmId")
+                        .IsUnique();
+
+                    b.ToTable("Realms");
                 });
 
             modelBuilder.Entity("DOAMapper.Models.Entities.Tile", b =>
@@ -276,6 +317,17 @@ namespace DOAMapper.Migrations
                     b.Navigation("ImportSession");
                 });
 
+            modelBuilder.Entity("DOAMapper.Models.Entities.ImportSession", b =>
+                {
+                    b.HasOne("DOAMapper.Models.Entities.Realm", "Realm")
+                        .WithMany("ImportSessions")
+                        .HasForeignKey("RealmId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Realm");
+                });
+
             modelBuilder.Entity("DOAMapper.Models.Entities.Player", b =>
                 {
                     b.HasOne("DOAMapper.Models.Entities.ImportSession", "ImportSession")
@@ -296,6 +348,11 @@ namespace DOAMapper.Migrations
                         .IsRequired();
 
                     b.Navigation("ImportSession");
+                });
+
+            modelBuilder.Entity("DOAMapper.Models.Entities.Realm", b =>
+                {
+                    b.Navigation("ImportSessions");
                 });
 #pragma warning restore 612, 618
         }

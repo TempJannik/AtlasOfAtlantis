@@ -1,5 +1,6 @@
 using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Services.Interfaces;
+using DOAMapper.Shared.Services;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,17 +11,20 @@ namespace DOAMapper.Controllers;
 public class PlayersController : ControllerBase
 {
     private readonly IPlayerService _playerService;
+    private readonly IRealmService _realmService;
     private readonly ILogger<PlayersController> _logger;
 
-    public PlayersController(IPlayerService playerService, ILogger<PlayersController> logger)
+    public PlayersController(IPlayerService playerService, IRealmService realmService, ILogger<PlayersController> logger)
     {
         _playerService = playerService;
+        _realmService = realmService;
         _logger = logger;
     }
 
     [HttpGet("search")]
     public async Task<ActionResult<PagedResult<PlayerDto>>> SearchPlayers(
         [FromQuery] string query = "",
+        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null,
         [FromQuery] int page = 1,
         [FromQuery] int size = 20)
@@ -28,10 +32,17 @@ public class PlayersController : ControllerBase
         if (page < 1) page = 1;
         if (size < 1 || size > 100) size = 20;
 
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         // Use latest available date if not specified
         if (!date.HasValue)
         {
-            var availableDates = await _playerService.GetAvailableDatesAsync();
+            var availableDates = await _playerService.GetAvailableDatesAsync(realmId);
             if (!availableDates.Any())
             {
                 return BadRequest("No data available. Please import data first.");
@@ -41,7 +52,7 @@ public class PlayersController : ControllerBase
 
         try
         {
-            var result = await _playerService.SearchPlayersAsync(query, date.Value, page, size);
+            var result = await _playerService.SearchPlayersAsync(query, realmId, date.Value, page, size);
             return Ok(result);
         }
         catch (Exception ex)
@@ -54,12 +65,20 @@ public class PlayersController : ControllerBase
     [HttpGet("{playerId}")]
     public async Task<ActionResult<PlayerDetailDto>> GetPlayer(
         string playerId,
+        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null)
     {
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         // Use latest available date if not specified
         if (!date.HasValue)
         {
-            var availableDates = await _playerService.GetAvailableDatesAsync();
+            var availableDates = await _playerService.GetAvailableDatesAsync(realmId);
             if (!availableDates.Any())
             {
                 return BadRequest("No data available. Please import data first.");
@@ -69,7 +88,7 @@ public class PlayersController : ControllerBase
 
         try
         {
-            var player = await _playerService.GetPlayerAsync(playerId, date.Value);
+            var player = await _playerService.GetPlayerAsync(playerId, realmId, date.Value);
             if (player == null)
             {
                 return NotFound($"Player with ID '{playerId}' not found for date {date.Value:yyyy-MM-dd}");
@@ -87,12 +106,20 @@ public class PlayersController : ControllerBase
     [HttpGet("{playerId}/tiles")]
     public async Task<ActionResult<List<TileDto>>> GetPlayerTiles(
         string playerId,
+        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null)
     {
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         // Use latest available date if not specified
         if (!date.HasValue)
         {
-            var availableDates = await _playerService.GetAvailableDatesAsync();
+            var availableDates = await _playerService.GetAvailableDatesAsync(realmId);
             if (!availableDates.Any())
             {
                 return BadRequest("No data available. Please import data first.");
@@ -102,7 +129,7 @@ public class PlayersController : ControllerBase
 
         try
         {
-            var tiles = await _playerService.GetPlayerTilesAsync(playerId, date.Value);
+            var tiles = await _playerService.GetPlayerTilesAsync(playerId, realmId, date.Value);
             return Ok(tiles);
         }
         catch (Exception ex)
@@ -114,11 +141,13 @@ public class PlayersController : ControllerBase
 
     [HttpGet("{playerId}/history")]
     [RequireAuth]
-    public async Task<ActionResult<List<HistoryEntryDto<PlayerDto>>>> GetPlayerHistory(string playerId)
+    public async Task<ActionResult<List<HistoryEntryDto<PlayerDto>>>> GetPlayerHistory(
+        string playerId,
+        [FromQuery] string? realmId = null)
     {
         try
         {
-            var history = await _playerService.GetPlayerHistoryAsync(playerId);
+            var history = await _playerService.GetPlayerHistoryAsync(playerId, realmId);
             return Ok(history);
         }
         catch (Exception ex)
@@ -129,11 +158,18 @@ public class PlayersController : ControllerBase
     }
 
     [HttpGet("dates")]
-    public async Task<ActionResult<List<DateTime>>> GetAvailableDates()
+    public async Task<ActionResult<List<DateTime>>> GetAvailableDates([FromQuery] string? realmId = null)
     {
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         try
         {
-            var dates = await _playerService.GetAvailableDatesAsync();
+            var dates = await _playerService.GetAvailableDatesAsync(realmId);
             return Ok(dates);
         }
         catch (Exception ex)

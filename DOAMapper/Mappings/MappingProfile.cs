@@ -29,5 +29,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.DataDate, opt => opt.MapFrom(src => src.ValidFrom));
             
         CreateMap<ImportSession, ImportSessionDto>();
+
+        CreateMap<Realm, RealmDto>();
     }
 }

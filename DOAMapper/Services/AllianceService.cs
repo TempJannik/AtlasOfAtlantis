@@ -20,15 +20,20 @@ public class AllianceService : IAllianceService
         _logger = logger;
     }
 
-    public async Task<PagedResult<AllianceDto>> GetAlliancesAsync(DateTime date, int page, int pageSize)
+    public async Task<PagedResult<AllianceDto>> GetAlliancesAsync(string realmId, DateTime date, int page, int pageSize)
     {
         // Ensure date is UTC for PostgreSQL compatibility
         var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
 
-        _logger.LogInformation("Getting alliances for date {Date}, page {Page}, size {PageSize}", utcDate, page, pageSize);
+        _logger.LogInformation("Getting alliances for realm {RealmId}, date {Date}, page {Page}, size {PageSize}", realmId, utcDate, page, pageSize);
 
         var alliancesQuery = _context.Alliances
-            .Where(a => a.ValidFrom <= utcDate && (a.ValidTo == null || a.ValidTo > utcDate));
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
+            .Where(asr => asr.Realm.RealmId == realmId &&
+                         asr.Alliance.ValidFrom <= utcDate &&
+                         (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
+            .Select(asr => asr.Alliance);
 
         var totalCount = await alliancesQuery.CountAsync();
 
@@ -42,9 +47,13 @@ public class AllianceService : IAllianceService
         foreach (var alliance in alliances)
         {
             var members = await _context.Players
-                .Where(p => p.AllianceId == alliance.AllianceId &&
-                           p.ValidFrom <= utcDate &&
-                           (p.ValidTo == null || p.ValidTo > utcDate))
+                .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+                .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+                .Where(psr => psr.Realm.RealmId == realmId &&
+                             psr.Player.AllianceId == alliance.AllianceId &&
+                             psr.Player.ValidFrom <= utcDate &&
+                             (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+                .Select(psr => psr.Player)
                 .ToListAsync();
 
             // Ensure Members collection is not null
@@ -70,16 +79,21 @@ public class AllianceService : IAllianceService
         };
     }
 
-    public async Task<PagedResult<AllianceDto>> SearchAlliancesAsync(string query, DateTime date, int page, int pageSize)
+    public async Task<PagedResult<AllianceDto>> SearchAlliancesAsync(string query, string realmId, DateTime date, int page, int pageSize)
     {
         // Ensure date is UTC for PostgreSQL compatibility
         var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
 
-        _logger.LogInformation("Searching alliances with query '{Query}' for date {Date}, page {Page}, size {PageSize}",
-            query, utcDate, page, pageSize);
+        _logger.LogInformation("Searching alliances with query '{Query}' for realm {RealmId}, date {Date}, page {Page}, size {PageSize}",
+            query, realmId, utcDate, page, pageSize);
 
         var alliancesQuery = _context.Alliances
-            .Where(a => a.ValidFrom <= utcDate && (a.ValidTo == null || a.ValidTo > utcDate));
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
+            .Where(asr => asr.Realm.RealmId == realmId &&
+                         asr.Alliance.ValidFrom <= utcDate &&
+                         (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
+            .Select(asr => asr.Alliance);
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -130,20 +144,23 @@ public class AllianceService : IAllianceService
         };
     }
 
-    public async Task<AllianceDto?> GetAllianceAsync(string allianceId, DateTime date)
+    public async Task<AllianceDto?> GetAllianceAsync(string allianceId, string realmId, DateTime date)
     {
         // Ensure date is UTC for PostgreSQL compatibility
         var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
 
-        _logger.LogInformation("🔍 ALLIANCE SERVICE: Getting alliance {AllianceId} for date {Date}", allianceId, utcDate);
+        _logger.LogInformation("🔍 ALLIANCE SERVICE: Getting alliance {AllianceId} for realm {RealmId}, date {Date}", allianceId, realmId, utcDate);
 
-        // First, let's see ALL alliance records for this ID
+        // First, let's see ALL alliance records for this ID in this realm
         var allRecords = await _context.Alliances
-            .Where(a => a.AllianceId == allianceId)
-            .OrderBy(a => a.ValidFrom)
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
+            .Where(asr => asr.Realm.RealmId == realmId && asr.Alliance.AllianceId == allianceId)
+            .OrderBy(asr => asr.Alliance.ValidFrom)
+            .Select(asr => asr.Alliance)
             .ToListAsync();
 
-        _logger.LogInformation("🔍 ALLIANCE SERVICE: Found {Count} total records for alliance {AllianceId}", allRecords.Count, allianceId);
+        _logger.LogInformation("🔍 ALLIANCE SERVICE: Found {Count} total records for alliance {AllianceId} in realm {RealmId}", allRecords.Count, allianceId, realmId);
         foreach (var record in allRecords)
         {
             _logger.LogInformation("🔍 ALLIANCE SERVICE: Record - ValidFrom: {ValidFrom}, ValidTo: {ValidTo}, Power: {Power}, IsActive: {IsActive}",
@@ -151,9 +168,13 @@ public class AllianceService : IAllianceService
         }
 
         var alliance = await _context.Alliances
-            .Where(a => a.AllianceId == allianceId &&
-                       a.ValidFrom <= utcDate &&
-                       (a.ValidTo == null || a.ValidTo > utcDate))
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
+            .Where(asr => asr.Realm.RealmId == realmId &&
+                         asr.Alliance.AllianceId == allianceId &&
+                         asr.Alliance.ValidFrom <= utcDate &&
+                         (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
+            .Select(asr => asr.Alliance)
             .OrderByDescending(a => a.ValidFrom)  // Get the most recent record that's valid for this date
             .FirstOrDefaultAsync();
 
@@ -186,18 +207,22 @@ public class AllianceService : IAllianceService
         return allianceDto;
     }
 
-    public async Task<PagedResult<PlayerDto>> GetAllianceMembersAsync(string allianceId, DateTime date, int page, int pageSize)
+    public async Task<PagedResult<PlayerDto>> GetAllianceMembersAsync(string allianceId, string realmId, DateTime date, int page, int pageSize)
     {
         // Ensure date is UTC for PostgreSQL compatibility
         var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
 
-        _logger.LogInformation("Getting members for alliance {AllianceId} for date {Date}, page {Page}, size {PageSize}",
-            allianceId, utcDate, page, pageSize);
+        _logger.LogInformation("Getting members for alliance {AllianceId} for realm {RealmId}, date {Date}, page {Page}, size {PageSize}",
+            allianceId, realmId, utcDate, page, pageSize);
 
         var membersQuery = _context.Players
-            .Where(p => p.AllianceId == allianceId &&
-                       p.ValidFrom <= utcDate &&
-                       (p.ValidTo == null || p.ValidTo > utcDate));
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+            .Where(psr => psr.Realm.RealmId == realmId &&
+                         psr.Player.AllianceId == allianceId &&
+                         psr.Player.ValidFrom <= utcDate &&
+                         (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+            .Select(psr => psr.Player);
 
         var totalCount = await membersQuery.CountAsync();
 
@@ -227,17 +252,21 @@ public class AllianceService : IAllianceService
         };
     }
 
-    public async Task<List<TileDto>> GetAllianceTilesAsync(string allianceId, DateTime date)
+    public async Task<List<TileDto>> GetAllianceTilesAsync(string allianceId, string realmId, DateTime date)
     {
         // Ensure date is UTC for PostgreSQL compatibility
         var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
 
-        _logger.LogInformation("Getting tiles for alliance {AllianceId} for date {Date}", allianceId, utcDate);
+        _logger.LogInformation("Getting tiles for alliance {AllianceId} for realm {RealmId}, date {Date}", allianceId, realmId, utcDate);
 
         var tiles = await _context.Tiles
-            .Where(t => t.AllianceId == allianceId &&
-                       t.ValidFrom <= utcDate &&
-                       (t.ValidTo == null || t.ValidTo > utcDate))
+            .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
+            .Join(_context.Realms, ts => ts.Session.RealmId, r => r.Id, (ts, r) => new { ts.Tile, ts.Session, Realm = r })
+            .Where(tsr => tsr.Realm.RealmId == realmId &&
+                         tsr.Tile.AllianceId == allianceId &&
+                         tsr.Tile.ValidFrom <= utcDate &&
+                         (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > utcDate))
+            .Select(tsr => tsr.Tile)
             .OrderBy(t => t.Type)
             .ThenBy(t => t.X)
             .ThenBy(t => t.Y)
@@ -256,13 +285,16 @@ public class AllianceService : IAllianceService
         return tileDtos;
     }
 
-    public async Task<List<HistoryEntryDto<AllianceDto>>> GetAllianceHistoryAsync(string allianceId)
+    public async Task<List<HistoryEntryDto<AllianceDto>>> GetAllianceHistoryAsync(string allianceId, string realmId)
     {
-        _logger.LogInformation("Getting history for alliance {AllianceId}", allianceId);
+        _logger.LogInformation("Getting history for alliance {AllianceId} in realm {RealmId}", allianceId, realmId);
 
         var allianceHistory = await _context.Alliances
-            .Where(a => a.AllianceId == allianceId)
-            .OrderByDescending(a => a.ValidFrom)
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
+            .Where(asr => asr.Realm.RealmId == realmId && asr.Alliance.AllianceId == allianceId)
+            .OrderByDescending(asr => asr.Alliance.ValidFrom)
+            .Select(asr => asr.Alliance)
             .ToListAsync();
 
         var historyEntries = new List<HistoryEntryDto<AllianceDto>>();
@@ -273,10 +305,13 @@ public class AllianceService : IAllianceService
 
             // Get member count for this alliance at this point in time
             var memberCount = await _context.Players
-                .Where(p => p.AllianceId == allianceId &&
-                           p.ValidFrom <= alliance.ValidFrom &&
-                           (p.ValidTo == null || p.ValidTo > alliance.ValidFrom))
-                .GroupBy(p => p.PlayerId)  // Group by player ID to avoid counting duplicates
+                .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+                .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+                .Where(psr => psr.Realm.RealmId == realmId &&
+                             psr.Player.AllianceId == allianceId &&
+                             psr.Player.ValidFrom <= alliance.ValidFrom &&
+                             (psr.Player.ValidTo == null || psr.Player.ValidTo > alliance.ValidFrom))
+                .GroupBy(psr => psr.Player.PlayerId)  // Group by player ID to avoid counting duplicates
                 .CountAsync();
 
             var allianceDto = _mapper.Map<AllianceDto>(alliance);
@@ -314,11 +349,12 @@ public class AllianceService : IAllianceService
         return historyEntries;
     }
 
-    public async Task<List<DateTime>> GetAvailableDatesAsync()
+    public async Task<List<DateTime>> GetAvailableDatesAsync(string realmId)
     {
         var dates = await _context.ImportSessions
-            .Where(s => s.Status == DOAMapper.Shared.Models.Enums.ImportStatus.Completed)
-            .Select(s => s.ImportDate.Date)
+            .Join(_context.Realms, s => s.RealmId, r => r.Id, (s, r) => new { Session = s, Realm = r })
+            .Where(sr => sr.Realm.RealmId == realmId && sr.Session.Status == DOAMapper.Shared.Models.Enums.ImportStatus.Completed)
+            .Select(sr => sr.Session.ImportDate.Date)
             .Distinct()
             .OrderByDescending(d => d)
             .ToListAsync();

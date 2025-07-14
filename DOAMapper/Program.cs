@@ -1,6 +1,7 @@
 using DOAMapper.Services;
 using DOAMapper.Components;
 using DOAMapper.Data;
+using DOAMapper.Shared.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
@@ -135,6 +136,7 @@ builder.Services.AddScoped<DOAMapper.Services.Interfaces.ITemporalDataService, D
 builder.Services.AddScoped<DOAMapper.Services.Interfaces.IImportService, DOAMapper.Services.ImportService>();
 builder.Services.AddScoped<DOAMapper.Services.Interfaces.IPlayerService, DOAMapper.Services.PlayerService>();
 builder.Services.AddScoped<DOAMapper.Services.Interfaces.IAllianceService, DOAMapper.Services.AllianceService>();
+builder.Services.AddScoped<DOAMapper.Shared.Services.IRealmService, DOAMapper.Services.RealmService>();
 builder.Services.AddScoped<DOAMapper.Services.Interfaces.IMapService, DOAMapper.Services.MapService>();
 builder.Services.AddSingleton<DOAMapper.Shared.Services.IAuthenticationService, DOAMapper.Services.AuthenticationService>();
 builder.Services.AddSingleton<DOAMapper.Shared.Services.IAuthenticationStateService, DOAMapper.Services.AuthenticationStateService>();
@@ -160,6 +162,12 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("Initializing database...");
         context.Database.EnsureCreated();
         logger.LogInformation("Database initialization completed successfully");
+
+        // Ensure default realm exists for backward compatibility
+        await EnsureDefaultRealmExistsAsync(context, logger);
+
+        // Migrate existing ImportSessions to default realm
+        await MigrateExistingImportSessionsAsync(context, logger);
 
         // Ensure import directory exists
         var importDirectory = app.Configuration["ImportSettings:ImportDirectory"] ?? "/app/Data/Imports";
@@ -205,3 +213,84 @@ app.MapRazorComponents<App>()
 app.MapControllers();
 
 app.Run();
+
+static async Task EnsureDefaultRealmExistsAsync(ApplicationDbContext context, Microsoft.Extensions.Logging.ILogger logger)
+{
+    try
+    {
+        // Check if default realm already exists
+        var existingRealm = await context.Realms
+            .FirstOrDefaultAsync(r => r.RealmId == RealmConstants.DefaultRealmId);
+
+        if (existingRealm == null)
+        {
+            logger.LogInformation("Creating default realm for backward compatibility");
+
+            var defaultRealm = new DOAMapper.Models.Entities.Realm
+            {
+                Id = Guid.NewGuid(),
+                RealmId = RealmConstants.DefaultRealmId,
+                Name = RealmConstants.DefaultRealmName,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+
+            context.Realms.Add(defaultRealm);
+            await context.SaveChangesAsync();
+
+            logger.LogInformation("Default realm created successfully with ID: {RealmId}", RealmConstants.DefaultRealmId);
+        }
+        else
+        {
+            logger.LogInformation("Default realm already exists with ID: {RealmId}", RealmConstants.DefaultRealmId);
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to ensure default realm exists");
+        throw;
+    }
+}
+
+static async Task MigrateExistingImportSessionsAsync(ApplicationDbContext context, Microsoft.Extensions.Logging.ILogger logger)
+{
+    try
+    {
+        // Get the default realm
+        var defaultRealm = await context.Realms
+            .FirstOrDefaultAsync(r => r.RealmId == RealmConstants.DefaultRealmId);
+
+        if (defaultRealm == null)
+        {
+            logger.LogError("Default realm not found during ImportSession migration");
+            return;
+        }
+
+        // Find ImportSessions that don't have a RealmId set (RealmId is Guid.Empty or null)
+        var importSessionsToMigrate = await context.ImportSessions
+            .Where(s => s.RealmId == Guid.Empty)
+            .ToListAsync();
+
+        if (importSessionsToMigrate.Any())
+        {
+            logger.LogInformation("Migrating {Count} existing ImportSessions to default realm", importSessionsToMigrate.Count);
+
+            foreach (var session in importSessionsToMigrate)
+            {
+                session.RealmId = defaultRealm.Id;
+            }
+
+            await context.SaveChangesAsync();
+            logger.LogInformation("Successfully migrated {Count} ImportSessions to default realm", importSessionsToMigrate.Count);
+        }
+        else
+        {
+            logger.LogInformation("No ImportSessions need migration - all are already assigned to realms");
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to migrate existing ImportSessions to default realm");
+        throw;
+    }
+}

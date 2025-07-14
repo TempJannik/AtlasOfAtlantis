@@ -16,7 +16,7 @@ public class ImportService : IImportService
         _authService = authService;
     }
 
-    public async Task<ImportSessionDto> StartImportAsync(IBrowserFile file, DateTime? importDate = null)
+    public async Task<ImportSessionDto> StartImportAsync(IBrowserFile file, string realmId, DateTime? importDate = null)
     {
         using var content = new MultipartFormDataContent();
         using var fileStream = file.OpenReadStream(maxAllowedSize: 100 * 1024 * 1024); // 100MB
@@ -24,6 +24,9 @@ public class ImportService : IImportService
 
         streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
         content.Add(streamContent, "file", file.Name);
+
+        // Add realm ID
+        content.Add(new StringContent(realmId), "realmId");
 
         // Add import date if provided
         if (importDate.HasValue)
@@ -57,9 +60,9 @@ public class ImportService : IImportService
         return result ?? throw new InvalidOperationException($"Import session {sessionId} not found");
     }
 
-    public async Task<List<ImportSessionDto>> GetImportHistoryAsync()
+    public async Task<List<ImportSessionDto>> GetImportHistoryAsync(string realmId)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "api/import/history");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/import/history?realmId={Uri.EscapeDataString(realmId)}");
         await AddAuthHeadersAsync(request);
 
         var response = await _httpClient.SendAsync(request);
@@ -69,9 +72,9 @@ public class ImportService : IImportService
         return result ?? new List<ImportSessionDto>();
     }
 
-    public async Task<List<DateTime>> GetAvailableImportDatesAsync()
+    public async Task<List<DateTime>> GetAvailableImportDatesAsync(string realmId)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "api/import/dates");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/import/dates?realmId={Uri.EscapeDataString(realmId)}");
         await AddAuthHeadersAsync(request);
 
         var response = await _httpClient.SendAsync(request);

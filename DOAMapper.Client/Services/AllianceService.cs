@@ -15,43 +15,43 @@ public class AllianceService : IAllianceService
         _authService = authService;
     }
 
-    public async Task<PagedResult<AllianceDto>> GetAlliancesAsync(DateTime date, int page, int pageSize)
+    public async Task<PagedResult<AllianceDto>> GetAlliancesAsync(string realmId, DateTime date, int page, int pageSize)
     {
         var response = await _httpClient.GetFromJsonAsync<PagedResult<AllianceDto>>(
-            $"api/alliances?date={date:yyyy-MM-dd}&page={page}&size={pageSize}");
+            $"api/alliances?realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}&page={page}&size={pageSize}");
         return response ?? new PagedResult<AllianceDto>();
     }
 
-    public async Task<PagedResult<AllianceDto>> SearchAlliancesAsync(string query, DateTime date, int page, int pageSize)
+    public async Task<PagedResult<AllianceDto>> SearchAlliancesAsync(string query, string realmId, DateTime date, int page, int pageSize)
     {
         var response = await _httpClient.GetFromJsonAsync<PagedResult<AllianceDto>>(
-            $"api/alliances/search?query={Uri.EscapeDataString(query)}&date={date:yyyy-MM-dd}&page={page}&size={pageSize}");
+            $"api/alliances/search?query={Uri.EscapeDataString(query)}&realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}&page={page}&size={pageSize}");
         return response ?? new PagedResult<AllianceDto>();
     }
 
-    public async Task<AllianceDto?> GetAllianceAsync(string allianceId, DateTime date)
+    public async Task<AllianceDto?> GetAllianceAsync(string allianceId, string realmId, DateTime date)
     {
         return await _httpClient.GetFromJsonAsync<AllianceDto>(
-            $"api/alliances/{Uri.EscapeDataString(allianceId)}?date={date:yyyy-MM-dd}");
+            $"api/alliances/{Uri.EscapeDataString(allianceId)}?realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}");
     }
 
-    public async Task<PagedResult<PlayerDto>> GetAllianceMembersAsync(string allianceId, DateTime date, int page, int pageSize)
+    public async Task<PagedResult<PlayerDto>> GetAllianceMembersAsync(string allianceId, string realmId, DateTime date, int page, int pageSize)
     {
         var response = await _httpClient.GetFromJsonAsync<PagedResult<PlayerDto>>(
-            $"api/alliances/{Uri.EscapeDataString(allianceId)}/members?date={date:yyyy-MM-dd}&page={page}&size={pageSize}");
+            $"api/alliances/{Uri.EscapeDataString(allianceId)}/members?realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}&page={page}&size={pageSize}");
         return response ?? new PagedResult<PlayerDto>();
     }
 
-    public async Task<List<TileDto>> GetAllianceTilesAsync(string allianceId, DateTime date)
+    public async Task<List<TileDto>> GetAllianceTilesAsync(string allianceId, string realmId, DateTime date)
     {
         var response = await _httpClient.GetFromJsonAsync<List<TileDto>>(
-            $"api/alliances/{Uri.EscapeDataString(allianceId)}/tiles?date={date:yyyy-MM-dd}");
+            $"api/alliances/{Uri.EscapeDataString(allianceId)}/tiles?realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}");
         return response ?? new List<TileDto>();
     }
 
-    public async Task<List<HistoryEntryDto<AllianceDto>>> GetAllianceHistoryAsync(string allianceId)
+    public async Task<List<HistoryEntryDto<AllianceDto>>> GetAllianceHistoryAsync(string allianceId, string realmId)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/alliances/{Uri.EscapeDataString(allianceId)}/history");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/alliances/{Uri.EscapeDataString(allianceId)}/history?realmId={Uri.EscapeDataString(realmId)}");
         await AddAuthHeadersAsync(request);
 
         var response = await _httpClient.SendAsync(request);
@@ -61,9 +61,9 @@ public class AllianceService : IAllianceService
         return result ?? new List<HistoryEntryDto<AllianceDto>>();
     }
 
-    public async Task<List<DateTime>> GetAvailableDatesAsync()
+    public async Task<List<DateTime>> GetAvailableDatesAsync(string realmId)
     {
-        var response = await _httpClient.GetFromJsonAsync<List<DateTime>>("api/alliances/dates");
+        var response = await _httpClient.GetFromJsonAsync<List<DateTime>>($"api/alliances/dates?realmId={Uri.EscapeDataString(realmId)}");
         return response ?? new List<DateTime>();
     }
 

@@ -2,7 +2,10 @@
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @using DOAMapper.Shared.Services
 @using DOAMapper.Client.Components
+@using DOAMapper.Shared.Models.DTOs
 @inject IImportService ImportService
+@inject IRealmService RealmService
+@inject RealmStateService RealmState
 @inject IJSRuntime JSRuntime
 
 <PageTitle>Import Data - AoA</PageTitle>
@@ -21,6 +24,19 @@
             @if (CurrentImport == null)
             {
                 <div class="upload-area">
+                    <div class="mb-3">
+                        <label class="form-label">Target Realm</label>
+                        <RealmSelector AvailableRealms="AvailableRealms"
+                                      SelectedRealm="SelectedRealm"
+                                      SelectedRealmChanged="OnRealmChanged" />
+                        <div class="form-text">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Select the realm where this data should be imported.
+                            </small>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="importDate" class="form-label">Import Date</label>
                         <input type="date" id="importDate" class="form-control" @bind="ImportDate" @bind:format="yyyy-MM-dd" />
@@ -45,7 +61,7 @@
                     {
                         <div class="selected-file mt-3">
                             <p class="mb-2">Selected: @SelectedFile.Name (@(SelectedFile.Size / 1024 / 1024)MB)</p>
-                            <button class="btn btn-primary mobile-full-width" @onclick="StartImport" disabled="@IsUploading">
+                            <button class="btn btn-primary mobile-full-width" @onclick="StartImport" disabled="@(IsUploading || SelectedRealm == null)">
                                 @if (IsUploading)
                                 {
                                     <span class="spinner-border spinner-border-sm" role="status"></span>
@@ -167,9 +183,41 @@
     private ImportSessionDto? CurrentImport;
     private List<ImportSessionDto>? ImportHistory;
     private DateTime ImportDate = DateTime.Today;
+    private RealmDto? SelectedRealm;
+    private List<RealmDto> AvailableRealms = new();
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadAvailableRealms();
+        await LoadImportHistory();
+    }
+
+    private async Task LoadAvailableRealms()
+    {
+        try
+        {
+            AvailableRealms = await RealmService.GetAvailableRealmsAsync();
+
+            // Set default realm selection
+            if (RealmState.SelectedRealm != null)
+            {
+                SelectedRealm = AvailableRealms.FirstOrDefault(r => r.RealmId == RealmState.SelectedRealm.RealmId);
+            }
+            else if (AvailableRealms.Any())
+            {
+                SelectedRealm = AvailableRealms.First();
+            }
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Failed to load available realms.";
+        }
+    }
+
+    private async Task OnRealmChanged(RealmDto? newRealm)
+    {
+        SelectedRealm = newRealm;
+        // Reload import history for the new realm
         await LoadImportHistory();
     }
 
@@ -181,7 +229,7 @@
 
     private async Task StartImport()
     {
-        if (SelectedFile == null) return;
+        if (SelectedFile == null || SelectedRealm == null) return;
 
         // Validate file
         if (!SelectedFile.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
@@ -200,7 +248,7 @@
         ErrorMessage = null;
         try
         {
-            CurrentImport = await ImportService.StartImportAsync(SelectedFile, ImportDate);
+            CurrentImport = await ImportService.StartImportAsync(SelectedFile, SelectedRealm.RealmId, ImportDate);
 
             // Start polling for updates
             _ = Task.Run(async () => await PollImportStatus(CurrentImport.Id));
@@ -240,10 +288,12 @@
 
     private async Task LoadImportHistory()
     {
+        if (SelectedRealm == null) return;
+
         IsLoadingHistory = true;
         try
         {
-            ImportHistory = await ImportService.GetImportHistoryAsync();
+            ImportHistory = await ImportService.GetImportHistoryAsync(SelectedRealm.RealmId);
         }
         catch (Exception)
         {

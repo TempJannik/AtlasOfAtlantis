@@ -5,8 +5,8 @@ namespace DOAMapper.Client.Services;
 
 public interface IImportService
 {
-    Task<ImportSessionDto> StartImportAsync(IBrowserFile file, DateTime? importDate = null);
+    Task<ImportSessionDto> StartImportAsync(IBrowserFile file, string realmId, DateTime? importDate = null);
     Task<ImportSessionDto> GetImportStatusAsync(Guid sessionId);
-    Task<List<ImportSessionDto>> GetImportHistoryAsync();
-    Task<List<DateTime>> GetAvailableImportDatesAsync();
+    Task<List<ImportSessionDto>> GetImportHistoryAsync(string realmId);
+    Task<List<DateTime>> GetAvailableImportDatesAsync(string realmId);
 }

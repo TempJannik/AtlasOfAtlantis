@@ -1,0 +1,83 @@
+﻿@using DOAMapper.Shared.Models.DTOs
+@using DOAMapper.Client.Services
+@inject RealmStateService RealmState
+@implements IDisposable
+
+<div class="dragon-realm-selector">
+    <label class="dragon-realm-label">🌍 Realm:</label>
+    <select class="dragon-select" @bind="SelectedRealmId" @bind:after="OnRealmChanged">
+        <option value="">Select Realm...</option>
+        @foreach (var realm in RealmState.AvailableRealms)
+        {
+            <option value="@realm.RealmId">
+                @realm.Name (@realm.RealmId)
+            </option>
+        }
+    </select>
+</div>
+
+@code {
+    [Parameter] public RealmDto? SelectedRealm { get; set; }
+    [Parameter] public EventCallback<RealmDto?> SelectedRealmChanged { get; set; }
+    [Parameter] public List<RealmDto> AvailableRealms { get; set; } = new();
+
+    private string SelectedRealmId
+    {
+        get => RealmState.SelectedRealm?.RealmId ?? "";
+        set
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                var realm = RealmState.AvailableRealms.FirstOrDefault(r => r.RealmId == value);
+                RealmState.SetSelectedRealm(realm);
+            }
+            else
+            {
+                RealmState.SetSelectedRealm(null);
+            }
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        RealmState.RealmChanged += OnRealmStateChanged;
+        RealmState.AvailableRealmsChanged += OnAvailableRealmsChanged;
+
+        // Initialize with provided realms if available
+        if (AvailableRealms.Any())
+        {
+            RealmState.SetAvailableRealms(AvailableRealms);
+        }
+
+        // Initialize with provided selected realm
+        if (SelectedRealm != null)
+        {
+            RealmState.SetSelectedRealm(SelectedRealm);
+        }
+    }
+
+    private async Task OnRealmChanged()
+    {
+        await SelectedRealmChanged.InvokeAsync(RealmState.SelectedRealm);
+    }
+
+    private async void OnRealmStateChanged(RealmDto? newRealm)
+    {
+        await InvokeAsync(() =>
+        {
+            StateHasChanged();
+            SelectedRealmChanged.InvokeAsync(newRealm);
+        });
+    }
+
+    private async void OnAvailableRealmsChanged(List<RealmDto> newRealms)
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        RealmState.RealmChanged -= OnRealmStateChanged;
+        RealmState.AvailableRealmsChanged -= OnAvailableRealmsChanged;
+    }
+}

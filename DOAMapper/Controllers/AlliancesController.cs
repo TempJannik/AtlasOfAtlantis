@@ -10,16 +10,19 @@ namespace DOAMapper.Controllers;
 public class AlliancesController : ControllerBase
 {
     private readonly IAllianceService _allianceService;
+    private readonly IRealmService _realmService;
     private readonly ILogger<AlliancesController> _logger;
 
-    public AlliancesController(IAllianceService allianceService, ILogger<AlliancesController> logger)
+    public AlliancesController(IAllianceService allianceService, IRealmService realmService, ILogger<AlliancesController> logger)
     {
         _allianceService = allianceService;
+        _realmService = realmService;
         _logger = logger;
     }
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<AllianceDto>>> GetAlliances(
+        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null,
         [FromQuery] int page = 1,
         [FromQuery] int size = 20)
@@ -27,10 +30,17 @@ public class AlliancesController : ControllerBase
         if (page < 1) page = 1;
         if (size < 1 || size > 100) size = 20;
 
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         // Use latest available date if not specified
         if (!date.HasValue)
         {
-            var availableDates = await _allianceService.GetAvailableDatesAsync();
+            var availableDates = await _allianceService.GetAvailableDatesAsync(realmId);
             if (!availableDates.Any())
             {
                 return BadRequest("No data available. Please import data first.");
@@ -40,7 +50,7 @@ public class AlliancesController : ControllerBase
 
         try
         {
-            var result = await _allianceService.GetAlliancesAsync(date.Value, page, size);
+            var result = await _allianceService.GetAlliancesAsync(realmId, date.Value, page, size);
             return Ok(result);
         }
         catch (Exception ex)
@@ -53,6 +63,7 @@ public class AlliancesController : ControllerBase
     [HttpGet("search")]
     public async Task<ActionResult<PagedResult<AllianceDto>>> SearchAlliances(
         [FromQuery] string query = "",
+        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null,
         [FromQuery] int page = 1,
         [FromQuery] int size = 20)
@@ -60,10 +71,17 @@ public class AlliancesController : ControllerBase
         if (page < 1) page = 1;
         if (size < 1 || size > 100) size = 20;
 
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         // Use latest available date if not specified
         if (!date.HasValue)
         {
-            var availableDates = await _allianceService.GetAvailableDatesAsync();
+            var availableDates = await _allianceService.GetAvailableDatesAsync(realmId);
             if (!availableDates.Any())
             {
                 return BadRequest("No data available. Please import data first.");
@@ -73,7 +91,7 @@ public class AlliancesController : ControllerBase
 
         try
         {
-            var result = await _allianceService.SearchAlliancesAsync(query, date.Value, page, size);
+            var result = await _allianceService.SearchAlliancesAsync(query, realmId, date.Value, page, size);
             return Ok(result);
         }
         catch (Exception ex)
@@ -86,12 +104,20 @@ public class AlliancesController : ControllerBase
     [HttpGet("{allianceId}")]
     public async Task<ActionResult<AllianceDto>> GetAlliance(
         string allianceId,
+        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null)
     {
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         // Use latest available date if not specified
         if (!date.HasValue)
         {
-            var availableDates = await _allianceService.GetAvailableDatesAsync();
+            var availableDates = await _allianceService.GetAvailableDatesAsync(realmId);
             if (!availableDates.Any())
             {
                 return BadRequest("No data available. Please import data first.");
@@ -101,7 +127,7 @@ public class AlliancesController : ControllerBase
 
         try
         {
-            var alliance = await _allianceService.GetAllianceAsync(allianceId, date.Value);
+            var alliance = await _allianceService.GetAllianceAsync(allianceId, realmId, date.Value);
             if (alliance == null)
             {
                 return NotFound($"Alliance with ID '{allianceId}' not found for date {date.Value:yyyy-MM-dd}");
@@ -119,6 +145,7 @@ public class AlliancesController : ControllerBase
     [HttpGet("{allianceId}/members")]
     public async Task<ActionResult<PagedResult<PlayerDto>>> GetAllianceMembers(
         string allianceId,
+        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null,
         [FromQuery] int page = 1,
         [FromQuery] int size = 20)
@@ -126,10 +153,17 @@ public class AlliancesController : ControllerBase
         if (page < 1) page = 1;
         if (size < 1 || size > 100) size = 20;
 
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         // Use latest available date if not specified
         if (!date.HasValue)
         {
-            var availableDates = await _allianceService.GetAvailableDatesAsync();
+            var availableDates = await _allianceService.GetAvailableDatesAsync(realmId);
             if (!availableDates.Any())
             {
                 return BadRequest("No data available. Please import data first.");
@@ -139,7 +173,7 @@ public class AlliancesController : ControllerBase
 
         try
         {
-            var members = await _allianceService.GetAllianceMembersAsync(allianceId, date.Value, page, size);
+            var members = await _allianceService.GetAllianceMembersAsync(allianceId, realmId, date.Value, page, size);
             return Ok(members);
         }
         catch (Exception ex)
@@ -152,12 +186,20 @@ public class AlliancesController : ControllerBase
     [HttpGet("{allianceId}/tiles")]
     public async Task<ActionResult<List<TileDto>>> GetAllianceTiles(
         string allianceId,
+        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null)
     {
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         // Use latest available date if not specified
         if (!date.HasValue)
         {
-            var availableDates = await _allianceService.GetAvailableDatesAsync();
+            var availableDates = await _allianceService.GetAvailableDatesAsync(realmId);
             if (!availableDates.Any())
             {
                 return BadRequest("No data available. Please import data first.");
@@ -167,7 +209,7 @@ public class AlliancesController : ControllerBase
 
         try
         {
-            var tiles = await _allianceService.GetAllianceTilesAsync(allianceId, date.Value);
+            var tiles = await _allianceService.GetAllianceTilesAsync(allianceId, realmId, date.Value);
             return Ok(tiles);
         }
         catch (Exception ex)
@@ -179,11 +221,20 @@ public class AlliancesController : ControllerBase
 
     [HttpGet("{allianceId}/history")]
     [RequireAuth]
-    public async Task<ActionResult<List<HistoryEntryDto<AllianceDto>>>> GetAllianceHistory(string allianceId)
+    public async Task<ActionResult<List<HistoryEntryDto<AllianceDto>>>> GetAllianceHistory(
+        string allianceId,
+        [FromQuery] string? realmId = null)
     {
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         try
         {
-            var history = await _allianceService.GetAllianceHistoryAsync(allianceId);
+            var history = await _allianceService.GetAllianceHistoryAsync(allianceId, realmId);
             return Ok(history);
         }
         catch (Exception ex)
@@ -194,11 +245,18 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("dates")]
-    public async Task<ActionResult<List<DateTime>>> GetAvailableDates()
+    public async Task<ActionResult<List<DateTime>>> GetAvailableDates([FromQuery] string? realmId = null)
     {
+        // Use default realm if not specified
+        if (string.IsNullOrEmpty(realmId))
+        {
+            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
+            realmId = defaultRealm.RealmId;
+        }
+
         try
         {
-            var dates = await _allianceService.GetAvailableDatesAsync();
+            var dates = await _allianceService.GetAvailableDatesAsync(realmId);
             return Ok(dates);
         }
         catch (Exception ex)

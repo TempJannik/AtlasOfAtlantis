@@ -38,13 +38,20 @@ public class ImportService : IImportService
         _serviceScopeFactory = serviceScopeFactory;
     }
 
-    public async Task<ImportSession> StartImportAsync(Stream jsonStream, string fileName, DateTime? importDate = null)
+    public async Task<ImportSession> StartImportAsync(Stream jsonStream, string fileName, string realmId, DateTime? importDate = null)
     {
         // Use provided date or default to current date, normalized to midnight UTC
         var effectiveImportDate = importDate?.Date ?? DateTime.UtcNow.Date;
         var utcImportDate = DateTime.SpecifyKind(effectiveImportDate, DateTimeKind.Utc);
 
-        _logger.LogInformation("Starting import for file {FileName} with import date {ImportDate}", fileName, utcImportDate.ToString("yyyy-MM-dd"));
+        _logger.LogInformation("Starting import for file {FileName} with import date {ImportDate} for realm {RealmId}", fileName, utcImportDate.ToString("yyyy-MM-dd"), realmId);
+
+        // Get or create the realm
+        var realm = await _context.Realms.FirstOrDefaultAsync(r => r.RealmId == realmId);
+        if (realm == null)
+        {
+            throw new InvalidOperationException($"Realm '{realmId}' not found. Please create the realm first.");
+        }
 
         // Create import session
         var importSession = new ImportSession
@@ -56,7 +63,8 @@ public class ImportService : IImportService
             RecordsProcessed = 0,
             RecordsChanged = 0,
             ProgressPercentage = 0,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            RealmId = realm.Id
         };
 
         _context.ImportSessions.Add(importSession);
@@ -143,25 +151,29 @@ public class ImportService : IImportService
         return _mapper.Map<ImportSessionDto>(session);
     }
 
-    public async Task<List<ImportSessionDto>> GetImportHistoryAsync()
+    public async Task<List<ImportSessionDto>> GetImportHistoryAsync(string realmId)
     {
-        _logger.LogDebug("Getting import history");
+        _logger.LogDebug("Getting import history for realm {RealmId}", realmId);
 
         var sessions = await _context.ImportSessions
-            .OrderByDescending(s => s.CreatedAt)
+            .Join(_context.Realms, s => s.RealmId, r => r.Id, (s, r) => new { Session = s, Realm = r })
+            .Where(sr => sr.Realm.RealmId == realmId)
+            .OrderByDescending(sr => sr.Session.CreatedAt)
             .Take(50) // Limit to last 50 imports
+            .Select(sr => sr.Session)
             .ToListAsync();
 
         return _mapper.Map<List<ImportSessionDto>>(sessions);
     }
 
-    public async Task<List<DateTime>> GetAvailableImportDatesAsync()
+    public async Task<List<DateTime>> GetAvailableImportDatesAsync(string realmId)
     {
-        _logger.LogDebug("Getting available import dates");
+        _logger.LogDebug("Getting available import dates for realm {RealmId}", realmId);
 
         var dates = await _context.ImportSessions
-            .Where(s => s.Status == ImportStatus.Completed)
-            .Select(s => s.ImportDate.Date)
+            .Join(_context.Realms, s => s.RealmId, r => r.Id, (s, r) => new { Session = s, Realm = r })
+            .Where(sr => sr.Realm.RealmId == realmId && sr.Session.Status == ImportStatus.Completed)
+            .Select(sr => sr.Session.ImportDate.Date)
             .Distinct()
             .OrderByDescending(d => d)
             .ToListAsync();

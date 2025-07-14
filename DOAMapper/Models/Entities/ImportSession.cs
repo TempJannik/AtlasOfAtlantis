@@ -25,4 +25,10 @@ public class ImportSession
 
     // Detailed phase tracking (JSON serialized)
     public string? PhaseDetailsJson { get; set; }
+
+    // Realm relationship
+    public Guid RealmId { get; set; }
+
+    // Navigation properties
+    public Realm Realm { get; set; } = null!;
 }

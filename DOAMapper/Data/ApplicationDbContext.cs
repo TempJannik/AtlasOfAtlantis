@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Player> Players { get; set; }
     public DbSet<Alliance> Alliances { get; set; }
     public DbSet<Tile> Tiles { get; set; }
+    public DbSet<Realm> Realms { get; set; }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -45,12 +46,28 @@ public class ApplicationDbContext : DbContext
         // Disable foreign key constraints for temporal entities to support multiple records with same IDs
         modelBuilder.Model.SetDefaultSchema(null);
         
+        ConfigureRealm(modelBuilder);
         ConfigureImportSession(modelBuilder);
         ConfigurePlayer(modelBuilder);
         ConfigureAlliance(modelBuilder);
         ConfigureTile(modelBuilder);
     }
-    
+
+    private static void ConfigureRealm(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Realm>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RealmId).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+
+            // Indexes for performance
+            entity.HasIndex(e => e.RealmId).IsUnique();
+            entity.HasIndex(e => e.Name);
+            entity.HasIndex(e => e.IsActive);
+        });
+    }
+
     private static void ConfigureImportSession(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ImportSession>(entity =>
@@ -66,6 +83,14 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.ImportDate);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.RealmId);
+            entity.HasIndex(e => new { e.RealmId, e.ImportDate });
+
+            // Relationships
+            entity.HasOne(e => e.Realm)
+                  .WithMany()
+                  .HasForeignKey(e => e.RealmId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
     }
     

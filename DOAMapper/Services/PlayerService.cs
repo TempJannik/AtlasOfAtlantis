@@ -20,18 +20,23 @@ public class PlayerService : IPlayerService
         _logger = logger;
     }
 
-    public async Task<PagedResult<PlayerDto>> SearchPlayersAsync(string query, DateTime date, int page, int pageSize)
+    public async Task<PagedResult<PlayerDto>> SearchPlayersAsync(string query, string realmId, DateTime date, int page, int pageSize)
     {
         // Ensure date is UTC for PostgreSQL compatibility
         var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
 
-        _logger.LogInformation("Searching players with query '{Query}' for date {Date}, page {Page}, size {PageSize}",
-            query, utcDate, page, pageSize);
+        _logger.LogInformation("Searching players with query '{Query}' for realm {RealmId}, date {Date}, page {Page}, size {PageSize}",
+            query, realmId, utcDate, page, pageSize);
 
-        _logger.LogInformation("🔍 PLAYER QUERY: Querying players for date {QueryDate} (UTC: {UtcDate})", date, utcDate);
+        _logger.LogInformation("🔍 PLAYER QUERY: Querying players for realm {RealmId}, date {QueryDate} (UTC: {UtcDate})", realmId, date, utcDate);
 
         var playersQuery = _context.Players
-            .Where(p => p.ValidFrom <= utcDate && (p.ValidTo == null || p.ValidTo > utcDate));
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+            .Where(psr => psr.Realm.RealmId == realmId &&
+                         psr.Player.ValidFrom <= utcDate &&
+                         (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+            .Select(psr => psr.Player);
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -84,18 +89,22 @@ public class PlayerService : IPlayerService
         };
     }
 
-    public async Task<PlayerDetailDto?> GetPlayerAsync(string playerId, DateTime date)
+    public async Task<PlayerDetailDto?> GetPlayerAsync(string playerId, string realmId, DateTime date)
     {
         // Ensure date is UTC for PostgreSQL compatibility
         var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
 
-        _logger.LogInformation("Getting player {PlayerId} for date {Date}", playerId, utcDate);
+        _logger.LogInformation("Getting player {PlayerId} for realm {RealmId}, date {Date}", playerId, realmId, utcDate);
 
         var player = await _context.Players
-            .Where(p => p.PlayerId == playerId &&
-                       p.ValidFrom <= utcDate &&
-                       (p.ValidTo == null || p.ValidTo > utcDate))
-            .OrderByDescending(p => p.ValidFrom)  // Get the most recent record that's valid for this date
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+            .Where(psr => psr.Realm.RealmId == realmId &&
+                         psr.Player.PlayerId == playerId &&
+                         psr.Player.ValidFrom <= utcDate &&
+                         (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+            .OrderByDescending(psr => psr.Player.ValidFrom)  // Get the most recent record that's valid for this date
+            .Select(psr => psr.Player)
             .FirstOrDefaultAsync();
 
         if (player == null)
@@ -131,17 +140,21 @@ public class PlayerService : IPlayerService
         return playerDetail;
     }
 
-    public async Task<List<TileDto>> GetPlayerTilesAsync(string playerId, DateTime date)
+    public async Task<List<TileDto>> GetPlayerTilesAsync(string playerId, string realmId, DateTime date)
     {
         // Ensure date is UTC for PostgreSQL compatibility
         var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
 
-        _logger.LogInformation("Getting tiles for player {PlayerId} for date {Date}", playerId, utcDate);
+        _logger.LogInformation("Getting tiles for player {PlayerId} for realm {RealmId}, date {Date}", playerId, realmId, utcDate);
 
         var tiles = await _context.Tiles
-            .Where(t => t.PlayerId == playerId &&
-                       t.ValidFrom <= utcDate &&
-                       (t.ValidTo == null || t.ValidTo > utcDate))
+            .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
+            .Join(_context.Realms, ts => ts.Session.RealmId, r => r.Id, (ts, r) => new { ts.Tile, ts.Session, Realm = r })
+            .Where(tsr => tsr.Realm.RealmId == realmId &&
+                         tsr.Tile.PlayerId == playerId &&
+                         tsr.Tile.ValidFrom <= utcDate &&
+                         (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > utcDate))
+            .Select(tsr => tsr.Tile)
             .OrderBy(t => t.Type)
             .ThenBy(t => t.X)
             .ThenBy(t => t.Y)
@@ -160,13 +173,16 @@ public class PlayerService : IPlayerService
         return tileDtos;
     }
 
-    public async Task<List<HistoryEntryDto<PlayerDto>>> GetPlayerHistoryAsync(string playerId)
+    public async Task<List<HistoryEntryDto<PlayerDto>>> GetPlayerHistoryAsync(string playerId, string realmId)
     {
-        _logger.LogInformation("Getting history for player {PlayerId}", playerId);
+        _logger.LogInformation("Getting history for player {PlayerId} in realm {RealmId}", playerId, realmId);
 
         var playerHistory = await _context.Players
-            .Where(p => p.PlayerId == playerId)
-            .OrderByDescending(p => p.ValidFrom)
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+            .Where(psr => psr.Realm.RealmId == realmId && psr.Player.PlayerId == playerId)
+            .OrderByDescending(psr => psr.Player.ValidFrom)
+            .Select(psr => psr.Player)
             .ToListAsync();
 
         var historyEntries = new List<HistoryEntryDto<PlayerDto>>();
@@ -293,11 +309,12 @@ public class PlayerService : IPlayerService
         }
     }
 
-    public async Task<List<DateTime>> GetAvailableDatesAsync()
+    public async Task<List<DateTime>> GetAvailableDatesAsync(string realmId)
     {
         var dates = await _context.ImportSessions
-            .Where(s => s.Status == DOAMapper.Shared.Models.Enums.ImportStatus.Completed)
-            .Select(s => s.ImportDate.Date)
+            .Join(_context.Realms, s => s.RealmId, r => r.Id, (s, r) => new { Session = s, Realm = r })
+            .Where(sr => sr.Realm.RealmId == realmId && sr.Session.Status == DOAMapper.Shared.Models.Enums.ImportStatus.Completed)
+            .Select(sr => sr.Session.ImportDate.Date)
             .Distinct()
             .OrderByDescending(d => d)
             .ToListAsync();
