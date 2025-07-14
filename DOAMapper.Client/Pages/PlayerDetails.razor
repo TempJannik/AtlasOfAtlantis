@@ -1,5 +1,5 @@
-﻿@* @page "/players/{PlayerId}" *@
-@* @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false)) *@
+﻿@page "/players/{RealmId}/{PlayerId}"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @using DOAMapper.Shared.Services
 @using DOAMapper.Shared.Models.DTOs
 @using DOAMapper.Client.Services
@@ -47,7 +47,7 @@
                         {
                             <div class="dragon-stat-item">
                                 <span class="dragon-stat-label">🛡️ Alliance:</span>
-                                <a href="/alliances/@Player.Alliance.AllianceId?date=@DateState.SelectedDate?.ToString("yyyy-MM-dd")"
+                                <a href="/alliances/@RealmId/@Player.Alliance.AllianceId?date=@DateState.SelectedDate?.ToString("yyyy-MM-dd")"
                                    class="dragon-alliance-link">
                                     @Player.Alliance.Name
                                 </a>
@@ -113,7 +113,8 @@
     }
 </div>
 
-@* @code { *@
+@code {
+    [Parameter] public string RealmId { get; set; } = string.Empty;
     [Parameter] public string PlayerId { get; set; } = string.Empty;
     [SupplyParameterFromQuery] public string? Date { get; set; }
 
@@ -185,16 +186,16 @@
         ErrorMessage = null;
         try
         {
-            if (RealmState.SelectedRealm != null)
+            if (!string.IsNullOrEmpty(RealmId))
             {
-                Player = await PlayerService.GetPlayerAsync(PlayerId, RealmState.SelectedRealm.RealmId, DateState.SelectedDate.Value);
-                PlayerTiles = await PlayerService.GetPlayerTilesAsync(PlayerId, RealmState.SelectedRealm.RealmId, DateState.SelectedDate.Value);
+                Player = await PlayerService.GetPlayerAsync(PlayerId, RealmId, DateState.SelectedDate.Value);
+                PlayerTiles = await PlayerService.GetPlayerTilesAsync(PlayerId, RealmId, DateState.SelectedDate.Value);
             Console.WriteLine($"PlayerDetails: Loaded player {Player?.Name} with {PlayerTiles?.Count} tiles for date {DateState.SelectedDate.Value}");
 
                 // Always load history
-                if (PlayerHistory == null && RealmState.SelectedRealm != null)
+                if (PlayerHistory == null)
                 {
-                    PlayerHistory = await PlayerService.GetPlayerHistoryAsync(PlayerId, RealmState.SelectedRealm.RealmId);
+                    PlayerHistory = await PlayerService.GetPlayerHistoryAsync(PlayerId, RealmId);
                 }
             }
         }
@@ -224,10 +225,13 @@
             }
             else if (RealmState.SelectedRealm == null)
             {
-                // Create default realm if none exist
-                var defaultRealm = await RealmService.GetOrCreateDefaultRealmAsync();
-                RealmState.SetAvailableRealms(new List<RealmDto> { defaultRealm });
-                RealmState.SetSelectedRealm(defaultRealm);
+                // Get available realms if none are loaded
+                var realms = await RealmService.GetAvailableRealmsAsync();
+                if (realms.Any())
+                {
+                    RealmState.SetAvailableRealms(realms);
+                    RealmState.SetSelectedRealm(realms.First());
+                }
             }
         }
         catch (Exception)
@@ -258,4 +262,4 @@
     {
         DateState.DateChanged -= OnDateStateChanged;
     }
-} *@
+}

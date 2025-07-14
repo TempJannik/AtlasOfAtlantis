@@ -117,18 +117,18 @@
                                         <div class="dragon-alliance-data">
                                             <strong>🛡️ @entry.Data.Name</strong>
                                             <br />
-                                        <small class="dragon-text-muted">
-                                            ⚡ Power: @entry.Data.Power.ToString("N0") |
-                                            👥 Members: @entry.Data.MemberCount |
-                                            🏰 Fortress: Level @entry.Data.FortressLevel
-                                        </small>
+                                            <small class="dragon-text-muted">
+                                                ⚡ Power: @entry.Data.Power.ToString("N0") |
+                                                👥 Members: @entry.Data.MemberCount |
+                                                🏰 Fortress: Level @entry.Data.FortressLevel
+                                            </small>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        }
+                            }
+                        </div>
                     </div>
                 </div>
-            </div>
             }
         </div>
     }
@@ -152,84 +152,48 @@
     private bool IsLoading = true;
     private bool IsLoadingMembers = false;
     private string? ErrorMessage;
-
-    private int CurrentMemberPage = 1;
-    private const int MemberPageSize = 6;
-
     private AllianceDto? Alliance;
     private PagedResult<PlayerDto>? AllianceMembers;
     private List<HistoryEntryDto<AllianceDto>>? AllianceHistory;
     private List<DateTime> AvailableDates = new();
+    
+    private int CurrentMemberPage = 1;
+    private const int MemberPageSize = 6;
 
     protected override async Task OnInitializedAsync()
     {
-        // Check authentication first
-        var isAuthenticated = await AuthService.IsAuthenticatedAsync();
-        if (!isAuthenticated)
-        {
-            Navigation.NavigateTo("/login", true);
-            return;
-        }
-
-        // Subscribe to date changes
-        DateState.DateChanged += OnDateStateChanged;
-
         try
         {
-            // Initialize realm state first
-            await InitializeRealmStateAsync();
-
-            if (RealmState.SelectedRealm != null)
+            // Subscribe to date changes
+            DateState.DateChanged += OnDateStateChanged;
+            
+            // Parse date parameter if provided
+            if (!string.IsNullOrEmpty(Date) && DateTime.TryParse(Date, out var parsedDate))
             {
-                AvailableDates = await AllianceService.GetAvailableDatesAsync(RealmState.SelectedRealm.RealmId);
-
-                // Only set available dates if they're not already set globally
-                if (!DateState.AvailableDates.Any())
-                {
-                    DateState.SetAvailableDates(AvailableDates);
-                }
-
-                if (!string.IsNullOrEmpty(Date) && DateTime.TryParse(Date, out var parsedDate))
-                {
-                    DateState.SetSelectedDate(parsedDate);
-                }
-                else if (!DateState.SelectedDate.HasValue && AvailableDates.Any())
-                {
-                    DateState.SetSelectedDate(AvailableDates.First());
-                }
-
-                await LoadAllianceData();
+                DateState.SetSelectedDate(parsedDate);
             }
+
+            await LoadAllianceData();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            ErrorMessage = "Failed to initialize alliance details. Please try again.";
+            ErrorMessage = $"Failed to initialize alliance details: {ex.Message}";
             IsLoading = false;
         }
     }
 
     private async Task LoadAllianceData()
     {
-        if (!DateState.SelectedDate.HasValue)
-        {
-            Console.WriteLine("AllianceDetails: LoadAllianceData called but no date selected");
-            return;
-        }
-
-        Console.WriteLine($"AllianceDetails: LoadAllianceData called for date: {DateState.SelectedDate.Value}");
-        IsLoading = true;
-        ErrorMessage = null;
         try
         {
+            IsLoading = true;
+            ErrorMessage = string.Empty;
+
             if (!string.IsNullOrEmpty(RealmId))
             {
                 var loadedAlliance = await AllianceService.GetAllianceAsync(AllianceId, RealmId, DateState.SelectedDate.Value);
-            Console.WriteLine($"AllianceDetails: Backend returned alliance {loadedAlliance?.Name} with power {loadedAlliance?.Power:N0} and {loadedAlliance?.MemberCount} members for date {DateState.SelectedDate.Value}");
-
-            Alliance = loadedAlliance;
-            Console.WriteLine($"AllianceDetails: Alliance property set to {Alliance?.Name} with power {Alliance?.Power:N0} and {Alliance?.MemberCount} members");
-
-            await LoadMembers();
+                Alliance = loadedAlliance;
+                await LoadMembers();
 
                 // Always load history
                 if (AllianceHistory == null)
@@ -240,69 +204,45 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"AllianceDetails: Error loading alliance data: {ex.Message}");
-            ErrorMessage = "Failed to load alliance data. Please try again.";
+            ErrorMessage = $"Failed to load alliance data: {ex.Message}";
         }
         finally
         {
             IsLoading = false;
-            StateHasChanged(); // Ensure UI updates when loading completes
         }
     }
 
     private async Task LoadMembers()
     {
-        if (!DateState.SelectedDate.HasValue) return;
-
-        IsLoadingMembers = true;
         try
         {
+            IsLoadingMembers = true;
             if (!string.IsNullOrEmpty(RealmId))
             {
                 AllianceMembers = await AllianceService.GetAllianceMembersAsync(AllianceId, RealmId, DateState.SelectedDate.Value, CurrentMemberPage, MemberPageSize);
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            ErrorMessage = "Failed to load alliance members. Please try again.";
+            ErrorMessage = $"Failed to load alliance members: {ex.Message}";
         }
         finally
         {
             IsLoadingMembers = false;
-            StateHasChanged(); // Ensure UI updates when member loading completes
         }
     }
 
-    private async Task InitializeRealmStateAsync()
+    private async Task LoadMemberPage(int page)
     {
-        try
-        {
-            var availableRealms = await RealmService.GetAvailableRealmsAsync();
-            RealmState.SetAvailableRealms(availableRealms);
-
-            // If no realm is selected, select the first available realm or create default
-            if (RealmState.SelectedRealm == null && availableRealms.Any())
-            {
-                RealmState.SetSelectedRealm(availableRealms.First());
-            }
-            else if (RealmState.SelectedRealm == null)
-            {
-                // Create default realm if none exist
-                var defaultRealm = await RealmService.GetOrCreateDefaultRealmAsync();
-                RealmState.SetAvailableRealms(new List<RealmDto> { defaultRealm });
-                RealmState.SetSelectedRealm(defaultRealm);
-            }
-        }
-        catch (Exception)
-        {
-            // If realm initialization fails, we can't proceed
-            ErrorMessage = "Failed to initialize realm information.";
-        }
+        CurrentMemberPage = page;
+        await LoadMembers();
     }
 
     private async Task OnMemberPageChanged(int page)
     {
         CurrentMemberPage = page;
         await LoadMembers();
+        StateHasChanged();
     }
 
     private void NavigateToPlayer(string playerId)
@@ -310,107 +250,73 @@
         Navigation.NavigateTo($"/players/{RealmId}/{playerId}?date={DateState.SelectedDate:yyyy-MM-dd}");
     }
 
-    private string GetChangeTypeBadgeColor(string changeType)
+    private async void OnDateStateChanged(DateTime? newDate)
     {
-        return changeType.ToLower() switch
+        await InvokeAsync(async () =>
         {
-            "added" => "success",
-            "modified" => "warning",
-            "removed" => "danger",
-            _ => "secondary"
-        };
+            await LoadAllianceData();
+            StateHasChanged();
+        });
     }
 
     private void ClearError()
     {
-        ErrorMessage = null;
+        ErrorMessage = string.Empty;
     }
 
     private string GetChangeTypeCssClass(string changeType)
     {
         return changeType.ToLower() switch
         {
-            "added" => "added",
-            "modified" => "modified",
-            "removed" => "modified", // Use modified styling instead of removed for less alarming appearance
-            _ => "modified"
+            "added" => "positive",
+            "modified" => "neutral",
+            "removed" => "negative",
+            _ => "neutral"
         };
     }
 
-    private string GetAllianceChangeDescription(HistoryEntryDto<AllianceDto> entry, List<HistoryEntryDto<AllianceDto>> allData)
+    private string GetAllianceChangeDescription(HistoryEntryDto<AllianceDto> entry, List<HistoryEntryDto<AllianceDto>> allHistory)
     {
-        var orderedData = allData.OrderByDescending(d => d.ValidFrom).ToList();
-        var currentIndex = orderedData.IndexOf(entry);
+        var changeType = entry.ChangeType.ToLower();
 
-        // For the most recent entry (first in ordered list)
-        if (currentIndex == 0)
+        if (changeType == "added")
         {
-            // If this is the only entry, it's the first time we've seen this alliance
-            if (orderedData.Count == 1)
-            {
-                return "FIRST SEEN";
-            }
+            return "Alliance established";
+        }
+        else if (changeType == "removed")
+        {
+            return "Alliance disbanded";
+        }
+        else if (changeType == "modified")
+        {
+            // Find the previous entry to compare changes
+            var previousEntry = allHistory
+                .Where(h => h.ValidFrom < entry.ValidFrom)
+                .OrderByDescending(h => h.ValidFrom)
+                .FirstOrDefault();
 
-            // If there's a previous entry, show what changed from the previous to this one
-            if (orderedData.Count > 1)
+            if (previousEntry != null)
             {
-                var previousEntry = orderedData[1];
                 var changes = new List<string>();
 
                 if (entry.Data.Name != previousEntry.Data.Name)
-                {
-                    changes.Add($"NAME CHANGED FROM '{previousEntry.Data.Name}' TO '{entry.Data.Name}'");
-                }
-
+                    changes.Add("name change");
                 if (entry.Data.Power != previousEntry.Data.Power)
-                {
-                    var powerChange = entry.Data.Power - previousEntry.Data.Power;
-                    var changeDirection = powerChange > 0 ? "INCREASED" : "DECREASED";
-                    changes.Add($"POWER {changeDirection} FROM {previousEntry.Data.Power:N0} TO {entry.Data.Power:N0}");
-                }
-
+                    changes.Add("power change");
                 if (entry.Data.MemberCount != previousEntry.Data.MemberCount)
-                {
-                    var memberChange = entry.Data.MemberCount - previousEntry.Data.MemberCount;
-                    var changeDirection = memberChange > 0 ? "INCREASED" : "DECREASED";
-                    changes.Add($"MEMBERS {changeDirection} FROM {previousEntry.Data.MemberCount} TO {entry.Data.MemberCount}");
-                }
-
+                    changes.Add("member change");
+                if (entry.Data.FortressLevel != previousEntry.Data.FortressLevel)
+                    changes.Add("fortress level change");
                 if (entry.Data.OverlordName != previousEntry.Data.OverlordName)
-                {
-                    changes.Add($"OVERLORD CHANGED FROM '{previousEntry.Data.OverlordName}' TO '{entry.Data.OverlordName}'");
-                }
+                    changes.Add("leadership change");
 
-                if (changes.Any())
-                {
-                    return string.Join("; ", changes);
-                }
-
-                return "UPDATED";
+                return changes.Any() ? string.Join(", ", changes) : "Alliance updated";
             }
+
+            return "Alliance updated";
         }
 
-        // For older entries, don't show any change description
-        return "";
-    }
-
-    private async void OnDateStateChanged(DateTime? newDate)
-    {
-        Console.WriteLine($"AllianceDetails: OnDateStateChanged called with date: {newDate}");
-        await InvokeAsync(async () =>
-        {
-            Console.WriteLine($"AllianceDetails: About to reload alliance data for date: {DateState.SelectedDate}");
-
-            // Force complete refresh by clearing data first
-            Alliance = null;
-            AllianceMembers = null;
-            CurrentMemberPage = 1; // Reset to first page when date changes
-            StateHasChanged(); // Update UI to show loading state
-
-            await LoadAllianceData();
-            Console.WriteLine($"AllianceDetails: Alliance data reloaded for date: {DateState.SelectedDate}");
-            StateHasChanged(); // Force UI update AFTER data is loaded
-        });
+        return string.Empty;
     }
 
     public void Dispose()

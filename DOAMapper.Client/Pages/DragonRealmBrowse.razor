@@ -330,9 +330,16 @@
             var availableRealms = await RealmService.GetAvailableRealmsAsync();
             RealmState.SetAvailableRealms(availableRealms);
 
+            // Check if any realms are available
+            if (!availableRealms.Any())
+            {
+                ErrorMessage = "No realms available. Please contact administrator to create realms.";
+                return;
+            }
+
             // Initialize from local storage (this will restore the previously selected realm)
             await RealmState.InitializeFromLocalStorageAsync();
-            
+
             // Load available dates for the selected realm
             if (RealmState.SelectedRealm != null)
             {
@@ -368,6 +375,45 @@
         }
     }
 
+    private async Task ValidateAndCorrectSelectedDate()
+    {
+        try
+        {
+            // Check if current selected date is available in the new realm
+            if (DateState.SelectedDate.HasValue && DateState.AvailableDates.Any())
+            {
+                var currentDate = DateState.SelectedDate.Value.Date;
+                var isDateAvailable = DateState.AvailableDates.Any(d => d.Date == currentDate);
+
+                if (!isDateAvailable)
+                {
+                    // Current date is not available in new realm - auto-select latest available date
+                    var latestDate = DateState.AvailableDates.FirstOrDefault();
+                    if (latestDate != default)
+                    {
+                        Console.WriteLine($"Date {currentDate:yyyy-MM-dd} not available in new realm. Auto-selecting {latestDate:yyyy-MM-dd}");
+                        DateState.SetSelectedDate(latestDate);
+                    }
+                }
+            }
+            else if (!DateState.SelectedDate.HasValue && DateState.AvailableDates.Any())
+            {
+                // No date selected but dates are available - select latest
+                var latestDate = DateState.AvailableDates.FirstOrDefault();
+                if (latestDate != default)
+                {
+                    Console.WriteLine($"No date selected. Auto-selecting latest available: {latestDate:yyyy-MM-dd}");
+                    DateState.SetSelectedDate(latestDate);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error validating selected date: {ex.Message}");
+            // Don't set error message here as it's not critical - just log it
+        }
+    }
+
     private async Task OnRealmChanged(RealmDto? newRealm)
     {
         if (newRealm != null)
@@ -375,7 +421,10 @@
             // Load dates for the new realm
             await LoadAvailableDatesForRealm(newRealm.RealmId);
 
-            // Reload current tab data with new realm
+            // Validate and auto-correct selected date for new realm
+            await ValidateAndCorrectSelectedDate();
+
+            // Reload current tab data with new realm (only if we have a valid date)
             if (DateState.SelectedDate.HasValue)
             {
                 await LoadCurrentTabData();
@@ -550,12 +599,18 @@
 
     private void NavigateToPlayer(string playerId)
     {
-        Navigation.NavigateTo($"/players/{playerId}?date={CurrentDate:yyyy-MM-dd}");
+        if (CurrentRealm?.RealmId != null)
+        {
+            Navigation.NavigateTo($"/players/{CurrentRealm.RealmId}/{playerId}?date={CurrentDate:yyyy-MM-dd}");
+        }
     }
 
     private void NavigateToAlliance(string allianceId)
     {
-        Navigation.NavigateTo($"/alliances/{allianceId}?date={CurrentDate:yyyy-MM-dd}");
+        if (CurrentRealm?.RealmId != null)
+        {
+            Navigation.NavigateTo($"/alliances/{CurrentRealm.RealmId}/{allianceId}?date={CurrentDate:yyyy-MM-dd}");
+        }
     }
 
     private async void OnDateStateChanged(DateTime? newDate)

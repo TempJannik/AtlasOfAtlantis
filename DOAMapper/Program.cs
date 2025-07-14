@@ -163,8 +163,7 @@ using (var scope = app.Services.CreateScope())
         context.Database.EnsureCreated();
         logger.LogInformation("Database initialization completed successfully");
 
-        // Ensure default realm exists for backward compatibility
-        await EnsureDefaultRealmExistsAsync(context, logger);
+
 
         // Migrate existing ImportSessions to default realm
         await MigrateExistingImportSessionsAsync(context, logger);
@@ -214,74 +213,48 @@ app.MapControllers();
 
 app.Run();
 
-static async Task EnsureDefaultRealmExistsAsync(ApplicationDbContext context, Microsoft.Extensions.Logging.ILogger logger)
-{
-    try
-    {
-        // Check if default realm already exists
-        var existingRealm = await context.Realms
-            .FirstOrDefaultAsync(r => r.RealmId == RealmConstants.DefaultRealmId);
 
-        if (existingRealm == null)
-        {
-            logger.LogInformation("Creating default realm for backward compatibility");
-
-            var defaultRealm = new DOAMapper.Models.Entities.Realm
-            {
-                Id = Guid.NewGuid(),
-                RealmId = RealmConstants.DefaultRealmId,
-                Name = RealmConstants.DefaultRealmName,
-                CreatedAt = DateTime.UtcNow,
-                IsActive = true
-            };
-
-            context.Realms.Add(defaultRealm);
-            await context.SaveChangesAsync();
-
-            logger.LogInformation("Default realm created successfully with ID: {RealmId}", RealmConstants.DefaultRealmId);
-        }
-        else
-        {
-            logger.LogInformation("Default realm already exists with ID: {RealmId}", RealmConstants.DefaultRealmId);
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Failed to ensure default realm exists");
-        throw;
-    }
-}
 
 static async Task MigrateExistingImportSessionsAsync(ApplicationDbContext context, Microsoft.Extensions.Logging.ILogger logger)
 {
     try
     {
-        // Get the default realm
-        var defaultRealm = await context.Realms
-            .FirstOrDefaultAsync(r => r.RealmId == RealmConstants.DefaultRealmId);
-
-        if (defaultRealm == null)
-        {
-            logger.LogError("Default realm not found during ImportSession migration");
-            return;
-        }
-
-        // Find ImportSessions that don't have a RealmId set (RealmId is Guid.Empty or null)
+        // Find ImportSessions that don't have a RealmId set (RealmId is Guid.Empty)
         var importSessionsToMigrate = await context.ImportSessions
             .Where(s => s.RealmId == Guid.Empty)
             .ToListAsync();
 
         if (importSessionsToMigrate.Any())
         {
-            logger.LogInformation("Migrating {Count} existing ImportSessions to default realm", importSessionsToMigrate.Count);
+            logger.LogInformation("Found {Count} ImportSessions with invalid RealmId (Guid.Empty)", importSessionsToMigrate.Count);
 
-            foreach (var session in importSessionsToMigrate)
+            // Try to get any existing realm to migrate to
+            var anyRealm = await context.Realms
+                .Where(r => r.IsActive)
+                .FirstOrDefaultAsync();
+
+            if (anyRealm != null)
             {
-                session.RealmId = defaultRealm.Id;
-            }
+                logger.LogInformation("Migrating {Count} existing ImportSessions to realm '{RealmId}'", importSessionsToMigrate.Count, anyRealm.RealmId);
 
-            await context.SaveChangesAsync();
-            logger.LogInformation("Successfully migrated {Count} ImportSessions to default realm", importSessionsToMigrate.Count);
+                foreach (var session in importSessionsToMigrate)
+                {
+                    session.RealmId = anyRealm.Id;
+                }
+
+                await context.SaveChangesAsync();
+                logger.LogInformation("Successfully migrated {Count} ImportSessions to realm '{RealmId}'", importSessionsToMigrate.Count, anyRealm.RealmId);
+            }
+            else
+            {
+                logger.LogWarning("No active realms found. Deleting {Count} orphaned ImportSessions", importSessionsToMigrate.Count);
+
+                // Delete orphaned ImportSessions since there are no realms to assign them to
+                context.ImportSessions.RemoveRange(importSessionsToMigrate);
+                await context.SaveChangesAsync();
+
+                logger.LogInformation("Deleted {Count} orphaned ImportSessions", importSessionsToMigrate.Count);
+            }
         }
         else
         {
@@ -290,7 +263,7 @@ static async Task MigrateExistingImportSessionsAsync(ApplicationDbContext contex
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to migrate existing ImportSessions to default realm");
+        logger.LogError(ex, "Failed to migrate existing ImportSessions");
         throw;
     }
 }

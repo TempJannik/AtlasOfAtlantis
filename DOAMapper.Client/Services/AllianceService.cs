@@ -32,26 +32,26 @@ public class AllianceService : IAllianceService
     public async Task<AllianceDto?> GetAllianceAsync(string allianceId, string realmId, DateTime date)
     {
         return await _httpClient.GetFromJsonAsync<AllianceDto>(
-            $"api/alliances/{Uri.EscapeDataString(allianceId)}?realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}");
+            $"api/alliances/{Uri.EscapeDataString(realmId)}/{Uri.EscapeDataString(allianceId)}?date={date:yyyy-MM-dd}");
     }
 
     public async Task<PagedResult<PlayerDto>> GetAllianceMembersAsync(string allianceId, string realmId, DateTime date, int page, int pageSize)
     {
         var response = await _httpClient.GetFromJsonAsync<PagedResult<PlayerDto>>(
-            $"api/alliances/{Uri.EscapeDataString(allianceId)}/members?realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}&page={page}&size={pageSize}");
+            $"api/alliances/{Uri.EscapeDataString(realmId)}/{Uri.EscapeDataString(allianceId)}/members?date={date:yyyy-MM-dd}&page={page}&size={pageSize}");
         return response ?? new PagedResult<PlayerDto>();
     }
 
     public async Task<List<TileDto>> GetAllianceTilesAsync(string allianceId, string realmId, DateTime date)
     {
         var response = await _httpClient.GetFromJsonAsync<List<TileDto>>(
-            $"api/alliances/{Uri.EscapeDataString(allianceId)}/tiles?realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}");
+            $"api/alliances/{Uri.EscapeDataString(realmId)}/{Uri.EscapeDataString(allianceId)}/tiles?date={date:yyyy-MM-dd}");
         return response ?? new List<TileDto>();
     }
 
     public async Task<List<HistoryEntryDto<AllianceDto>>> GetAllianceHistoryAsync(string allianceId, string realmId)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/alliances/{Uri.EscapeDataString(allianceId)}/history?realmId={Uri.EscapeDataString(realmId)}");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/alliances/{Uri.EscapeDataString(realmId)}/{Uri.EscapeDataString(allianceId)}/history");
         await AddAuthHeadersAsync(request);
 
         var response = await _httpClient.SendAsync(request);

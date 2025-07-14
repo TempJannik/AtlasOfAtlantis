@@ -48,11 +48,14 @@ public class BackgroundImportService
         var realmService = scope.ServiceProvider.GetRequiredService<IRealmService>();
 
         // Get the realm to ensure it exists and get the internal ID
+        _logger.LogInformation("Looking up realm with RealmId: {RealmId}", realmId);
         var realm = await realmService.GetRealmAsync(realmId);
         if (realm == null)
         {
+            _logger.LogError("Realm '{RealmId}' not found", realmId);
             throw new InvalidOperationException($"Realm '{realmId}' not found");
         }
+        _logger.LogInformation("Found realm: Id={RealmInternalId}, RealmId={RealmId}, Name={RealmName}", realm.Id, realm.RealmId, realm.Name);
 
         var importSession = new ImportSession
         {
@@ -67,8 +70,30 @@ public class BackgroundImportService
             RealmId = realm.Id
         };
 
+        _logger.LogInformation("Creating ImportSession with RealmId: {RealmInternalId} for realm '{RealmId}'", realm.Id, realmId);
         context.ImportSessions.Add(importSession);
-        await context.SaveChangesAsync();
+
+        try
+        {
+            // Check if the realm actually exists in the current context
+            var realmExistsInContext = await context.Realms.AnyAsync(r => r.Id == realm.Id);
+            _logger.LogInformation("Realm exists in current context: {RealmExists}", realmExistsInContext);
+
+            // Check for any existing ImportSessions with invalid RealmIds
+            var invalidImportSessions = await context.ImportSessions
+                .Where(i => !context.Realms.Any(r => r.Id == i.RealmId))
+                .CountAsync();
+            _logger.LogInformation("Found {InvalidCount} ImportSessions with invalid RealmIds", invalidImportSessions);
+
+            await context.SaveChangesAsync();
+            _logger.LogInformation("ImportSession created successfully with Id: {ImportSessionId}", importSession.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save ImportSession. RealmId: {RealmInternalId}, RealmExists: {RealmExists}",
+                realm.Id, await context.Realms.AnyAsync(r => r.Id == realm.Id));
+            throw;
+        }
 
         // Copy stream to memory to avoid disposal issues
         var memoryStream = new MemoryStream();

@@ -1,5 +1,6 @@
 using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Services.Interfaces;
+using DOAMapper.Shared.Services;
 using DOAMapper.Services;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
@@ -62,11 +63,10 @@ public class ImportController : ControllerBase
             }
         }
 
-        // Use default realm if not specified
+        // Require realm ID
         if (string.IsNullOrEmpty(realmId))
         {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
+            return BadRequest("RealmId is required");
         }
         else
         {
@@ -120,11 +120,10 @@ public class ImportController : ControllerBase
     [HttpGet("history")]
     public async Task<ActionResult<List<ImportSessionDto>>> GetImportHistory([FromQuery] string? realmId = null)
     {
-        // Use default realm if not specified
+        // Require realm ID
         if (string.IsNullOrEmpty(realmId))
         {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
+            return BadRequest("RealmId is required");
         }
 
         var history = await _importService.GetImportHistoryAsync(realmId);
@@ -134,11 +133,10 @@ public class ImportController : ControllerBase
     [HttpGet("dates")]
     public async Task<ActionResult<List<DateTime>>> GetAvailableDates([FromQuery] string? realmId = null)
     {
-        // Use default realm if not specified
+        // Require realm ID
         if (string.IsNullOrEmpty(realmId))
         {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
+            return BadRequest("RealmId is required");
         }
 
         var dates = await _importService.GetAvailableImportDatesAsync(realmId);

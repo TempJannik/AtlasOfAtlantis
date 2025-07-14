@@ -648,7 +648,7 @@ public class ImportService : IImportService
         }
 
         // Check for existing data in database to prevent re-importing
-        await ValidateAgainstExistingDataAsync(importData);
+        await ValidateAgainstExistingDataAsync(sessionId, importData);
 
         if (duplicatesFound)
         {
@@ -661,53 +661,68 @@ public class ImportService : IImportService
         }
     }
 
-    private async Task ValidateAgainstExistingDataAsync(ImportDataModel importData)
+    private async Task ValidateAgainstExistingDataAsync(Guid sessionId, ImportDataModel importData)
     {
-        _logger.LogDebug("Validating import data against existing database records");
+        _logger.LogDebug("Validating import data against existing database records for current realm only");
 
-        // Check for existing alliance IDs
+        // Get the realm for this import session
+        var realmId = await GetRealmIdFromSessionAsync(sessionId);
+        var realmSessionIds = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.RealmId == realmId)
+            .Select(s => s.Id)
+            .ToListAsync();
+
+        // Check for existing alliance IDs - ONLY in the same realm
         var allImportAllianceIds = new HashSet<string>();
         allImportAllianceIds.UnionWith(importData.AllianceBases.Select(ab => ab.AllianceId.ToString()));
         allImportAllianceIds.UnionWith(importData.Alliances.Select(a => a.AllianceId));
 
         var existingAllianceIds = await _context.Alliances
-            .Where(a => a.IsActive && allImportAllianceIds.Contains(a.AllianceId))
+            .Where(a => a.IsActive &&
+                       allImportAllianceIds.Contains(a.AllianceId) &&
+                       realmSessionIds.Contains(a.ImportSessionId))
             .Select(a => a.AllianceId)
             .ToListAsync();
 
         if (existingAllianceIds.Any())
         {
-            _logger.LogInformation("Found {Count} alliance IDs that already exist in database: {ExistingIds}",
+            _logger.LogInformation("Found {Count} alliance IDs that already exist in current realm: {ExistingIds}",
                 existingAllianceIds.Count, string.Join(", ", existingAllianceIds.Take(10)));
             _logger.LogInformation("These alliances will be updated with new data if changes are detected");
         }
 
-        // Check for existing player IDs
+        // Check for existing player IDs - ONLY in the same realm
         var importPlayerIds = importData.Players.Select(p => p.PlayerId).ToHashSet();
         var existingPlayerIds = await _context.Players
-            .Where(p => p.IsActive && importPlayerIds.Contains(p.PlayerId))
+            .Where(p => p.IsActive &&
+                       importPlayerIds.Contains(p.PlayerId) &&
+                       realmSessionIds.Contains(p.ImportSessionId))
             .Select(p => p.PlayerId)
             .ToListAsync();
 
         if (existingPlayerIds.Any())
         {
-            _logger.LogInformation("Found {Count} player IDs that already exist in database: {ExistingIds}",
+            _logger.LogInformation("Found {Count} player IDs that already exist in current realm: {ExistingIds}",
                 existingPlayerIds.Count, string.Join(", ", existingPlayerIds.Take(10)));
             _logger.LogInformation("These players will be updated with new data if changes are detected");
         }
 
-        // Check for existing tile coordinates
+        // Check for existing tile coordinates - ONLY in the same realm
         var importTileCoordsList = importData.Tiles.Select(t => new { t.X, t.Y }).ToList();
         var existingTileCount = 0;
 
         if (importTileCoordsList.Any())
         {
-            // Use a more EF-friendly approach by checking coordinates individually
+            // Use a more EF-friendly approach by checking coordinates individually in the same realm
             var sampleCoords = importTileCoordsList.Take(10).ToList(); // Sample first 10 for performance
             foreach (var coord in sampleCoords)
             {
                 var exists = await _context.Tiles
-                    .AnyAsync(t => t.IsActive && t.X == coord.X && t.Y == coord.Y);
+                    .AnyAsync(t => t.IsActive &&
+                                  t.X == coord.X &&
+                                  t.Y == coord.Y &&
+                                  realmSessionIds.Contains(t.ImportSessionId));
                 if (exists) existingTileCount++;
             }
 
@@ -720,12 +735,12 @@ public class ImportService : IImportService
 
         if (existingTileCount > 0)
         {
-            _logger.LogInformation("Found {Count} tile coordinates that already exist in database",
+            _logger.LogInformation("Found {Count} tile coordinates that already exist in current realm",
                 existingTileCount);
             _logger.LogInformation("These tiles will be updated with new data if changes are detected");
         }
 
-        _logger.LogDebug("Database validation completed. Import will proceed with change detection to handle existing records");
+        _logger.LogDebug("Realm-specific database validation completed. Import will proceed with change detection to handle existing records");
     }
 
     private async Task UpdateImportProgressAsync(Guid sessionId, int progressPercentage, string statusMessage, int? recordsProcessed = null)
@@ -1211,9 +1226,17 @@ public class ImportService : IImportService
         _logger.LogInformation("Merged alliance data: {TotalCount} total alliances ({BaseCount} with fortress data, {OnlyCount} alliance-only)",
             mergedAlliances.Count, allianceBaseEntities.Count, allianceOnlyEntities.Count);
 
-        // Step 4: Get current alliances for change detection
+        // Step 4: Get current alliances for change detection - ONLY from the same realm
+        var realmId = await GetRealmIdFromSessionAsync(sessionId);
+        var realmSessionIds = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.RealmId == realmId)
+            .Select(s => s.Id)
+            .ToListAsync();
+
         var currentAlliances = await _context.Alliances
-            .Where(a => a.IsActive)
+            .AsNoTracking()
+            .Where(a => a.IsActive && realmSessionIds.Contains(a.ImportSessionId))
             .ToListAsync();
 
         // Step 5: Detect changes
@@ -1277,9 +1300,17 @@ public class ImportService : IImportService
         _logger.LogInformation("Merged alliance data: {TotalCount} total alliances ({BaseCount} with fortress data, {OnlyCount} alliance-only)",
             mergedAlliances.Count, allianceBaseEntities.Count, allianceOnlyEntities.Count);
 
-        // Step 4: Get current alliances for change detection
+        // Step 4: Get current alliances for change detection - ONLY from the same realm
+        var realmId = await GetRealmIdFromSessionAsync(sessionId);
+        var realmSessionIds = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.RealmId == realmId)
+            .Select(s => s.Id)
+            .ToListAsync();
+
         var currentAlliances = await _context.Alliances
-            .Where(a => a.IsActive)
+            .AsNoTracking()
+            .Where(a => a.IsActive && realmSessionIds.Contains(a.ImportSessionId))
             .ToListAsync();
 
         // Step 5: Detect changes
@@ -1353,12 +1384,24 @@ public class ImportService : IImportService
         // Get current players and tiles for change detection
         await ImportProgressReporter.ReportPhaseProgressAsync(progressCallback, "Players", players.Count * 3 / 4, players.Count, "Detecting changes...");
 
+        // Get the realm for this import session
+        var realmId = await GetRealmIdFromSessionAsync(sessionId);
+
+        // Get current players and tiles for change detection - ONLY from the same realm
+        var realmSessionIds = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.RealmId == realmId)
+            .Select(s => s.Id)
+            .ToListAsync();
+
         var currentPlayers = await _context.Players
-            .Where(p => p.IsActive)
+            .AsNoTracking()
+            .Where(p => p.IsActive && realmSessionIds.Contains(p.ImportSessionId))
             .ToListAsync();
 
         var currentTiles = await _context.Tiles
-            .Where(t => t.IsActive)
+            .AsNoTracking()
+            .Where(t => t.IsActive && realmSessionIds.Contains(t.ImportSessionId))
             .ToListAsync();
 
         // Detect changes with tile data for city coordinate and wilderness tracking
@@ -1494,13 +1537,24 @@ public class ImportService : IImportService
             ValidFrom = importDate
         }).ToList();
 
-        // Get current players and tiles for change detection
+        // Get the realm for this import session
+        var realmId = await GetRealmIdFromSessionAsync(sessionId);
+
+        // Get current players and tiles for change detection - ONLY from the same realm
+        var realmSessionIds = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.RealmId == realmId)
+            .Select(s => s.Id)
+            .ToListAsync();
+
         var currentPlayers = await _context.Players
-            .Where(p => p.IsActive)
+            .AsNoTracking()
+            .Where(p => p.IsActive && realmSessionIds.Contains(p.ImportSessionId))
             .ToListAsync();
 
         var currentTiles = await _context.Tiles
-            .Where(t => t.IsActive)
+            .AsNoTracking()
+            .Where(t => t.IsActive && realmSessionIds.Contains(t.ImportSessionId))
             .ToListAsync();
 
         // Detect changes with tile data for city coordinate and wilderness tracking
@@ -1516,7 +1570,10 @@ public class ImportService : IImportService
     private async Task ImportTilesAsync(Guid sessionId, List<TileImportModel> tiles, DateTime importDate)
     {
         _logger.LogInformation("Importing {Count} tiles", tiles.Count);
-        
+
+        // Get the realm for this import session
+        var realmId = await GetRealmIdFromSessionAsync(sessionId);
+
         // Convert tiles to Tile entities
         var tileEntities = tiles.Select(t => new Tile
         {
@@ -1532,9 +1589,16 @@ public class ImportService : IImportService
             ValidFrom = importDate
         }).ToList();
 
-        // Get current tiles for change detection
+        // Get current tiles for change detection - ONLY from the same realm
+        var realmSessionIds = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.RealmId == realmId)
+            .Select(s => s.Id)
+            .ToListAsync();
+
         var currentTiles = await _context.Tiles
-            .Where(t => t.IsActive)
+            .AsNoTracking()
+            .Where(t => t.IsActive && realmSessionIds.Contains(t.ImportSessionId))
             .ToListAsync();
 
         // Detect changes
@@ -1545,6 +1609,22 @@ public class ImportService : IImportService
         
         _logger.LogInformation("Tiles import completed: {Added} added, {Modified} modified, {Removed} removed",
             changes.Added.Count, changes.Modified.Count, changes.Removed.Count);
+    }
+
+    private async Task<Guid> GetRealmIdFromSessionAsync(Guid sessionId)
+    {
+        var session = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.Id == sessionId)
+            .Select(s => s.RealmId)
+            .FirstOrDefaultAsync();
+
+        if (session == Guid.Empty)
+        {
+            throw new InvalidOperationException($"ImportSession {sessionId} not found or has invalid RealmId");
+        }
+
+        return session;
     }
 
     private async Task ImportTilesWithProgressAsync(Guid sessionId, List<TileImportModel> tiles, DateTime importDate, IImportProgressCallback progressCallback)
@@ -1573,8 +1653,19 @@ public class ImportService : IImportService
         // Get current tiles for change detection
         await ImportProgressReporter.ReportPhaseProgressAsync(progressCallback, "Tiles", tiles.Count / 2, tiles.Count, "Loading existing tiles for change detection...");
 
+        // Get the realm for this import session
+        var realmId = await GetRealmIdFromSessionAsync(sessionId);
+
+        // Get current tiles for change detection - ONLY from the same realm
+        var realmSessionIds = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.RealmId == realmId)
+            .Select(s => s.Id)
+            .ToListAsync();
+
         var currentTiles = await _context.Tiles
-            .Where(t => t.IsActive)
+            .AsNoTracking()
+            .Where(t => t.IsActive && realmSessionIds.Contains(t.ImportSessionId))
             .ToListAsync();
 
         // Detect changes

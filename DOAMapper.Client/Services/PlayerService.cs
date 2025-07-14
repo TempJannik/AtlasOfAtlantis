@@ -25,19 +25,19 @@ public class PlayerService : IPlayerService
     public async Task<PlayerDetailDto?> GetPlayerAsync(string playerId, string realmId, DateTime date)
     {
         return await _httpClient.GetFromJsonAsync<PlayerDetailDto>(
-            $"api/players/{Uri.EscapeDataString(playerId)}?realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}");
+            $"api/players/{Uri.EscapeDataString(realmId)}/{Uri.EscapeDataString(playerId)}?date={date:yyyy-MM-dd}");
     }
 
     public async Task<List<TileDto>> GetPlayerTilesAsync(string playerId, string realmId, DateTime date)
     {
         var response = await _httpClient.GetFromJsonAsync<List<TileDto>>(
-            $"api/players/{Uri.EscapeDataString(playerId)}/tiles?realmId={Uri.EscapeDataString(realmId)}&date={date:yyyy-MM-dd}");
+            $"api/players/{Uri.EscapeDataString(realmId)}/{Uri.EscapeDataString(playerId)}/tiles?date={date:yyyy-MM-dd}");
         return response ?? new List<TileDto>();
     }
 
     public async Task<List<HistoryEntryDto<PlayerDto>>> GetPlayerHistoryAsync(string playerId, string realmId)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/players/{Uri.EscapeDataString(playerId)}/history?realmId={Uri.EscapeDataString(realmId)}");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/players/{Uri.EscapeDataString(realmId)}/{Uri.EscapeDataString(playerId)}/history");
         await AddAuthHeadersAsync(request);
 
         var response = await _httpClient.SendAsync(request);

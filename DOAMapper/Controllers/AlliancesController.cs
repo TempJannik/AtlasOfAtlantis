@@ -1,5 +1,6 @@
 ﻿using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Services.Interfaces;
+using DOAMapper.Shared.Services;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
@@ -30,11 +31,10 @@ public class AlliancesController : ControllerBase
         if (page < 1) page = 1;
         if (size < 1 || size > 100) size = 20;
 
-        // Use default realm if not specified
+        // Require realm ID
         if (string.IsNullOrEmpty(realmId))
         {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
+            return BadRequest("RealmId is required");
         }
 
         // Use latest available date if not specified
@@ -71,11 +71,10 @@ public class AlliancesController : ControllerBase
         if (page < 1) page = 1;
         if (size < 1 || size > 100) size = 20;
 
-        // Use default realm if not specified
+        // Require realm ID
         if (string.IsNullOrEmpty(realmId))
         {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
+            return BadRequest("RealmId is required");
         }
 
         // Use latest available date if not specified
@@ -101,18 +100,12 @@ public class AlliancesController : ControllerBase
         }
     }
 
-    [HttpGet("{allianceId}")]
+    [HttpGet("{realmId}/{allianceId}")]
     public async Task<ActionResult<AllianceDto>> GetAlliance(
+        string realmId,
         string allianceId,
-        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null)
     {
-        // Use default realm if not specified
-        if (string.IsNullOrEmpty(realmId))
-        {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
-        }
 
         // Use latest available date if not specified
         if (!date.HasValue)
@@ -142,23 +135,16 @@ public class AlliancesController : ControllerBase
         }
     }
 
-    [HttpGet("{allianceId}/members")]
+    [HttpGet("{realmId}/{allianceId}/members")]
     public async Task<ActionResult<PagedResult<PlayerDto>>> GetAllianceMembers(
+        string realmId,
         string allianceId,
-        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null,
         [FromQuery] int page = 1,
         [FromQuery] int size = 20)
     {
         if (page < 1) page = 1;
         if (size < 1 || size > 100) size = 20;
-
-        // Use default realm if not specified
-        if (string.IsNullOrEmpty(realmId))
-        {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
-        }
 
         // Use latest available date if not specified
         if (!date.HasValue)
@@ -183,18 +169,12 @@ public class AlliancesController : ControllerBase
         }
     }
 
-    [HttpGet("{allianceId}/tiles")]
+    [HttpGet("{realmId}/{allianceId}/tiles")]
     public async Task<ActionResult<List<TileDto>>> GetAllianceTiles(
+        string realmId,
         string allianceId,
-        [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null)
     {
-        // Use default realm if not specified
-        if (string.IsNullOrEmpty(realmId))
-        {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
-        }
 
         // Use latest available date if not specified
         if (!date.HasValue)
@@ -219,18 +199,12 @@ public class AlliancesController : ControllerBase
         }
     }
 
-    [HttpGet("{allianceId}/history")]
+    [HttpGet("{realmId}/{allianceId}/history")]
     [RequireAuth]
     public async Task<ActionResult<List<HistoryEntryDto<AllianceDto>>>> GetAllianceHistory(
-        string allianceId,
-        [FromQuery] string? realmId = null)
+        string realmId,
+        string allianceId)
     {
-        // Use default realm if not specified
-        if (string.IsNullOrEmpty(realmId))
-        {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
-        }
 
         try
         {
@@ -247,11 +221,10 @@ public class AlliancesController : ControllerBase
     [HttpGet("dates")]
     public async Task<ActionResult<List<DateTime>>> GetAvailableDates([FromQuery] string? realmId = null)
     {
-        // Use default realm if not specified
+        // Require realm ID
         if (string.IsNullOrEmpty(realmId))
         {
-            var defaultRealm = await _realmService.GetOrCreateDefaultRealmAsync();
-            realmId = defaultRealm.RealmId;
+            return BadRequest("RealmId is required");
         }
 
         try

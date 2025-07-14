@@ -170,10 +170,18 @@ public class TemporalDataService : ITemporalDataService
         var tileCoordinates = trackedTiles.Select(t => new { t.X, t.Y }).ToHashSet();
         var deactivatedTileCoordinates = changes.Modified.Select(t => new { t.X, t.Y }).ToHashSet();
 
-        // Get existing active tiles only, excluding those we just deactivated
+        // Get existing active tiles only - WITHIN THE SAME REALM, excluding those we just deactivated
+        // Get the realm for this import session
+        var realmId = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.Id == importSessionId)
+            .Select(s => s.RealmId)
+            .FirstOrDefaultAsync();
+
         var existingActiveTileCoordinates = await _context.Tiles
-            .Where(t => t.IsActive)
-            .Select(t => new { t.X, t.Y })
+            .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
+            .Where(ts => ts.Tile.IsActive && ts.Session.RealmId == realmId)
+            .Select(ts => new { ts.Tile.X, ts.Tile.Y })
             .ToListAsync();
 
         var conflictingTileCoordinates = existingActiveTileCoordinates
@@ -440,14 +448,25 @@ public class TemporalDataService : ITemporalDataService
             }
         }
 
-        // Check for conflicts with existing ACTIVE players only
+        // Check for conflicts with existing ACTIVE players only - WITHIN THE SAME REALM
         // Note: We exclude PlayerIds that we just deactivated in the modified players step
         var playerIdsToAdd = trackedPlayers.Select(p => p.PlayerId).ToList();
         var deactivatedPlayerIds = changes.Modified.Select(p => p.PlayerId).ToHashSet();
 
+        // Get the realm for this import session
+        var realmId = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.Id == importSessionId)
+            .Select(s => s.RealmId)
+            .FirstOrDefaultAsync();
+
         var existingActivePlayerIds = await _context.Players
-            .Where(p => p.IsActive && playerIdsToAdd.Contains(p.PlayerId) && !deactivatedPlayerIds.Contains(p.PlayerId))
-            .Select(p => p.PlayerId)
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Where(ps => ps.Player.IsActive &&
+                        playerIdsToAdd.Contains(ps.Player.PlayerId) &&
+                        !deactivatedPlayerIds.Contains(ps.Player.PlayerId) &&
+                        ps.Session.RealmId == realmId)
+            .Select(ps => ps.Player.PlayerId)
             .ToListAsync();
 
         if (existingActivePlayerIds.Any())
@@ -662,14 +681,25 @@ public class TemporalDataService : ITemporalDataService
             }
         }
 
-        // Check for conflicts with existing ACTIVE alliances only
+        // Check for conflicts with existing ACTIVE alliances only - WITHIN THE SAME REALM
         // Note: We exclude AllianceIds that we just deactivated in the modified alliances step
         var allianceIdsToAdd = trackedAlliances.Select(a => a.AllianceId).ToList();
         var deactivatedAllianceIds = changes.Modified.Select(a => a.AllianceId).ToHashSet();
 
+        // Get the realm for this import session
+        var realmId = await _context.ImportSessions
+            .AsNoTracking()
+            .Where(s => s.Id == importSessionId)
+            .Select(s => s.RealmId)
+            .FirstOrDefaultAsync();
+
         var existingActiveAllianceIds = await _context.Alliances
-            .Where(a => a.IsActive && allianceIdsToAdd.Contains(a.AllianceId) && !deactivatedAllianceIds.Contains(a.AllianceId))
-            .Select(a => a.AllianceId)
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Where(as_ => as_.Alliance.IsActive &&
+                         allianceIdsToAdd.Contains(as_.Alliance.AllianceId) &&
+                         !deactivatedAllianceIds.Contains(as_.Alliance.AllianceId) &&
+                         as_.Session.RealmId == realmId)
+            .Select(as_ => as_.Alliance.AllianceId)
             .ToListAsync();
 
         if (existingActiveAllianceIds.Any())

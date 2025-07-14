@@ -73,11 +73,7 @@ public class RealmService : IRealmService
         return true;
     }
 
-    public async Task<RealmDto> GetOrCreateDefaultRealmAsync()
-    {
-        var response = await _httpClient.GetFromJsonAsync<RealmDto>("api/realm/default");
-        return response ?? throw new InvalidOperationException("Failed to get or create default realm");
-    }
+
 
     public async Task<bool> RealmExistsAsync(string realmId)
     {
