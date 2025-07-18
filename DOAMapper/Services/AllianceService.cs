@@ -27,23 +27,31 @@ public class AllianceService : IAllianceService
 
         _logger.LogInformation("Getting alliances for realm {RealmId}, date {Date}, page {Page}, size {PageSize}", realmId, utcDate, page, pageSize);
 
-        var alliancesQuery = _context.Alliances
+        // First get all valid alliances for the realm and date
+        var validAlliances = await _context.Alliances
             .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
             .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
             .Where(asr => asr.Realm.RealmId == realmId &&
                          asr.Alliance.ValidFrom <= utcDate &&
                          (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
-            .GroupBy(asr => asr.Alliance.AllianceId)
-            .Select(g => g.OrderByDescending(asr => asr.Alliance.ValidFrom).First())
-            .Select(asr => asr.Alliance);
+            .Select(asr => asr.Alliance)
+            .ToListAsync();
 
-        var totalCount = await alliancesQuery.CountAsync();
+        // Deduplicate in memory by taking the most recent record for each AllianceId
+        var deduplicatedAlliances = validAlliances
+            .GroupBy(a => a.AllianceId)
+            .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
+            .ToList();
 
-        var alliances = await alliancesQuery
+        var alliancesQuery = deduplicatedAlliances.AsQueryable();
+
+        var totalCount = alliancesQuery.Count();
+
+        var alliances = alliancesQuery
             .OrderByDescending(a => a.Power)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToList();
 
         // Load member information for each alliance to get accurate member counts
         foreach (var alliance in alliances)
@@ -89,15 +97,23 @@ public class AllianceService : IAllianceService
         _logger.LogInformation("Searching alliances with query '{Query}' for realm {RealmId}, date {Date}, page {Page}, size {PageSize}",
             query, realmId, utcDate, page, pageSize);
 
-        var alliancesQuery = _context.Alliances
+        // First get all valid alliances for the realm and date
+        var validAlliances = await _context.Alliances
             .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
             .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
             .Where(asr => asr.Realm.RealmId == realmId &&
                          asr.Alliance.ValidFrom <= utcDate &&
                          (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
-            .GroupBy(asr => asr.Alliance.AllianceId)
-            .Select(g => g.OrderByDescending(asr => asr.Alliance.ValidFrom).First())
-            .Select(asr => asr.Alliance);
+            .Select(asr => asr.Alliance)
+            .ToListAsync();
+
+        // Deduplicate in memory by taking the most recent record for each AllianceId
+        var deduplicatedAlliances = validAlliances
+            .GroupBy(a => a.AllianceId)
+            .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
+            .ToList();
+
+        var alliancesQuery = deduplicatedAlliances.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -108,13 +124,13 @@ public class AllianceService : IAllianceService
                 a.OverlordName.ToLower().Contains(lowerQuery));
         }
 
-        var totalCount = await alliancesQuery.CountAsync();
+        var totalCount = alliancesQuery.Count();
 
-        var alliances = await alliancesQuery
+        var alliances = alliancesQuery
             .OrderByDescending(a => a.Power)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToList();
 
         // Load member information for each alliance to get accurate member counts
         foreach (var alliance in alliances)
