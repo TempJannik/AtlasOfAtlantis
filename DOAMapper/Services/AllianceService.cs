@@ -33,6 +33,8 @@ public class AllianceService : IAllianceService
             .Where(asr => asr.Realm.RealmId == realmId &&
                          asr.Alliance.ValidFrom <= utcDate &&
                          (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
+            .GroupBy(asr => asr.Alliance.AllianceId)
+            .Select(g => g.OrderByDescending(asr => asr.Alliance.ValidFrom).First())
             .Select(asr => asr.Alliance);
 
         var totalCount = await alliancesQuery.CountAsync();
@@ -93,6 +95,8 @@ public class AllianceService : IAllianceService
             .Where(asr => asr.Realm.RealmId == realmId &&
                          asr.Alliance.ValidFrom <= utcDate &&
                          (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
+            .GroupBy(asr => asr.Alliance.AllianceId)
+            .Select(g => g.OrderByDescending(asr => asr.Alliance.ValidFrom).First())
             .Select(asr => asr.Alliance);
 
         if (!string.IsNullOrWhiteSpace(query))
@@ -116,9 +120,13 @@ public class AllianceService : IAllianceService
         foreach (var alliance in alliances)
         {
             var members = await _context.Players
-                .Where(p => p.AllianceId == alliance.AllianceId &&
-                           p.ValidFrom <= utcDate &&
-                           (p.ValidTo == null || p.ValidTo > utcDate))
+                .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+                .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+                .Where(psr => psr.Realm.RealmId == realmId &&
+                             psr.Player.AllianceId == alliance.AllianceId &&
+                             psr.Player.ValidFrom <= utcDate &&
+                             (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+                .Select(psr => psr.Player)
                 .ToListAsync();
 
             // Ensure Members collection is not null
