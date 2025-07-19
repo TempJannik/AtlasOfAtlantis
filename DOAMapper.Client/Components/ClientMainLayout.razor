@@ -15,9 +15,9 @@
         </div>
     </div>
 }
-else if (!IsAuthenticated && !IsLoginPage)
+else if (IsAdminPage && !IsAuthenticated && !IsLoginPage)
 {
-    <!-- Will redirect to login -->
+    <!-- Will redirect to login for admin pages -->
     <div class="loading-layout">
         <div class="loading-content">
             <p>Redirecting to login...</p>
@@ -26,8 +26,20 @@ else if (!IsAuthenticated && !IsLoginPage)
 }
 else
 {
-    @if (IsAuthenticated)
+    @if (IsLoginPage)
     {
+        <!-- Login page without dragon theme wrapper -->
+        <div class="page">
+            <main class="full-width">
+                <article class="content px-4">
+                    @ChildContent
+                </article>
+            </main>
+        </div>
+    }
+    else
+    {
+        <!-- Dragon theme for all non-login pages -->
         <div class="dragon-compass"></div>
 
         <div class="dragon-container">
@@ -41,17 +53,6 @@ else
             <div class="dragon-content">
                 @ChildContent
             </div>
-        </div>
-    }
-    else
-    {
-        <!-- Login page without dragon theme wrapper -->
-        <div class="page">
-            <main class="full-width">
-                <article class="content px-4">
-                    @ChildContent
-                </article>
-            </main>
         </div>
     }
 }
@@ -140,15 +141,15 @@ else
             IsAuthenticated = await AuthService.IsAuthenticatedAsync();
             IsAdmin = await AuthService.IsAdminAsync();
 
-            // Redirect to login if not authenticated and not already on login page
-            if (!IsAuthenticated && !IsLoginPage)
+            // Only redirect to login if trying to access admin page without authentication
+            if (IsAdminPage && !IsAuthenticated && !IsLoginPage)
             {
                 Navigation.NavigateTo("/login", true);
                 return;
             }
 
             // Redirect to players if trying to access admin page without admin rights
-            if (IsAdminPage && !IsAdmin)
+            if (IsAdminPage && IsAuthenticated && !IsAdmin)
             {
                 Navigation.NavigateTo("/players", true);
                 return;
@@ -158,8 +159,9 @@ else
         {
             // On error, assume not authenticated
             IsAuthenticated = false;
-            
-            if (!IsLoginPage)
+
+            // Only redirect to login if on admin page
+            if (IsAdminPage && !IsLoginPage)
             {
                 Navigation.NavigateTo("/login", true);
                 return;
@@ -178,11 +180,12 @@ else
             IsAuthenticated = newState.IsAuthenticated;
             IsAdmin = newState.IsAdmin;
 
-            if (!IsAuthenticated && !IsLoginPage)
+            // Only redirect to login if trying to access admin page without authentication
+            if (IsAdminPage && !IsAuthenticated && !IsLoginPage)
             {
                 Navigation.NavigateTo("/login", true);
             }
-            else if (IsAdminPage && !IsAdmin)
+            else if (IsAdminPage && IsAuthenticated && !IsAdmin)
             {
                 Navigation.NavigateTo("/players", true);
             }

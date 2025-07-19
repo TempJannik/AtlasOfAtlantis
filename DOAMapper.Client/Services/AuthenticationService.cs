@@ -228,8 +228,5 @@ public class AuthenticationService : IAuthenticationService
         return _storedPassword ?? string.Empty;
     }
 
-    public string GetUserPassword()
-    {
-        return _storedPassword ?? string.Empty;
-    }
+
 }

@@ -7,7 +7,6 @@ namespace DOAMapper.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private const string UserPassword = "mm25";
     private const string AdminPassword = "accutane";
     private readonly ILogger<AuthController> _logger;
 
@@ -36,17 +35,6 @@ public class AuthController : ControllerBase
                 Success = true,
                 Role = UserRole.Admin,
                 Message = "Admin login successful"
-            });
-        }
-
-        if (request.Password == UserPassword)
-        {
-            _logger.LogInformation("User login successful");
-            return Ok(new LoginResponse
-            {
-                Success = true,
-                Role = UserRole.User,
-                Message = "User login successful"
             });
         }
 

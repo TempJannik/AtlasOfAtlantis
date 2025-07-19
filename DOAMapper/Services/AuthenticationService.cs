@@ -5,7 +5,6 @@ namespace DOAMapper.Services;
 
 public class AuthenticationService : IAuthenticationService
 {
-    private const string UserPassword = "mm25";
     private const string AdminPassword = "accutane";
     
     private AuthenticationState _currentState = AuthenticationState.Unauthenticated;
@@ -27,25 +26,12 @@ public class AuthenticationService : IAuthenticationService
         {
             _currentState = AuthenticationState.CreateAdmin();
             AuthenticationStateChanged?.Invoke(_currentState);
-            
+
             return Task.FromResult(new LoginResponse
             {
                 Success = true,
                 Role = UserRole.Admin,
                 Message = "Admin login successful"
-            });
-        }
-
-        if (password == UserPassword)
-        {
-            _currentState = AuthenticationState.CreateUser();
-            AuthenticationStateChanged?.Invoke(_currentState);
-            
-            return Task.FromResult(new LoginResponse
-            {
-                Success = true,
-                Role = UserRole.User,
-                Message = "User login successful"
             });
         }
 
@@ -99,8 +85,5 @@ public class AuthenticationService : IAuthenticationService
         return AdminPassword;
     }
 
-    public string GetUserPassword()
-    {
-        return UserPassword;
-    }
+
 }

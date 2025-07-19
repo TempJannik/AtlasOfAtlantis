@@ -29,8 +29,8 @@ public class AuthenticationStateService : IAuthenticationStateService
 
     public bool RequiresAuthentication(string route)
     {
-        // All routes except login require authentication
-        return !string.Equals(route, "/login", StringComparison.OrdinalIgnoreCase);
+        // Only admin routes require authentication
+        return _adminRoutes.Contains(route.ToLowerInvariant());
     }
 
     public bool RequiresAdminAccess(string route)

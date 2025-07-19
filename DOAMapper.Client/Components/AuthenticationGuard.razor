@@ -11,7 +11,7 @@
         </div>
     </div>
 }
-else if (IsAuthenticated && (!RequireAdmin || IsAdmin))
+else if (!RequireAdmin || (IsAuthenticated && IsAdmin))
 {
     @ChildContent
 }
@@ -33,25 +33,46 @@ else if (IsAuthenticated && (!RequireAdmin || IsAdmin))
     {
         try
         {
-            IsAuthenticated = await AuthService.IsAuthenticatedAsync();
-            IsAdmin = await AuthService.IsAdminAsync();
-
-            if (!IsAuthenticated)
+            // Only check authentication if admin access is required
+            if (RequireAdmin)
             {
-                Navigation.NavigateTo("/login", true);
-                return;
+                IsAuthenticated = await AuthService.IsAuthenticatedAsync();
+                IsAdmin = await AuthService.IsAdminAsync();
+
+                if (!IsAuthenticated)
+                {
+                    Navigation.NavigateTo("/login", true);
+                    return;
+                }
+
+                if (!IsAdmin)
+                {
+                    Navigation.NavigateTo("/players", true);
+                    return;
+                }
             }
-
-            if (RequireAdmin && !IsAdmin)
+            else
             {
-                Navigation.NavigateTo("/players", true);
-                return;
+                // For non-admin pages, we don't require authentication
+                // but we still check the state for UI purposes
+                IsAuthenticated = await AuthService.IsAuthenticatedAsync();
+                IsAdmin = await AuthService.IsAdminAsync();
             }
         }
         catch (Exception)
         {
-            Navigation.NavigateTo("/login", true);
-            return;
+            // Only redirect to login if admin access is required
+            if (RequireAdmin)
+            {
+                Navigation.NavigateTo("/login", true);
+                return;
+            }
+            else
+            {
+                // For public pages, just set unauthenticated state
+                IsAuthenticated = false;
+                IsAdmin = false;
+            }
         }
         finally
         {

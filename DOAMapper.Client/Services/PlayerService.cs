@@ -67,14 +67,6 @@ public class PlayerService : IPlayerService
                     request.Headers.Add("X-Admin-Password", adminPassword);
                 }
             }
-            else
-            {
-                var userPassword = _authService.GetUserPassword();
-                if (!string.IsNullOrEmpty(userPassword))
-                {
-                    request.Headers.Add("X-User-Password", userPassword);
-                }
-            }
         }
     }
 }

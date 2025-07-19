@@ -128,14 +128,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Check authentication first
-        var isAuthenticated = await AuthService.IsAuthenticatedAsync();
-        if (!isAuthenticated)
-        {
-            Navigation.NavigateTo("/login", true);
-            return;
-        }
-
         // Subscribe to date changes
         DateState.DateChanged += OnDateStateChanged;
 

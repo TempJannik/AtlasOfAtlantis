@@ -6,7 +6,7 @@
 @inject IAuthenticationStateService AuthStateService
 @inject NavigationManager Navigation
 
-<PageTitle>Login - Dragon Realm Explorer</PageTitle>
+<PageTitle>Admin Login - Atlas of Atlantis</PageTitle>
 
 <div class="dragon-login-container">
     <div class="dragon-login-card">
@@ -14,18 +14,19 @@
             <div class="dragon-logo">
                 <img src="logo.jpeg" alt="Dragon Realm Explorer Logo" class="dragon-logo-img" />
             </div>
-            <h2 class="dragon-title">Atlas of Atlantis</h2>
+            <h2 class="dragon-title">Admin Access</h2>
+            <p class="dragon-subtitle">Atlas of Atlantis</p>
         </div>
 
         <div class="dragon-login-form">
             <div class="dragon-form-group">
-                <label for="password" class="dragon-form-label">🔐 Password</label>
+                <label for="password" class="dragon-form-label">🔐 Admin Password</label>
                 <input type="password"
                        class="dragon-input @(HasError ? "dragon-input-error" : "")"
                        id="password"
                        @bind="Password"
                        @onkeypress="OnKeyPress"
-                       placeholder="Enter password"
+                       placeholder="Enter admin password"
                        disabled="@IsLoading" />
                 @if (HasError)
                 {
@@ -47,7 +48,7 @@
                     }
                     else
                     {
-                        <span>Enter Site</span>
+                        <span>Access Admin Panel</span>
                     }
                 </button>
             </div>
@@ -62,7 +63,10 @@
 
         <div class="dragon-login-footer">
             <small class="dragon-text-muted">
-                🗝️ Enter your password to access the ancient territories
+                🗝️ Admin access required for data import and analytics
+            </small>
+            <small class="dragon-text-muted mt-2 d-block">
+                <a href="/players" class="dragon-link">← Return to public data view</a>
             </small>
         </div>
     </div>
