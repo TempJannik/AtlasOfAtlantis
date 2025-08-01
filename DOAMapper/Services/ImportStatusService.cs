@@ -58,7 +58,7 @@ public class ImportStatusService
 
             // Update enhanced tracking fields
             session.CurrentPhase = progress.CurrentPhase;
-            session.StatusMessage = progress.StatusMessage;
+            session.StatusMessage = TruncateStatusMessage(progress.StatusMessage);
             session.CurrentPhaseNumber = progress.CurrentPhaseNumber;
             session.CurrentPhaseProgressPercentage = progress.CurrentPhaseProgressPercentage;
             session.TotalPhases = progress.TotalPhases;
@@ -106,7 +106,7 @@ public class ImportStatusService
             session.CompletedAt = DateTime.UtcNow;
             session.LastProgressUpdate = DateTime.UtcNow;
             session.CurrentPhase = "Completed";
-            session.StatusMessage = $"Import completed successfully. {totalProcessed} records processed, {totalChanged} changed.";
+            session.StatusMessage = TruncateStatusMessage($"Import completed successfully. {totalProcessed} records processed, {totalChanged} changed.");
             session.CurrentPhaseNumber = session.TotalPhases;
             session.CurrentPhaseProgressPercentage = 100;
 
@@ -141,7 +141,7 @@ public class ImportStatusService
             session.ErrorMessage = errorMessage;
             session.CompletedAt = DateTime.UtcNow;
             session.LastProgressUpdate = DateTime.UtcNow;
-            session.StatusMessage = $"Import failed: {errorMessage}";
+            session.StatusMessage = TruncateStatusMessage($"Import failed: {errorMessage}");
             
             if (!string.IsNullOrEmpty(currentPhase))
             {
@@ -172,6 +172,28 @@ public class ImportStatusService
             .ToListAsync();
 
         return sessions.Select(MapToDto).ToList();
+    }
+
+    /// <summary>
+    /// Truncates a status message to ensure it fits within the database field limit
+    /// </summary>
+    /// <param name="message">The original status message</param>
+    /// <returns>A truncated message that fits within 500 characters</returns>
+    private static string TruncateStatusMessage(string message)
+    {
+        const int maxLength = 500;
+        const string truncationSuffix = "...";
+
+        if (string.IsNullOrEmpty(message) || message.Length <= maxLength)
+        {
+            return message ?? string.Empty;
+        }
+
+        // Reserve space for the truncation suffix
+        var maxContentLength = maxLength - truncationSuffix.Length;
+
+        // Truncate and add suffix
+        return message.Substring(0, maxContentLength) + truncationSuffix;
     }
 
     /// <summary>
