@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using MudBlazor.Services;
 using Serilog;
 using System.Text;
 
@@ -145,6 +146,9 @@ builder.Services.AddSingleton<DOAMapper.Services.ErrorHandlingService>();
 // Register new background import services
 builder.Services.AddScoped<DOAMapper.Services.BackgroundImportService>();
 builder.Services.AddScoped<DOAMapper.Services.ImportStatusService>();
+
+// Add MudBlazor services
+builder.Services.AddMudServices();
 
 // Server should only register server services
 // Client services are registered in the client project's Program.cs

@@ -30,7 +30,8 @@ public class PlayerService : IPlayerService
 
         _logger.LogInformation("🔍 PLAYER QUERY: Querying players for realm {RealmId}, date {QueryDate} (UTC: {UtcDate})", realmId, date, utcDate);
 
-        var playersQuery = _context.Players
+        // First, get ALL players for the realm/date to calculate ranks
+        var allPlayersQuery = _context.Players
             .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
             .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
             .Where(psr => psr.Realm.RealmId == realmId &&
@@ -38,22 +39,38 @@ public class PlayerService : IPlayerService
                          (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
             .Select(psr => psr.Player);
 
+        // Get all players and deduplicate in memory (for ranking)
+        var allPlayers = await allPlayersQuery.ToListAsync();
+        var deduplicatedPlayers = allPlayers
+            .GroupBy(p => p.PlayerId)
+            .Select(g => g.OrderByDescending(p => p.ValidFrom).First())
+            .OrderByDescending(p => p.Might)
+            .ToList();
+
+        // Create rank lookup dictionary
+        var rankLookup = deduplicatedPlayers
+            .Select((player, index) => new { player.PlayerId, Rank = index + 1 })
+            .ToDictionary(x => x.PlayerId, x => x.Rank);
+
+        // Now apply search filter to the deduplicated players
+        var filteredPlayers = deduplicatedPlayers.AsQueryable();
+
         if (!string.IsNullOrWhiteSpace(query))
         {
             var lowerQuery = query.ToLower();
-            playersQuery = playersQuery.Where(p =>
+            filteredPlayers = filteredPlayers.Where(p =>
                 p.Name.ToLower().Contains(lowerQuery) ||
                 p.PlayerId.ToLower().Contains(lowerQuery) ||
                 p.CityName.ToLower().Contains(lowerQuery));
         }
 
-        var totalCount = await playersQuery.CountAsync();
+        var totalCount = filteredPlayers.Count();
 
-        var players = await playersQuery
-            .OrderByDescending(p => p.Might)
+        // Apply pagination to filtered results
+        var players = filteredPlayers
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToList();
 
         _logger.LogInformation("🎯 PLAYER QUERY: Found {Count} players for date {QueryDate}. Sample ValidTo values: {SampleValidTo}",
             totalCount, utcDate,
@@ -71,14 +88,15 @@ public class PlayerService : IPlayerService
         }
 
         var playerDtos = _mapper.Map<List<PlayerDto>>(players);
-        
-        // Set the data date for each player
+
+        // Set the data date and rank for each player
         foreach (var dto in playerDtos)
         {
             dto.DataDate = utcDate;
+            dto.Rank = rankLookup.TryGetValue(dto.PlayerId, out var rank) ? rank : 0;
         }
 
-        _logger.LogInformation("Found {Count} players matching query '{Query}'", totalCount, query);
+        _logger.LogInformation("Found {Count} players matching query '{Query}' with ranks calculated", totalCount, query);
 
         return new PagedResult<PlayerDto>
         {
@@ -321,5 +339,43 @@ public class PlayerService : IPlayerService
 
         // Ensure all dates are UTC for PostgreSQL compatibility
         return dates.Select(d => DateTime.SpecifyKind(d, DateTimeKind.Utc)).ToList();
+    }
+
+    public async Task<int> GetPlayerRankAsync(string playerId, string realmId, DateTime date)
+    {
+        // Ensure date is UTC for PostgreSQL compatibility
+        var utcDate = date.Kind == DateTimeKind.Utc ? date : DateTime.SpecifyKind(date, DateTimeKind.Utc);
+
+        _logger.LogInformation("Getting rank for player {PlayerId} in realm {RealmId} for date {Date}",
+            playerId, realmId, utcDate);
+
+        // First get all valid players for the realm and date
+        var validPlayers = await _context.Players
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+            .Where(psr => psr.Realm.RealmId == realmId &&
+                         psr.Player.ValidFrom <= utcDate &&
+                         (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+            .Select(psr => psr.Player)
+            .ToListAsync();
+
+        // Deduplicate in memory by taking the most recent record for each PlayerId
+        var deduplicatedPlayers = validPlayers
+            .GroupBy(p => p.PlayerId)
+            .Select(g => g.OrderByDescending(p => p.ValidFrom).First())
+            .ToList();
+
+        // Order by might (descending) to get ranking
+        var orderedPlayers = deduplicatedPlayers
+            .OrderByDescending(p => p.Might)
+            .ToList();
+
+        // Find the rank of the specific player
+        var rank = orderedPlayers.FindIndex(p => p.PlayerId == playerId) + 1;
+
+        _logger.LogInformation("Player {PlayerId} has rank {Rank} out of {TotalPlayers} players",
+            playerId, rank, orderedPlayers.Count);
+
+        return rank > 0 ? rank : 0; // Return 0 if player not found
     }
 }

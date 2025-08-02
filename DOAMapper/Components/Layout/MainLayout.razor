@@ -1,19 +1,28 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="dragon-compass"></div>
+<MudThemeProvider IsDarkMode="true" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
 
-<div class="dragon-container">
-    <div class="dragon-header">
-        <div class="dragon-logo">
-            <img src="logo.jpeg" alt="Dragon Realm Explorer Logo" class="dragon-logo-img" />
-        </div>
-        <h1 class="dragon-title">Atlas of Atlantis</h1>
-    </div>
+<MudLayout>
+    <MudMainContent Class="dragon-main-content">
+        <div class="dragon-compass"></div>
 
-    <div class="dragon-content">
-        @Body
-    </div>
-</div>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="dragon-container">
+            <div class="dragon-header">
+                <div class="dragon-logo">
+                    <img src="logo.jpeg" alt="Dragon Realm Explorer Logo" class="dragon-logo-img" />
+                </div>
+                <MudText Typo="Typo.h1" Class="dragon-title">Atlas of Atlantis</MudText>
+            </div>
+
+            <MudPaper Class="dragon-content" Elevation="2">
+                @Body
+            </MudPaper>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
 
 <NetworkStatus />
 

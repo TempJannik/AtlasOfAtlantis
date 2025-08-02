@@ -9,4 +9,5 @@ public interface IPlayerService
     Task<List<TileDto>> GetPlayerTilesAsync(string playerId, string realmId, DateTime date);
     Task<List<HistoryEntryDto<PlayerDto>>> GetPlayerHistoryAsync(string playerId, string realmId);
     Task<List<DateTime>> GetAvailableDatesAsync(string realmId);
+    Task<int> GetPlayerRankAsync(string playerId, string realmId, DateTime date);
 }

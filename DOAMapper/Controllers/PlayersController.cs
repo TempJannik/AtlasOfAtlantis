@@ -127,7 +127,6 @@ public class PlayersController : ControllerBase
     }
 
     [HttpGet("{realmId}/{playerId}/history")]
-    [RequireAuth]
     public async Task<ActionResult<List<HistoryEntryDto<PlayerDto>>>> GetPlayerHistory(
         string realmId,
         string playerId)
@@ -162,6 +161,40 @@ public class PlayersController : ControllerBase
         {
             _logger.LogError(ex, "Error getting available dates");
             return StatusCode(500, "An error occurred while retrieving available dates");
+        }
+    }
+
+    [HttpGet("{realmId}/{playerId}/rank")]
+    public async Task<ActionResult<int>> GetPlayerRank(
+        string realmId,
+        string playerId,
+        [FromQuery] DateTime? date = null)
+    {
+        // Use latest available date if not specified
+        if (!date.HasValue)
+        {
+            var availableDates = await _playerService.GetAvailableDatesAsync(realmId);
+            if (!availableDates.Any())
+            {
+                return BadRequest("No data available. Please import data first.");
+            }
+            date = availableDates.First();
+        }
+
+        try
+        {
+            var rank = await _playerService.GetPlayerRankAsync(playerId, realmId, date.Value);
+            if (rank == 0)
+            {
+                return NotFound($"Player with ID '{playerId}' not found for date {date.Value:yyyy-MM-dd}");
+            }
+
+            return Ok(rank);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting rank for player {PlayerId}", playerId);
+            return StatusCode(500, "An error occurred while retrieving player rank");
         }
     }
 }

@@ -25,57 +25,107 @@
                 </div>
                 <div class="dragon-detail-actions">
                     <DateSelector AvailableDates="AvailableDates" />
-                    <a href="/players" class="dragon-btn">← Back to Players</a>
+                    <button @onclick="NavigateBackToPlayers" class="dragon-btn">← Back to Players</button>
                 </div>
             </div>
 
             <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
 
             <div class="dragon-detail-grid">
-                <div class="dragon-stats-card">
-                    <h3 class="dragon-card-title">⚔️ Player Stats</h3>
-                    <div class="dragon-stats-list">
-                        <div class="dragon-stat-item">
-                            <span class="dragon-stat-label">🆔 Player ID:</span>
-                            <span class="dragon-stat-value">@Player.PlayerId</span>
-                        </div>
-                        <div class="dragon-stat-item">
-                            <span class="dragon-stat-label">💪 Power:</span>
-                            <span class="dragon-stat-value dragon-might-value">@Player.Might.ToString("N0")</span>
-                        </div>
-                        @if (Player.Alliance != null)
-                        {
+                <MudCard Class="dragon-mud-card dragon-stats-card" Elevation="3">
+                    <MudCardHeader Class="dragon-card-header">
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6" Class="dragon-card-title">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Class="me-2" />
+                                Player Stats
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent Class="dragon-card-content">
+                        <div class="dragon-stats-list">
                             <div class="dragon-stat-item">
-                                <span class="dragon-stat-label">🛡️ Alliance:</span>
-                                <a href="/alliances/@RealmId/@Player.Alliance.AllianceId?date=@DateState.SelectedDate?.ToString("yyyy-MM-dd")"
-                                   class="dragon-alliance-link">
-                                    @Player.Alliance.Name
-                                </a>
+                                <MudText Typo="Typo.body2" Class="dragon-stat-label">
+                                    <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Small" Class="me-1" />
+                                    Player ID:
+                                </MudText>
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="dragon-stat-chip">
+                                    @Player.PlayerId
+                                </MudChip>
                             </div>
-                        }
-                    </div>
-                </div>
+                            <div class="dragon-stat-item">
+                                <MudText Typo="Typo.body2" Class="dragon-stat-label">
+                                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Size="Size.Small" Class="me-1" />
+                                    Rank:
+                                </MudText>
+                                <MudChip T="string" Color="Color.Tertiary" Size="Size.Medium" Class="dragon-rank-chip">
+                                    #@PlayerRank
+                                </MudChip>
+                            </div>
+                            <div class="dragon-stat-item">
+                                <MudText Typo="Typo.body2" Class="dragon-stat-label">
+                                    <MudIcon Icon="@Icons.Material.Filled.FlashOn" Size="Size.Small" Class="me-1" />
+                                    Power:
+                                </MudText>
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Class="dragon-power-chip">
+                                    @Player.Might.ToString("N0")
+                                </MudChip>
+                            </div>
+                            @if (Player.Alliance != null)
+                            {
+                                <div class="dragon-stat-item">
+                                    <MudText Typo="Typo.body2" Class="dragon-stat-label">
+                                        <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Small" Class="me-1" />
+                                        Alliance:
+                                    </MudText>
+                                    <MudButton Href="@GetAllianceUrl(Player.Alliance.AllianceId)"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Shield"
+                                               Class="dragon-alliance-button">
+                                        @Player.Alliance.Name
+                                    </MudButton>
+                                </div>
+                            }
+                        </div>
+                    </MudCardContent>
+                </MudCard>
 
-                <div class="dragon-tiles-card">
-                    <h3 class="dragon-card-title">🗺️ Owned Tiles: @(PlayerTiles?.Count ?? 0)</h3>
-                    <div class="dragon-tiles-content">
+                <MudCard Class="dragon-mud-card dragon-tiles-card" Elevation="3">
+                    <MudCardHeader Class="dragon-card-header">
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6" Class="dragon-card-title">
+                                <MudIcon Icon="@Icons.Material.Filled.Map" Class="me-2" />
+                                Owned Tiles: @(PlayerTiles?.Count ?? 0)
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent Class="dragon-card-content">
                         @if (PlayerTiles?.Any() == true)
                         {
                             <div class="dragon-tile-summary">
                                 @foreach (var tileGroup in PlayerTiles.GroupBy(t => t.Type))
                                 {
                                     <div class="dragon-tile-group">
-                                        <h4 class="dragon-tile-type">🏞️ @tileGroup.Key (@tileGroup.Count())</h4>
+                                        <MudText Typo="Typo.subtitle1" Class="dragon-tile-type mb-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Terrain" Size="Size.Small" Class="me-1" />
+                                            @tileGroup.Key (@tileGroup.Count())
+                                        </MudText>
                                         <div class="dragon-tile-list">
                                             @foreach (var tile in tileGroup.Take(10))
                                             {
-                                                <span class="dragon-tile-badge" title="Level @tile.Level">
-                                                    📍 (@tile.X, @tile.Y) | Lv.@tile.Level
-                                                </span>
+                                                <MudChip T="string"
+                                                         Color="Color.Tertiary"
+                                                         Size="Size.Small"
+                                                         Class="dragon-tile-chip ma-1">
+                                                    <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="me-1" />
+                                                    (@tile.X, @tile.Y) Lv.@tile.Level
+                                                </MudChip>
                                             }
                                             @if (tileGroup.Count() > 10)
                                             {
-                                                <span class="dragon-text-muted">... and @(tileGroup.Count() - 10) more</span>
+                                                <MudText Typo="Typo.caption" Class="dragon-text-muted mt-2">
+                                                    ... and @(tileGroup.Count() - 10) more
+                                                </MudText>
                                             }
                                         </div>
                                     </div>
@@ -84,20 +134,30 @@
                         }
                         else
                         {
-                            <p class="dragon-text-muted">🚫 No tiles owned by this player.</p>
+                            <MudAlert Severity="Severity.Info" Class="dragon-no-tiles-alert">
+                                <MudIcon Icon="@Icons.Material.Filled.Block" Class="me-2" />
+                                No tiles owned by this player.
+                            </MudAlert>
                         }
-                    </div>
-                </div>
+                    </MudCardContent>
+                </MudCard>
             </div>
 
             @if (PlayerHistory?.Any() == true)
             {
-                <div class="dragon-history-card">
-                    <h3 class="dragon-card-title">📈 Player History</h3>
-                    <div class="dragon-history-content">
+                <MudCard Class="dragon-mud-card dragon-history-card" Elevation="3">
+                    <MudCardHeader Class="dragon-card-header">
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6" Class="dragon-card-title">
+                                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Class="me-2" />
+                                Player History
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent Class="dragon-card-content">
                         <PlayerHistoryChart Data="PlayerHistory" />
-                    </div>
-                </div>
+                    </MudCardContent>
+                </MudCard>
             }
         </div>
     }
@@ -125,6 +185,7 @@
     private List<TileDto>? PlayerTiles;
     private List<HistoryEntryDto<PlayerDto>>? PlayerHistory;
     private List<DateTime> AvailableDates = new();
+    private int PlayerRank = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -182,7 +243,8 @@
             {
                 Player = await PlayerService.GetPlayerAsync(PlayerId, RealmId, DateState.SelectedDate.Value);
                 PlayerTiles = await PlayerService.GetPlayerTilesAsync(PlayerId, RealmId, DateState.SelectedDate.Value);
-            Console.WriteLine($"PlayerDetails: Loaded player {Player?.Name} with {PlayerTiles?.Count} tiles for date {DateState.SelectedDate.Value}");
+                PlayerRank = await PlayerService.GetPlayerRankAsync(PlayerId, RealmId, DateState.SelectedDate.Value);
+            Console.WriteLine($"PlayerDetails: Loaded player {Player?.Name} with {PlayerTiles?.Count} tiles and rank #{PlayerRank} for date {DateState.SelectedDate.Value}");
 
                 // Always load history
                 if (PlayerHistory == null)
@@ -250,8 +312,152 @@
         ErrorMessage = null;
     }
 
+    private string GetAllianceUrl(string allianceId)
+    {
+        var dateParam = DateState.SelectedDate?.ToString("yyyy-MM-dd") ?? "";
+        return $"/alliances/{RealmId}/{allianceId}?date={dateParam}";
+    }
+
+    private void NavigateBackToPlayers()
+    {
+        Console.WriteLine($"NavigateBackToPlayers called - RealmId: {RealmId}");
+
+        // Ensure realm state is properly set before navigating
+        if (!string.IsNullOrEmpty(RealmId))
+        {
+            var realm = RealmState.AvailableRealms.FirstOrDefault(r => r.RealmId == RealmId);
+            if (realm != null)
+            {
+                Console.WriteLine($"Setting realm to: {realm.Name} ({realm.RealmId})");
+                RealmState.SetSelectedRealm(realm);
+            }
+            else
+            {
+                Console.WriteLine($"Realm not found for RealmId: {RealmId}");
+            }
+        }
+
+        Console.WriteLine("Navigating to /players (SPA navigation)");
+        Navigation.NavigateTo("/players");
+    }
+
     public void Dispose()
     {
         DateState.DateChanged -= OnDateStateChanged;
     }
 }
+
+<style>
+    /* Dragon theme styling for MudCard components */
+    .dragon-mud-card {
+        background: var(--dragon-bg-surface);
+        border: 1px solid var(--dragon-border-primary);
+        border-radius: var(--dragon-radius-lg);
+        backdrop-filter: blur(10px);
+        margin-bottom: var(--dragon-space-6);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .dragon-mud-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 10% 20%, rgba(139, 69, 19, 0.05) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .dragon-card-header {
+        background: var(--dragon-bg-surface-hover);
+        border-bottom: 1px solid var(--dragon-border-primary);
+        position: relative;
+        z-index: 1;
+    }
+
+    .dragon-card-title {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-heading);
+        font-weight: var(--dragon-font-semibold);
+        display: flex;
+        align-items: center;
+    }
+
+    .dragon-card-content {
+        position: relative;
+        z-index: 1;
+        padding: var(--dragon-space-5);
+    }
+
+    .dragon-stats-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--dragon-space-4);
+    }
+
+    .dragon-stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--dragon-space-3);
+        background: var(--dragon-bg-surface-hover);
+        border-radius: var(--dragon-radius-md);
+        border: 1px solid rgba(139, 69, 19, 0.1);
+    }
+
+    .dragon-stat-label {
+        color: var(--dragon-text-secondary);
+        font-family: var(--dragon-font-primary);
+        font-weight: var(--dragon-font-medium);
+        display: flex;
+        align-items: center;
+    }
+
+    .dragon-alliance-button {
+        background: linear-gradient(135deg, var(--dragon-primary-light), var(--dragon-primary)) !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: var(--dragon-font-medium) !important;
+    }
+
+    .dragon-alliance-button:hover {
+        background: linear-gradient(135deg, var(--dragon-primary), var(--dragon-primary-dark)) !important;
+        color: #ffffff !important;
+        transform: translateY(-1px) !important;
+        box-shadow: var(--dragon-shadow-md) !important;
+    }
+
+    .dragon-tile-group {
+        margin-bottom: var(--dragon-space-4);
+    }
+
+    .dragon-tile-type {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-heading);
+        font-weight: var(--dragon-font-semibold);
+        margin-bottom: var(--dragon-space-3);
+    }
+
+    .dragon-tile-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--dragon-space-2);
+    }
+
+    .dragon-tile-chip {
+        background: linear-gradient(135deg, var(--dragon-primary-dark), var(--dragon-primary));
+        color: #ffffff;
+        font-size: 0.8rem;
+    }
+
+    .dragon-no-tiles-alert {
+        background: var(--dragon-bg-surface-hover);
+        border: 1px solid var(--dragon-border-primary);
+        color: var(--dragon-text-secondary);
+    }
+
+    /* Mobile responsive design handled by MudBlazor */
+</style>

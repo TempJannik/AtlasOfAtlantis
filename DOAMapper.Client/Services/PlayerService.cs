@@ -53,6 +53,13 @@ public class PlayerService : IPlayerService
         return response ?? new List<DateTime>();
     }
 
+    public async Task<int> GetPlayerRankAsync(string playerId, string realmId, DateTime date)
+    {
+        var response = await _httpClient.GetFromJsonAsync<int>(
+            $"api/players/{Uri.EscapeDataString(realmId)}/{Uri.EscapeDataString(playerId)}/rank?date={date:yyyy-MM-dd}");
+        return response;
+    }
+
     private async Task AddAuthHeadersAsync(HttpRequestMessage request)
     {
         var isAuthenticated = await _authService.IsAuthenticatedAsync();

@@ -4,6 +4,11 @@
 @inject NavigationManager Navigation
 @implements IDisposable
 
+<MudThemeProvider IsDarkMode="true" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
 @if (IsLoading)
 {
     <div class="loading-layout">
@@ -32,28 +37,33 @@ else
         <div class="page">
             <main class="full-width">
                 <article class="content px-4">
-                    @ChildContent
+                    @Body
                 </article>
             </main>
         </div>
     }
     else
     {
-        <!-- Dragon theme for all non-login pages -->
-        <div class="dragon-compass"></div>
+        <!-- Dragon theme for all non-login pages using MudBlazor layout -->
+        <MudLayout>
+            <MudMainContent Class="dragon-main-content">
+                <!-- Dragon theme header -->
+                <div class="dragon-compass"></div>
 
-        <div class="dragon-container">
-            <div class="dragon-header">
-                <div class="dragon-logo">
-                    <img src="logo.jpeg" alt="Dragon Realm Explorer Logo" class="dragon-logo-img" />
-                </div>
-                <h1 class="dragon-title">Atlas of Atlantis</h1>
-            </div>
+                <MudContainer MaxWidth="MaxWidth.Large" Class="dragon-container">
+                    <div class="dragon-header">
+                        <div class="dragon-logo">
+                            <img src="logo.jpeg" alt="Dragon Realm Explorer Logo" class="dragon-logo-img" />
+                        </div>
+                        <MudText Typo="Typo.h1" Class="dragon-title">Atlas of Atlantis</MudText>
+                    </div>
 
-            <div class="dragon-content">
-                @ChildContent
-            </div>
-        </div>
+                    <MudPaper Class="dragon-content" Elevation="2">
+                        @Body
+                    </MudPaper>
+                </MudContainer>
+            </MudMainContent>
+        </MudLayout>
     }
 }
 
@@ -115,10 +125,56 @@ else
         width: 3rem;
         height: 3rem;
     }
+
+    /* Dragon theme integration with MudBlazor */
+    .dragon-main-content {
+        background: linear-gradient(135deg, var(--dragon-bg-primary) 0%, var(--dragon-bg-secondary) 100%);
+        min-height: 100vh;
+        position: relative;
+    }
+
+    .dragon-main-content::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background:
+            radial-gradient(circle at 20% 30%, rgba(139, 69, 19, 0.05) 0%, transparent 50%),
+            radial-gradient(circle at 80% 70%, rgba(101, 67, 33, 0.05) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: -1;
+    }
+
+    .dragon-container .mud-container {
+        max-width: 1200px;
+        padding: var(--dragon-space-5);
+    }
+
+    .dragon-content.mud-paper {
+        background: var(--dragon-bg-surface);
+        border-radius: var(--dragon-radius-xl);
+        border: 1px solid var(--dragon-border-primary);
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dragon-content.mud-paper::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 10% 20%, rgba(139, 69, 19, 0.05) 0%, transparent 50%);
+        pointer-events: none;
+    }
 </style>
 
 @code {
-    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Body { get; set; }
 
     private bool IsLoading = true;
     private bool IsAuthenticated = false;

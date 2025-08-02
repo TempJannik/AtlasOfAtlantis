@@ -200,7 +200,6 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("{realmId}/{allianceId}/history")]
-    [RequireAuth]
     public async Task<ActionResult<List<HistoryEntryDto<AllianceDto>>>> GetAllianceHistory(
         string realmId,
         string allianceId)

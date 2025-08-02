@@ -1,0 +1,211 @@
+﻿@using DOAMapper.Shared.Services
+@using DOAMapper.Shared.Models.Authentication
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<MudTabs Elevation="2" 
+         Rounded="true" 
+         ApplyEffectsToContainer="true"
+         PanelClass="dragon-tab-panel"
+         Class="dragon-mud-tabs"
+         ActivePanelIndex="@GetActiveTabIndex()"
+         ActivePanelIndexChanged="OnTabChanged">
+    
+    <MudTabPanel Text="👥 Players"
+                 ID="@("players")"
+                 Class="dragon-tab-panel">
+        <!-- Players content will be rendered by parent component -->
+    </MudTabPanel>
+
+    <MudTabPanel Text="🛡️ Alliances"
+                 ID="@("alliances")"
+                 Class="dragon-tab-panel">
+        <!-- Alliances content will be rendered by parent component -->
+    </MudTabPanel>
+    
+    @if (IsAdmin)
+    {
+        <MudTabPanel Text="📥 Import Data"
+                     ID="@("import")"
+                     Class="dragon-tab-panel">
+            <!-- Import content will be rendered by parent component -->
+        </MudTabPanel>
+
+        <MudTabPanel Text="📊 Analytics"
+                     ID="@("history")"
+                     Class="dragon-tab-panel">
+            <!-- History/Analytics content will be rendered by parent component -->
+        </MudTabPanel>
+    }
+</MudTabs>
+
+<style>
+    /* Dragon theme styling for MudTabs */
+    .dragon-mud-tabs {
+        margin-bottom: var(--dragon-space-10);
+        background: var(--dragon-bg-surface);
+        border-radius: var(--dragon-radius-lg);
+        border: 1px solid var(--dragon-border-primary);
+        backdrop-filter: blur(10px);
+        padding: var(--dragon-space-2);
+    }
+
+    .dragon-mud-tabs .mud-tabs-toolbar {
+        background: transparent;
+        border-radius: var(--dragon-radius-lg);
+        padding: 0;
+        gap: var(--dragon-space-2);
+        justify-content: center;
+        align-items: center;
+    }
+
+    .dragon-mud-tabs .mud-tab {
+        background: transparent;
+        border: none;
+        color: var(--dragon-text-secondary);
+        border-radius: var(--dragon-radius-md);
+        font-family: var(--dragon-font-primary);
+        font-size: 0.95rem;
+        font-weight: var(--dragon-font-medium);
+        transition: var(--dragon-transition-base);
+        position: relative;
+        overflow: hidden;
+        padding: var(--dragon-space-4) var(--dragon-space-8);
+        min-height: 48px;
+        text-transform: none;
+    }
+
+    .dragon-mud-tabs .mud-tab::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(139, 69, 19, 0.1), transparent);
+        transition: var(--dragon-transition-slow);
+    }
+
+    .dragon-mud-tabs .mud-tab:hover::before {
+        left: 100%;
+    }
+
+    .dragon-mud-tabs .mud-tab:hover {
+        color: var(--dragon-text-primary);
+        transform: translateY(-1px);
+        background: var(--dragon-bg-surface-hover);
+    }
+
+    .dragon-mud-tabs .mud-tab.mud-tab-active {
+        background: linear-gradient(135deg, var(--dragon-primary), var(--dragon-primary-light));
+        color: #ffffff;
+        box-shadow: var(--dragon-shadow-md), 0 0 0 1px rgba(255, 255, 255, 0.1);
+        transform: none;
+    }
+
+    .dragon-mud-tabs .mud-tab.mud-tab-active:hover {
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: var(--dragon-shadow-lg), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+
+    .dragon-mud-tabs .mud-tabs-panels {
+        padding: 0;
+        background: transparent;
+    }
+
+    .dragon-tab-panel {
+        padding: 0;
+        background: transparent;
+    }
+
+    /* Mobile responsive design handled by MudBlazor */
+</style>
+
+@code {
+    [Parameter] public string ActiveTab { get; set; } = "players";
+    [Parameter] public EventCallback<string> ActiveTabChanged { get; set; }
+
+    private bool IsAdmin = false;
+    private readonly Dictionary<int, string> TabIndexToId = new();
+    private readonly Dictionary<string, int> TabIdToIndex = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await UpdateAuthenticationState();
+        BuildTabMappings();
+    }
+
+    private async Task UpdateAuthenticationState()
+    {
+        try
+        {
+            IsAdmin = await AuthService.IsAdminAsync();
+            BuildTabMappings();
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            IsAdmin = false;
+            BuildTabMappings();
+            StateHasChanged();
+        }
+    }
+
+    private void BuildTabMappings()
+    {
+        TabIndexToId.Clear();
+        TabIdToIndex.Clear();
+
+        var index = 0;
+        
+        // Players tab
+        TabIndexToId[index] = "players";
+        TabIdToIndex["players"] = index++;
+        
+        // Alliances tab
+        TabIndexToId[index] = "alliances";
+        TabIdToIndex["alliances"] = index++;
+        
+        if (IsAdmin)
+        {
+            // Import tab
+            TabIndexToId[index] = "import";
+            TabIdToIndex["import"] = index++;
+            
+            // History tab
+            TabIndexToId[index] = "history";
+            TabIdToIndex["history"] = index++;
+        }
+    }
+
+    private int GetActiveTabIndex()
+    {
+        return TabIdToIndex.TryGetValue(ActiveTab, out var index) ? index : 0;
+    }
+
+    private async Task OnTabChanged(int newIndex)
+    {
+        if (TabIndexToId.TryGetValue(newIndex, out var tabId))
+        {
+            await ActiveTabChanged.InvokeAsync(tabId);
+        }
+    }
+
+    private async void OnAuthenticationStateChanged(AuthenticationState newState)
+    {
+        await InvokeAsync(async () =>
+        {
+            IsAdmin = newState.IsAdmin;
+            BuildTabMappings();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

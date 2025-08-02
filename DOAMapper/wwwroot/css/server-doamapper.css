@@ -121,7 +121,7 @@ body::before {
 
 .dragon-title {
     font-family: var(--dragon-font-heading);
-    font-size: 2.5rem;
+    font-size: 3rem !important;
     font-weight: 700;
     color: var(--dragon-text-primary);
     margin-bottom: var(--dragon-space-2);
@@ -815,7 +815,7 @@ body::before {
         font-size: 0.8rem;
         gap: 6px;
         z-index: 1000; /* Higher z-index to stay above everything */
-        border-radius: 20px;
+        border-radius: var(--dragon-radius-xl);
         min-height: 36px; /* Ensure touch-friendly size */
         max-height: 36px; /* Prevent stretching */
         height: auto; /* Ensure natural height */
@@ -865,22 +865,25 @@ body::before {
     gap: 10px;
     padding: 12px 24px;
     background: linear-gradient(135deg, #5865f2, #4752c4);
-    color: white;
+    color: #ffffff;
     text-decoration: none;
-    border-radius: 25px;
-    font-weight: 600;
+    border-radius: var(--dragon-radius-lg);
+    font-family: var(--dragon-font-primary);
+    font-weight: var(--dragon-font-semibold);
     font-size: 0.95rem;
-    transition: all 0.3s ease;
+    transition: var(--dragon-transition-base);
     box-shadow: 0 4px 16px rgba(88, 101, 242, 0.3);
     z-index: 1000;
+    border: 1px solid rgba(88, 101, 242, 0.5);
 }
 
 .discord-link:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 24px rgba(88, 101, 242, 0.4);
     background: linear-gradient(135deg, #4752c4, #3c45a5);
-    color: white;
+    color: #ffffff;
     text-decoration: none;
+    border-color: rgba(88, 101, 242, 0.8);
 }
 
 .discord-link svg {

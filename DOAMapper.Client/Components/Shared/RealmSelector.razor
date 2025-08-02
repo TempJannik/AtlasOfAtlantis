@@ -3,9 +3,9 @@
 @inject RealmStateService RealmState
 @implements IDisposable
 
-<div class="dragon-realm-selector">
-    <label class="dragon-realm-label">🌍 Realm:</label>
-    <select class="dragon-select" @bind="SelectedRealmId" @bind:after="OnRealmChanged">
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background: rgba(45, 45, 45, 0.9); border-radius: 8px; border: 1px solid rgba(139, 69, 19, 0.4); backdrop-filter: blur(10px); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2); transition: all 0.3s ease; width: 100%;">
+    <label style="font-size: 0.8rem; font-weight: 600; color: #d4af37; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">🌍 Realm</label>
+    <select @bind="SelectedRealmId" style="width: 100%; padding: 12px; background: rgba(26, 26, 26, 0.8); border: 1px solid rgba(139, 69, 19, 0.2); border-radius: 6px; color: #f5f5f5; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease;">
         <option value="">Select Realm...</option>
         @foreach (var realm in RealmState.AvailableRealms)
         {
@@ -35,6 +35,9 @@
             {
                 RealmState.SetSelectedRealm(null);
             }
+
+            // Trigger the change event for MudSelect
+            _ = OnRealmChanged();
         }
     }
 
@@ -81,3 +84,127 @@
         RealmState.AvailableRealmsChanged -= OnAvailableRealmsChanged;
     }
 }
+
+<style>
+    /* Modern, clean selector design - EXACTLY matching data selector */
+    .dragon-realm-selector {
+        display: flex;
+        flex-direction: column;
+        gap: var(--dragon-space-3);
+        padding: var(--dragon-space-5);
+        background: rgba(45, 45, 45, 0.9);
+        border-radius: var(--dragon-radius-md);
+        border: 1px solid rgba(139, 69, 19, 0.4);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .dragon-realm-selector:hover {
+        border-color: rgba(139, 69, 19, 0.6);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .dragon-mud-select {
+        min-width: 200px;
+        flex: 1;
+    }
+
+    .dragon-mud-select .mud-input-control {
+        background: var(--dragon-bg-surface-hover);
+        border-radius: var(--dragon-radius-md);
+    }
+
+    .dragon-mud-select .mud-input-control .mud-input {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-primary);
+        font-size: 0.9rem;
+        font-weight: var(--dragon-font-medium);
+    }
+
+    .dragon-mud-select .mud-input-control .mud-input-label {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-primary);
+        font-size: 0.95rem;
+        font-weight: var(--dragon-font-medium);
+    }
+
+    .dragon-mud-select .mud-input-control .mud-input-outlined {
+        border-color: var(--dragon-border-primary);
+    }
+
+    .dragon-mud-select .mud-input-control .mud-input-outlined:hover {
+        border-color: var(--dragon-border-hover);
+    }
+
+    .dragon-mud-select .mud-input-control .mud-input-outlined.mud-input-focused {
+        border-color: var(--dragon-border-active);
+        box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.2);
+    }
+
+    .dragon-mud-select .mud-select-input {
+        color: var(--dragon-text-primary);
+    }
+
+    .dragon-mud-select .mud-input-adornment-end {
+        color: var(--dragon-text-secondary);
+    }
+
+    /* Mobile responsive design handled by MudBlazor */
+
+    /* Modern label styling */
+    .dragon-select-label {
+        font-family: var(--dragon-font-primary);
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #d4af37;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: var(--dragon-space-2);
+        display: flex;
+        align-items: center;
+        gap: var(--dragon-space-2);
+    }
+
+    /* Modern select styling */
+    .dragon-select {
+        width: 100%;
+        padding: var(--dragon-space-4);
+        background: rgba(26, 26, 26, 0.8);
+        border: 1px solid rgba(139, 69, 19, 0.2);
+        border-radius: var(--dragon-radius-md);
+        color: #f5f5f5;
+        font-family: var(--dragon-font-primary);
+        font-size: 0.95rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 16px;
+        padding-right: 40px;
+    }
+
+    .dragon-select:hover {
+        border-color: rgba(139, 69, 19, 0.4);
+        background: rgba(26, 26, 26, 0.9);
+    }
+
+    .dragon-select:focus {
+        outline: none;
+        border-color: #d4af37;
+        box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+        background: rgba(26, 26, 26, 1);
+        background-color: var(--dragon-bg-surface);
+    }
+
+    .dragon-select option {
+        background: var(--dragon-bg-surface);
+        color: var(--dragon-text-primary);
+        padding: var(--dragon-space-2);
+    }
+</style>

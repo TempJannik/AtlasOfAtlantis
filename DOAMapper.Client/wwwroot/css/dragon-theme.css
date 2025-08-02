@@ -7,24 +7,53 @@
     --dragon-primary: #8b4513;
     --dragon-primary-light: #a0522d;
     --dragon-primary-dark: #654321;
+    --dragon-primary-darker: #4a2c17;
+    --dragon-accent: #d4af37;
+    --dragon-accent-light: #f4d03f;
+    --dragon-accent-dark: #b7950b;
     
     /* Background Colors */
     --dragon-bg-primary: #1a1a1a;
     --dragon-bg-secondary: #2d2d2d;
-    --dragon-bg-surface: rgba(0, 0, 0, 0.2);
-    --dragon-bg-surface-hover: rgba(0, 0, 0, 0.3);
-    --dragon-bg-surface-active: rgba(0, 0, 0, 0.4);
+    --dragon-bg-tertiary: #3a3a3a;
+    --dragon-bg-surface: rgba(45, 45, 45, 0.6);
+    --dragon-bg-surface-hover: rgba(45, 45, 45, 0.8);
+    --dragon-bg-surface-active: rgba(45, 45, 45, 0.9);
+    --dragon-bg-card: rgba(26, 26, 26, 0.8);
+    --dragon-bg-overlay: rgba(0, 0, 0, 0.7);
     
     /* Text Colors */
-    --dragon-text-primary: #e0e0e0;
-    --dragon-text-secondary: #a0a0a0;
-    --dragon-text-muted: #666;
+    --dragon-text-primary: #f5f5f5;
+    --dragon-text-secondary: #c0c0c0;
+    --dragon-text-muted: #888888;
+    --dragon-text-accent: #d4af37;
+    --dragon-text-inverse: #1a1a1a;
+    --dragon-text-success: #4ade80;
+    --dragon-text-warning: #fbbf24;
+    --dragon-text-error: #ef4444;
     
     /* Border Colors */
-    --dragon-border-primary: rgba(139, 69, 19, 0.3);
-    --dragon-border-hover: rgba(139, 69, 19, 0.6);
-    --dragon-border-active: #8b4513;
-    
+    --dragon-border-primary: rgba(139, 69, 19, 0.4);
+    --dragon-border-hover: rgba(139, 69, 19, 0.7);
+    --dragon-border-active: var(--dragon-primary);
+    --dragon-border-accent: var(--dragon-accent);
+    --dragon-border-subtle: rgba(255, 255, 255, 0.1);
+    --dragon-border-strong: rgba(139, 69, 19, 0.8);
+
+    /* Semantic Colors */
+    --dragon-success: #22c55e;
+    --dragon-success-light: #4ade80;
+    --dragon-success-dark: #16a34a;
+    --dragon-warning: #f59e0b;
+    --dragon-warning-light: #fbbf24;
+    --dragon-warning-dark: #d97706;
+    --dragon-error: #ef4444;
+    --dragon-error-light: #f87171;
+    --dragon-error-dark: #dc2626;
+    --dragon-info: #3b82f6;
+    --dragon-info-light: #60a5fa;
+    --dragon-info-dark: #2563eb;
+
     /* Fonts */
     --dragon-font-primary: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     --dragon-font-heading: 'Playfair Display', serif;
@@ -35,6 +64,27 @@
     --dragon-font-medium: 500;
     --dragon-font-semibold: 600;
     --dragon-font-bold: 700;
+    --dragon-font-extrabold: 800;
+
+    /* Font Sizes */
+    --dragon-text-xs: 0.75rem;    /* 12px */
+    --dragon-text-sm: 0.875rem;   /* 14px */
+    --dragon-text-base: 1rem;     /* 16px */
+    --dragon-text-lg: 1.125rem;   /* 18px */
+    --dragon-text-xl: 1.25rem;    /* 20px */
+    --dragon-text-2xl: 1.5rem;    /* 24px */
+    --dragon-text-3xl: 1.875rem;  /* 30px */
+    --dragon-text-4xl: 2.25rem;   /* 36px */
+    --dragon-text-5xl: 3rem;      /* 48px */
+    --dragon-text-6xl: 3.75rem;   /* 60px */
+
+    /* Line Heights */
+    --dragon-leading-none: 1;
+    --dragon-leading-tight: 1.25;
+    --dragon-leading-snug: 1.375;
+    --dragon-leading-normal: 1.5;
+    --dragon-leading-relaxed: 1.625;
+    --dragon-leading-loose: 2;
     
     /* Spacing */
     --dragon-space-1: 0.25rem;
@@ -50,24 +100,34 @@
     --dragon-space-20: 5rem;
     
     /* Border Radius */
+    --dragon-radius-none: 0;
+    --dragon-radius-xs: 4px;
     --dragon-radius-sm: 8px;
     --dragon-radius-md: 12px;
     --dragon-radius-lg: 16px;
     --dragon-radius-xl: 20px;
+    --dragon-radius-2xl: 24px;
+    --dragon-radius-3xl: 32px;
     --dragon-radius-full: 50%;
     
-    /* Shadows */
-    --dragon-shadow-sm: 0 2px 8px rgba(139, 69, 19, 0.3);
-    --dragon-shadow-md: 0 4px 16px rgba(139, 69, 19, 0.4);
-    --dragon-shadow-lg: 0 8px 32px rgba(139, 69, 19, 0.3);
-    --dragon-shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.3);
+    /* Shadows & Elevation */
+    --dragon-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.1);
+    --dragon-shadow-sm: 0 2px 8px rgba(139, 69, 19, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+    --dragon-shadow-md: 0 4px 16px rgba(139, 69, 19, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
+    --dragon-shadow-lg: 0 8px 32px rgba(139, 69, 19, 0.25), 0 4px 12px rgba(0, 0, 0, 0.2);
+    --dragon-shadow-xl: 0 16px 48px rgba(139, 69, 19, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+    --dragon-shadow-2xl: 0 24px 64px rgba(139, 69, 19, 0.35), 0 12px 32px rgba(0, 0, 0, 0.3);
     --dragon-shadow-glow: 0 0 0 3px rgba(139, 69, 19, 0.2), 0 8px 32px rgba(139, 69, 19, 0.15);
+    --dragon-shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    --dragon-shadow-focus: 0 0 0 3px rgba(139, 69, 19, 0.3), 0 4px 16px rgba(139, 69, 19, 0.2);
     
     /* Transitions */
     --dragon-transition-fast: all 0.15s ease;
     --dragon-transition-base: all 0.3s ease;
     --dragon-transition-slow: all 0.5s ease;
     --dragon-transition-cubic: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --dragon-transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --dragon-transition-smooth: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     
     /* Z-Index */
     --dragon-z-dropdown: 1000;
@@ -130,16 +190,25 @@ h6 { font-size: 1rem; }
 
 /* === CONTAINER === */
 .dragon-container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: var(--dragon-space-5);
+    padding: var(--dragon-space-8) var(--dragon-space-10);
+    min-height: 100vh;
 }
 
 /* === HEADER === */
 .dragon-header {
     text-align: center;
-    margin-bottom: var(--dragon-space-10);
+    margin-bottom: var(--dragon-space-16);
+    padding: var(--dragon-space-12) 0 var(--dragon-space-16);
     position: relative;
+    background: linear-gradient(135deg,
+        rgba(139, 69, 19, 0.1) 0%,
+        rgba(212, 175, 55, 0.05) 50%,
+        rgba(139, 69, 19, 0.1) 100%);
+    border-radius: var(--dragon-radius-2xl);
+    margin: 0 calc(-1 * var(--dragon-space-5)) var(--dragon-space-16);
+    backdrop-filter: blur(20px);
 }
 
 .dragon-header::before {
@@ -159,7 +228,7 @@ h6 { font-size: 1rem; }
     height: 70px;
     background: linear-gradient(135deg, var(--dragon-primary), var(--dragon-primary-light));
     border-radius: var(--dragon-radius-full);
-    margin: 0 auto var(--dragon-space-5);
+    margin: 0 auto var(--dragon-space-3);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -174,22 +243,28 @@ h6 { font-size: 1rem; }
 
 .dragon-title {
     font-family: var(--dragon-font-heading);
-    font-size: 2.5rem;
+    font-size: var(--dragon-text-xl);
     font-weight: var(--dragon-font-bold);
+    line-height: var(--dragon-leading-tight);
     color: var(--dragon-text-primary);
-    margin-bottom: var(--dragon-space-2);
+    margin-bottom: var(--dragon-space-3);
     background: linear-gradient(135deg, var(--dragon-text-primary), var(--dragon-primary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     text-align: center;
+    letter-spacing: 0.5px;
 }
 
 .dragon-subtitle {
-    font-size: 1.1rem;
+    font-family: var(--dragon-font-primary);
+    font-size: var(--dragon-text-lg);
+    font-weight: var(--dragon-font-light);
+    line-height: var(--dragon-leading-relaxed);
     color: var(--dragon-text-secondary);
     margin-bottom: var(--dragon-space-8);
-    font-weight: var(--dragon-font-light);
+    text-align: center;
+    letter-spacing: 0.25px;
 }
 
 /* === SURFACE COMPONENTS === */
@@ -478,30 +553,42 @@ h6 { font-size: 1rem; }
 
 /* === SELECTORS CONTAINER === */
 .dragon-selectors-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: var(--dragon-space-6);
-    margin-bottom: var(--dragon-space-8);
-    flex-wrap: wrap;
+    margin-bottom: var(--dragon-space-12);
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 var(--dragon-space-4);
+}
+
+@media (max-width: 768px) {
+    .dragon-selectors-container {
+        grid-template-columns: 1fr;
+        gap: var(--dragon-space-4);
+    }
 }
 
 /* === DATA DAY SELECTOR === */
 .dragon-data-selector {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column;
     gap: var(--dragon-space-3);
-    margin-bottom: 0; /* Remove bottom margin since container handles it */
-    padding: var(--dragon-space-4) var(--dragon-space-6);
-    background: var(--dragon-bg-surface);
-    border-radius: var(--dragon-radius-lg);
-    border: 1px solid var(--dragon-border-primary);
+    padding: var(--dragon-space-5);
+    background: rgba(45, 45, 45, 0.9);
+    border-radius: var(--dragon-radius-md);
+    border: 1px solid rgba(139, 69, 19, 0.4);
     backdrop-filter: blur(10px);
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-bottom: var(--dragon-space-8);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.dragon-data-selector:hover {
+    border-color: rgba(139, 69, 19, 0.6);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
 }
 
 .dragon-data-label {
@@ -538,13 +625,18 @@ h6 { font-size: 1rem; }
 
 /* === CONTENT AREA === */
 .dragon-content {
-    background: var(--dragon-bg-surface);
-    border-radius: var(--dragon-radius-xl);
-    padding: var(--dragon-space-8);
-    border: 1px solid var(--dragon-border-primary);
-    backdrop-filter: blur(10px);
+    background: linear-gradient(135deg,
+        rgba(45, 45, 45, 0.95) 0%,
+        rgba(26, 26, 26, 0.9) 100%);
+    border-radius: var(--dragon-radius-3xl);
+    padding: var(--dragon-space-16) var(--dragon-space-12);
+    border: 2px solid var(--dragon-border-primary);
+    backdrop-filter: blur(25px);
     position: relative;
     overflow: hidden;
+    box-shadow: var(--dragon-shadow-2xl);
+    transition: var(--dragon-transition-base);
+    margin-bottom: var(--dragon-space-12);
 }
 
 .dragon-content::before {
@@ -555,7 +647,28 @@ h6 { font-size: 1rem; }
     right: 0;
     bottom: 0;
     background:
-        radial-gradient(circle at 10% 20%, rgba(139, 69, 19, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 20% 20%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
+        linear-gradient(45deg, transparent 30%, rgba(212, 175, 55, 0.05) 50%, transparent 70%);
+    pointer-events: none;
+}
+
+.dragon-content::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg,
+        var(--dragon-primary) 0%,
+        var(--dragon-accent) 25%,
+        var(--dragon-primary) 50%,
+        var(--dragon-accent) 75%,
+        var(--dragon-primary) 100%);
+    border-radius: var(--dragon-radius-3xl);
+    z-index: -1;
+    opacity: 0.3;
     pointer-events: none;
 }
 
@@ -706,7 +819,9 @@ h6 { font-size: 1rem; }
     }
 
     .dragon-title {
-        font-size: 2rem;
+        font-size: var(--dragon-text-lg);
+        line-height: var(--dragon-leading-tight);
+        letter-spacing: 0.25px;
     }
 
     .dragon-content {
@@ -1321,3 +1436,475 @@ h6 { font-size: 1rem; }
 }
 
 /* All responsive design consolidated above */
+
+/* === UNIFIED BUTTON STYLING === */
+/* Ensure all buttons (MudButton and dragon-btn) have consistent appearance */
+.mud-button-root,
+.dragon-btn {
+    background: linear-gradient(135deg, var(--dragon-primary), var(--dragon-primary-light)) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: var(--dragon-radius-md) !important;
+    font-family: var(--dragon-font-primary) !important;
+    font-weight: var(--dragon-font-medium) !important;
+    font-size: 0.9rem !important;
+    padding: var(--dragon-space-3) var(--dragon-space-6) !important;
+    transition: var(--dragon-transition-base) !important;
+    text-transform: none !important;
+    box-shadow: var(--dragon-shadow-sm) !important;
+    min-height: 40px !important;
+    cursor: pointer !important;
+}
+
+.mud-button-root:hover,
+.dragon-btn:hover {
+    background: linear-gradient(135deg, var(--dragon-primary-dark), var(--dragon-primary)) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: var(--dragon-shadow-lg) !important;
+    color: #ffffff !important;
+    filter: brightness(1.05) !important;
+}
+
+.mud-button-root:focus,
+.dragon-btn:focus {
+    outline: none !important;
+    box-shadow: var(--dragon-shadow-focus) !important;
+    border-color: var(--dragon-primary) !important;
+}
+
+.mud-button-root:active,
+.dragon-btn:active {
+    transform: translateY(0) !important;
+    box-shadow: var(--dragon-shadow-md) !important;
+    transition: var(--dragon-transition-fast) !important;
+}
+
+/* Secondary button variant */
+.mud-button-outlined,
+.dragon-btn-secondary {
+    background: transparent !important;
+    color: var(--dragon-text-primary) !important;
+    border: 1px solid var(--dragon-border-primary) !important;
+    box-shadow: none !important;
+}
+
+.mud-button-outlined:hover,
+.dragon-btn-secondary:hover {
+    background: var(--dragon-bg-surface-hover) !important;
+    border-color: var(--dragon-border-hover) !important;
+    color: var(--dragon-text-primary) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--dragon-shadow-sm) !important;
+}
+
+/* === UNIFIED FORM CONTROL STYLING === */
+/* Ensure all form controls have consistent appearance */
+.mud-input-control,
+.dragon-select,
+.dragon-input {
+    background: var(--dragon-bg-surface) !important;
+    border: 1px solid var(--dragon-border-primary) !important;
+    border-radius: var(--dragon-radius-md) !important;
+    color: var(--dragon-text-primary) !important;
+    font-family: var(--dragon-font-primary) !important;
+    font-size: 0.9rem !important;
+    font-weight: var(--dragon-font-medium) !important;
+    transition: var(--dragon-transition-base) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+.mud-input-control:hover,
+.dragon-select:hover,
+.dragon-input:hover {
+    border-color: var(--dragon-border-hover) !important;
+    background-color: var(--dragon-bg-surface-hover) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--dragon-shadow-sm) !important;
+    filter: brightness(1.02) !important;
+}
+
+.mud-input-control:focus-within,
+.dragon-select:focus,
+.dragon-input:focus {
+    outline: none !important;
+    border-color: var(--dragon-primary) !important;
+    box-shadow: var(--dragon-shadow-focus) !important;
+    background-color: var(--dragon-bg-surface) !important;
+    transform: translateY(-1px) !important;
+}
+
+.mud-input-control:active,
+.dragon-select:active,
+.dragon-input:active {
+    transform: translateY(0) !important;
+    transition: var(--dragon-transition-fast) !important;
+}
+
+/* Unified input text styling */
+.mud-input,
+.dragon-select,
+.dragon-input {
+    color: var(--dragon-text-primary) !important;
+    font-family: var(--dragon-font-primary) !important;
+    font-size: 0.9rem !important;
+    font-weight: var(--dragon-font-medium) !important;
+}
+
+/* Unified label styling */
+.mud-input-label,
+.dragon-select-label {
+    color: var(--dragon-text-primary) !important;
+    font-family: var(--dragon-font-primary) !important;
+    font-size: 0.9rem !important;
+    font-weight: var(--dragon-font-medium) !important;
+}
+
+/* === ELEVATION SYSTEM === */
+/* Utility classes for consistent elevation throughout the app */
+.dragon-elevation-0 {
+    box-shadow: none;
+}
+
+.dragon-elevation-1 {
+    box-shadow: var(--dragon-shadow-xs);
+}
+
+.dragon-elevation-2 {
+    box-shadow: var(--dragon-shadow-sm);
+}
+
+.dragon-elevation-3 {
+    box-shadow: var(--dragon-shadow-md);
+}
+
+.dragon-elevation-4 {
+    box-shadow: var(--dragon-shadow-lg);
+}
+
+.dragon-elevation-5 {
+    box-shadow: var(--dragon-shadow-xl);
+}
+
+.dragon-elevation-6 {
+    box-shadow: var(--dragon-shadow-2xl);
+}
+
+/* Hover elevation effects */
+.dragon-elevation-hover:hover {
+    box-shadow: var(--dragon-shadow-lg);
+    transform: translateY(-2px);
+    transition: var(--dragon-transition-base);
+}
+
+.dragon-elevation-focus:focus {
+    box-shadow: var(--dragon-shadow-focus);
+}
+
+/* Surface elevation for cards and containers */
+.dragon-surface {
+    background: var(--dragon-bg-surface);
+    border: 1px solid var(--dragon-border-subtle);
+    border-radius: var(--dragon-radius-lg);
+    box-shadow: var(--dragon-shadow-sm);
+    backdrop-filter: blur(10px);
+}
+
+.dragon-surface-elevated {
+    background: var(--dragon-bg-card);
+    border: 1px solid var(--dragon-border-primary);
+    border-radius: var(--dragon-radius-lg);
+    box-shadow: var(--dragon-shadow-md);
+    backdrop-filter: blur(15px);
+}
+
+.dragon-surface-floating {
+    background: var(--dragon-bg-surface-hover);
+    border: 1px solid var(--dragon-border-hover);
+    border-radius: var(--dragon-radius-lg);
+    box-shadow: var(--dragon-shadow-lg);
+    backdrop-filter: blur(20px);
+}
+
+/* === BORDER RADIUS UTILITIES === */
+/* Utility classes for consistent border radius application */
+.dragon-rounded-none { border-radius: var(--dragon-radius-none); }
+.dragon-rounded-xs { border-radius: var(--dragon-radius-xs); }
+.dragon-rounded-sm { border-radius: var(--dragon-radius-sm); }
+.dragon-rounded-md { border-radius: var(--dragon-radius-md); }
+.dragon-rounded-lg { border-radius: var(--dragon-radius-lg); }
+.dragon-rounded-xl { border-radius: var(--dragon-radius-xl); }
+.dragon-rounded-2xl { border-radius: var(--dragon-radius-2xl); }
+.dragon-rounded-3xl { border-radius: var(--dragon-radius-3xl); }
+.dragon-rounded-full { border-radius: var(--dragon-radius-full); }
+
+/* Directional border radius utilities */
+.dragon-rounded-t-sm { border-top-left-radius: var(--dragon-radius-sm); border-top-right-radius: var(--dragon-radius-sm); }
+.dragon-rounded-t-md { border-top-left-radius: var(--dragon-radius-md); border-top-right-radius: var(--dragon-radius-md); }
+.dragon-rounded-t-lg { border-top-left-radius: var(--dragon-radius-lg); border-top-right-radius: var(--dragon-radius-lg); }
+
+.dragon-rounded-b-sm { border-bottom-left-radius: var(--dragon-radius-sm); border-bottom-right-radius: var(--dragon-radius-sm); }
+.dragon-rounded-b-md { border-bottom-left-radius: var(--dragon-radius-md); border-bottom-right-radius: var(--dragon-radius-md); }
+.dragon-rounded-b-lg { border-bottom-left-radius: var(--dragon-radius-lg); border-bottom-right-radius: var(--dragon-radius-lg); }
+
+.dragon-rounded-l-sm { border-top-left-radius: var(--dragon-radius-sm); border-bottom-left-radius: var(--dragon-radius-sm); }
+.dragon-rounded-l-md { border-top-left-radius: var(--dragon-radius-md); border-bottom-left-radius: var(--dragon-radius-md); }
+.dragon-rounded-l-lg { border-top-left-radius: var(--dragon-radius-lg); border-bottom-left-radius: var(--dragon-radius-lg); }
+
+.dragon-rounded-r-sm { border-top-right-radius: var(--dragon-radius-sm); border-bottom-right-radius: var(--dragon-radius-sm); }
+.dragon-rounded-r-md { border-top-right-radius: var(--dragon-radius-md); border-bottom-right-radius: var(--dragon-radius-md); }
+.dragon-rounded-r-lg { border-top-right-radius: var(--dragon-radius-lg); border-bottom-right-radius: var(--dragon-radius-lg); }
+
+/* === TYPOGRAPHY SYSTEM === */
+/* Comprehensive typography utilities for consistent text styling */
+
+/* Font Size Utilities */
+.dragon-text-xs { font-size: var(--dragon-text-xs); }
+.dragon-text-sm { font-size: var(--dragon-text-sm); }
+.dragon-text-base { font-size: var(--dragon-text-base); }
+.dragon-text-lg { font-size: var(--dragon-text-lg); }
+.dragon-text-xl { font-size: var(--dragon-text-xl); }
+.dragon-text-2xl { font-size: var(--dragon-text-2xl); }
+.dragon-text-3xl { font-size: var(--dragon-text-3xl); }
+.dragon-text-4xl { font-size: var(--dragon-text-4xl); }
+.dragon-text-5xl { font-size: var(--dragon-text-5xl); }
+.dragon-text-6xl { font-size: var(--dragon-text-6xl); }
+
+/* Font Weight Utilities */
+.dragon-font-light { font-weight: var(--dragon-font-light); }
+.dragon-font-normal { font-weight: var(--dragon-font-normal); }
+.dragon-font-medium { font-weight: var(--dragon-font-medium); }
+.dragon-font-semibold { font-weight: var(--dragon-font-semibold); }
+.dragon-font-bold { font-weight: var(--dragon-font-bold); }
+.dragon-font-extrabold { font-weight: var(--dragon-font-extrabold); }
+
+/* Line Height Utilities */
+.dragon-leading-none { line-height: var(--dragon-leading-none); }
+.dragon-leading-tight { line-height: var(--dragon-leading-tight); }
+.dragon-leading-snug { line-height: var(--dragon-leading-snug); }
+.dragon-leading-normal { line-height: var(--dragon-leading-normal); }
+.dragon-leading-relaxed { line-height: var(--dragon-leading-relaxed); }
+.dragon-leading-loose { line-height: var(--dragon-leading-loose); }
+
+/* Typography Hierarchy Classes */
+.dragon-heading-1 {
+    font-family: var(--dragon-font-heading);
+    font-size: var(--dragon-text-5xl);
+    font-weight: var(--dragon-font-bold);
+    line-height: var(--dragon-leading-tight);
+    color: var(--dragon-text-primary);
+    margin-bottom: var(--dragon-space-6);
+}
+
+.dragon-heading-2 {
+    font-family: var(--dragon-font-heading);
+    font-size: var(--dragon-text-4xl);
+    font-weight: var(--dragon-font-semibold);
+    line-height: var(--dragon-leading-tight);
+    color: var(--dragon-text-primary);
+    margin-bottom: var(--dragon-space-5);
+}
+
+.dragon-heading-3 {
+    font-family: var(--dragon-font-heading);
+    font-size: var(--dragon-text-3xl);
+    font-weight: var(--dragon-font-semibold);
+    line-height: var(--dragon-leading-snug);
+    color: var(--dragon-text-primary);
+    margin-bottom: var(--dragon-space-4);
+}
+
+.dragon-heading-4 {
+    font-family: var(--dragon-font-primary);
+    font-size: var(--dragon-text-2xl);
+    font-weight: var(--dragon-font-semibold);
+    line-height: var(--dragon-leading-snug);
+    color: var(--dragon-text-primary);
+    margin-bottom: var(--dragon-space-4);
+}
+
+.dragon-heading-5 {
+    font-family: var(--dragon-font-primary);
+    font-size: var(--dragon-text-xl);
+    font-weight: var(--dragon-font-medium);
+    line-height: var(--dragon-leading-normal);
+    color: var(--dragon-text-primary);
+    margin-bottom: var(--dragon-space-3);
+}
+
+.dragon-heading-6 {
+    font-family: var(--dragon-font-primary);
+    font-size: var(--dragon-text-lg);
+    font-weight: var(--dragon-font-medium);
+    line-height: var(--dragon-leading-normal);
+    color: var(--dragon-text-primary);
+    margin-bottom: var(--dragon-space-3);
+}
+
+/* Body Text Classes */
+.dragon-body-large {
+    font-family: var(--dragon-font-primary);
+    font-size: var(--dragon-text-lg);
+    font-weight: var(--dragon-font-normal);
+    line-height: var(--dragon-leading-relaxed);
+    color: var(--dragon-text-primary);
+}
+
+.dragon-body {
+    font-family: var(--dragon-font-primary);
+    font-size: var(--dragon-text-base);
+    font-weight: var(--dragon-font-normal);
+    line-height: var(--dragon-leading-normal);
+    color: var(--dragon-text-primary);
+}
+
+.dragon-body-small {
+    font-family: var(--dragon-font-primary);
+    font-size: var(--dragon-text-sm);
+    font-weight: var(--dragon-font-normal);
+    line-height: var(--dragon-leading-normal);
+    color: var(--dragon-text-secondary);
+}
+
+.dragon-caption {
+    font-family: var(--dragon-font-primary);
+    font-size: var(--dragon-text-xs);
+    font-weight: var(--dragon-font-normal);
+    line-height: var(--dragon-leading-normal);
+    color: var(--dragon-text-muted);
+}
+
+/* Special Text Classes */
+.dragon-text-accent {
+    color: var(--dragon-text-accent);
+}
+
+.dragon-text-success {
+    color: var(--dragon-text-success);
+}
+
+.dragon-text-warning {
+    color: var(--dragon-text-warning);
+}
+
+.dragon-text-error {
+    color: var(--dragon-text-error);
+}
+
+/* === INTERACTIVE STATES SYSTEM === */
+/* Comprehensive interactive states for all UI elements */
+
+/* Focus States */
+.dragon-focus-ring:focus {
+    outline: none;
+    box-shadow: var(--dragon-shadow-focus);
+    border-color: var(--dragon-primary);
+}
+
+.dragon-focus-ring:focus-visible {
+    outline: 2px solid var(--dragon-primary);
+    outline-offset: 2px;
+}
+
+/* Hover States */
+.dragon-hover-lift:hover {
+    transform: translateY(-2px);
+    transition: var(--dragon-transition-base);
+}
+
+.dragon-hover-glow:hover {
+    box-shadow: var(--dragon-shadow-glow);
+    transition: var(--dragon-transition-base);
+}
+
+.dragon-hover-scale:hover {
+    transform: scale(1.02);
+    transition: var(--dragon-transition-base);
+}
+
+.dragon-hover-brighten:hover {
+    filter: brightness(1.1);
+    transition: var(--dragon-transition-base);
+}
+
+/* Active States */
+.dragon-active-press:active {
+    transform: translateY(1px) scale(0.98);
+    transition: var(--dragon-transition-fast);
+}
+
+.dragon-active-glow:active {
+    box-shadow: var(--dragon-shadow-inner), var(--dragon-shadow-glow);
+    transition: var(--dragon-transition-fast);
+}
+
+/* Disabled States */
+.dragon-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.dragon-disabled:hover {
+    transform: none;
+    box-shadow: none;
+    filter: none;
+}
+
+/* Interactive Element Combinations */
+.dragon-interactive {
+    cursor: pointer;
+    transition: var(--dragon-transition-base);
+}
+
+.dragon-interactive:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--dragon-shadow-md);
+}
+
+.dragon-interactive:focus {
+    outline: none;
+    box-shadow: var(--dragon-shadow-focus);
+}
+
+.dragon-interactive:active {
+    transform: translateY(0);
+    box-shadow: var(--dragon-shadow-sm);
+}
+
+/* Button Interactive States Enhancement */
+.dragon-btn-interactive {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: var(--dragon-transition-base);
+}
+
+.dragon-btn-interactive::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: var(--dragon-transition-base);
+}
+
+.dragon-btn-interactive:hover::before {
+    left: 100%;
+}
+
+.dragon-btn-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--dragon-shadow-lg);
+}
+
+.dragon-btn-interactive:focus {
+    outline: none;
+    box-shadow: var(--dragon-shadow-focus);
+}
+
+.dragon-btn-interactive:active {
+    transform: translateY(0);
+    box-shadow: var(--dragon-shadow-md);
+}

@@ -21,235 +21,290 @@
 <AuthenticationGuard>
 
     <!-- Realm and Data Day Selectors -->
-    <div class="dragon-selectors-container">
-        <RealmSelector AvailableRealms="AvailableRealms"
-                      SelectedRealm="CurrentRealm"
-                      SelectedRealmChanged="OnRealmChanged" />
-
-        <div class="dragon-data-selector">
-            <label class="dragon-data-label">📅 Data Day:</label>
-            <select class="dragon-select" @onchange="OnDateChanged">
+    <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; max-width: 800px; margin-left: auto; margin-right: auto;">
+        <div style="flex: 1; min-width: 300px; max-width: 400px;">
+            <RealmSelector AvailableRealms="AvailableRealms"
+                          SelectedRealm="CurrentRealm"
+                          SelectedRealmChanged="OnRealmChanged" />
+        </div>
+        <div style="flex: 1; min-width: 300px; max-width: 400px; display: flex; flex-direction: column; gap: 8px; padding: 20px; background: rgba(45, 45, 45, 0.9); border-radius: 8px; border: 1px solid rgba(139, 69, 19, 0.4); backdrop-filter: blur(10px); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);">
+            <label style="font-size: 0.8rem; font-weight: 600; color: #d4af37; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">📅 Data Day</label>
+            <select @bind="SelectedDateString" style="width: 100%; padding: 12px; background: rgba(26, 26, 26, 0.8); border: 1px solid rgba(139, 69, 19, 0.2); border-radius: 6px; color: #f5f5f5; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease;">
                 @if (AvailableDates?.Any() == true)
                 {
+                    <option value="">Select Date...</option>
                     @foreach (var date in AvailableDates.OrderByDescending(d => d))
                     {
-                        <option value="@date.ToString("yyyy-MM-dd")" selected="@(date.Date == CurrentDate?.Date)">
+                        <option value="@date.ToString("yyyy-MM-dd")">
                             @date.ToString("MMM dd, yyyy")
                         </option>
                     }
                 }
                 else
                 {
-                    <option value="">No data available</option>
+                    <option value="" disabled>No data available</option>
                 }
             </select>
         </div>
     </div>
 
-    <!-- Tab Navigation -->
-    <div class="dragon-tabs">
-        <button class="dragon-tab @(ActiveTab == "players" ? "active" : "")"
-                @onclick="SetPlayersTab">
-            👥 Players
-        </button>
-        <button class="dragon-tab @(ActiveTab == "alliances" ? "active" : "")"
-                @onclick="SetAlliancesTab">
-            🛡️ Alliances
-        </button>
-        @if (IsAdmin)
-        {
-            <button class="dragon-tab @(ActiveTab == "import" ? "active" : "")"
-                    @onclick="SetImportTab">
-                📥 Import Data
-            </button>
-            <button class="dragon-tab @(ActiveTab == "history" ? "active" : "")"
-                    @onclick="SetHistoryTab">
-                📊 History/Analytics
-            </button>
-        }
-    </div>
+    <!-- Tab Navigation using MudTabs -->
+    <MudTabs Elevation="2"
+             Rounded="true"
+             ApplyEffectsToContainer="true"
+             PanelClass="dragon-tab-panel"
+             Class="dragon-mud-tabs"
+             ActivePanelIndex="@GetActiveTabIndex()"
+             ActivePanelIndexChanged="OnTabChanged">
 
-    <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
-
-    <!-- Players Tab Content -->
-    @if (ActiveTab == "players")
-    {
-        <div class="dragon-search">
-            <input type="text" class="dragon-input" placeholder="Search players by name or ID..."
-                   value="@PlayerSearchQuery" @oninput="OnPlayerSearchInput" />
-        </div>
-
-        @if (IsLoadingPlayers)
-        {
-            <div class="dragon-loading">
-                <div class="dragon-spinner"></div>
-                <span>@(string.IsNullOrWhiteSpace(PlayerSearchQuery) ? "Loading players..." : "Searching players...")</span>
-            </div>
-        }
-        else if (PlayerResults?.Items.Any() == true)
-        {
-            <div class="dragon-mb-4">
-                <span class="dragon-text-secondary">@PlayerResults.TotalCount players found</span>
-                <small class="dragon-text-muted d-block">Sorted by power (highest first)</small>
+        <MudTabPanel Text="👥 Players"
+                     ID="@("players")"
+                     Class="dragon-tab-panel">
+            <div class="dragon-search">
+                <MudTextField @bind-Value="PlayerSearchQuery"
+                              Label="Search Players"
+                              Placeholder="Search players by name or ID..."
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Class="dragon-mud-search"
+                              Immediate="true"
+                              DebounceInterval="300" />
             </div>
 
-            @foreach (var player in PlayerResults.Items)
-            {
-                <div class="dragon-list-item" @onclick="() => NavigateToPlayer(player.PlayerId)">
-                    <div class="dragon-item-header">
-                        <span class="dragon-item-name">@player.Name</span>
-                        <span class="dragon-item-badge">Power: @player.Might.ToString("N0")</span>
-                    </div>
-                    <div class="dragon-item-details">
-                        <span>City: @player.CityName</span>
-                        @if (!string.IsNullOrEmpty(player.AllianceName))
+            <MudTable Items="@(PlayerResults?.Items ?? new List<PlayerDto>())"
+                      Loading="@IsLoadingPlayers"
+                      LoadingProgressColor="Color.Primary"
+                      Hover="true"
+                      Striped="true"
+                      Dense="true"
+                      Class="dragon-mud-table"
+                      Elevation="2">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6" Class="dragon-table-title">
+                        👥 Players (@(PlayerResults?.TotalCount ?? 0) found)
+                    </MudText>
+                    <MudSpacer />
+                    <MudText Typo="Typo.caption" Class="dragon-table-subtitle">
+                        Sorted by power (highest first)
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh Class="dragon-table-header">Rank</MudTh>
+                    <MudTh Class="dragon-table-header">Name</MudTh>
+                    <MudTh Class="dragon-table-header">Power</MudTh>
+                    <MudTh Class="dragon-table-header">City</MudTh>
+                    <MudTh Class="dragon-table-header">Alliance</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToPlayer(context.PlayerId)">
+                        <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Class="dragon-rank-chip">
+                            #@context.Rank
+                        </MudChip>
+                    </MudTd>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToPlayer(context.PlayerId)">
+                        <MudText Typo="Typo.body2" Class="dragon-player-name">@context.Name</MudText>
+                    </MudTd>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToPlayer(context.PlayerId)">
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Class="dragon-power-chip">
+                            @context.Might.ToString("N0")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToPlayer(context.PlayerId)">
+                        <MudText Typo="Typo.body2">@context.CityName</MudText>
+                    </MudTd>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToPlayer(context.PlayerId)">
+                        @if (!string.IsNullOrEmpty(context.AllianceName))
                         {
-                            <span>🛡️ [@player.AllianceName]</span>
+                            <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Icon="@Icons.Material.Filled.Shield" Class="dragon-alliance-chip">
+                                @context.AllianceName
+                            </MudChip>
                         }
                         else
                         {
-                            <span>No Alliance</span>
+                            <MudText Typo="Typo.body2" Class="dragon-no-alliance">No Alliance</MudText>
                         }
-                    </div>
-                </div>
-            }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body1" Class="dragon-no-data">
+                        @if (string.IsNullOrWhiteSpace(PlayerSearchQuery))
+                        {
+                            <span>No players found for the selected realm and date.</span>
+                        }
+                        else
+                        {
+                            <span>No players found matching "@PlayerSearchQuery".</span>
+                        }
+                    </MudText>
+                </NoRecordsContent>
+            </MudTable>
 
-            <div class="dragon-pagination">
-                @if (PlayerCurrentPage > 1)
-                {
-                    <button class="dragon-btn" @onclick="() => OnPlayerPageChanged(PlayerCurrentPage - 1)">
-                        Previous
-                    </button>
-                }
-
-                @for (int i = Math.Max(1, PlayerCurrentPage - 2); i <= Math.Min(PlayerResults.TotalPages, PlayerCurrentPage + 2); i++)
-                {
-                    var pageNumber = i;
-                    <button class="dragon-btn @(pageNumber == PlayerCurrentPage ? "active" : "")" 
-                            @onclick="() => OnPlayerPageChanged(pageNumber)">
-                        @pageNumber
-                    </button>
-                }
-
-                @if (PlayerCurrentPage < PlayerResults.TotalPages)
-                {
-                    <button class="dragon-btn" @onclick="() => OnPlayerPageChanged(PlayerCurrentPage + 1)">
-                        Next
-                    </button>
-                }
-            </div>
-        }
-        else if (!string.IsNullOrEmpty(PlayerSearchQuery))
-        {
-            <div class="dragon-error">
-                No players found matching "@PlayerSearchQuery"
-            </div>
-        }
-        else if (PlayerResults != null && !PlayerResults.Items.Any())
-        {
-            <div class="dragon-error">
-                No players found for the selected date.
-            </div>
-        }
-    }
-
-    <!-- Alliances Tab Content -->
-    @if (ActiveTab == "alliances")
-    {
-        <div class="dragon-search">
-            <input type="text" class="dragon-input" placeholder="Search alliances by name or ID..."
-                   value="@AllianceSearchQuery" @oninput="OnAllianceSearchInput" />
-        </div>
-
-        @if (IsLoadingAlliances)
-        {
-            <div class="dragon-loading">
-                <div class="dragon-spinner"></div>
-                <span>Loading alliances...</span>
-            </div>
-        }
-        else if (AllianceResults?.Items.Any() == true)
-        {
-            <div class="dragon-mb-4">
-                <span class="dragon-text-secondary">@AllianceResults.TotalCount alliances found</span>
-                <small class="dragon-text-muted d-block">Sorted by power (highest first)</small>
-            </div>
-
-            @foreach (var alliance in AllianceResults.Items)
+            @if (PlayerResults?.TotalPages > 1)
             {
-                <div class="dragon-list-item" @onclick="() => NavigateToAlliance(alliance.AllianceId)">
-                    <div class="dragon-item-header">
-                        <span class="dragon-item-name">@alliance.Name</span>
-                        <span class="dragon-item-badge">Rank #@(AllianceResults.Items.ToList().IndexOf(alliance) + 1 + (AllianceCurrentPage - 1) * AlliancePageSize)</span>
-                    </div>
-                    <div class="dragon-item-details">
-                        <span>Led by @alliance.OverlordName</span>
-                        <span>Power: @alliance.Power.ToString("N0")</span>
-                        <span>Members: @alliance.MemberCount</span>
-                        <span>Fortress: Level @alliance.FortressLevel (@alliance.FortressX, @alliance.FortressY)</span>
-                    </div>
+                <div class="dragon-pagination-container">
+                    <MudPagination Count="PlayerResults.TotalPages"
+                                   Selected="PlayerCurrentPage"
+                                   SelectedChanged="OnPlayerPageChanged"
+                                   ShowFirstButton="true"
+                                   ShowLastButton="true"
+                                   ShowPreviousButton="true"
+                                   ShowNextButton="true"
+                                   BoundaryCount="1"
+                                   MiddleCount="3" />
                 </div>
             }
+        </MudTabPanel>
 
-            <div class="dragon-pagination">
-                @if (AllianceCurrentPage > 1)
-                {
-                    <button class="dragon-btn" @onclick="() => OnAlliancePageChanged(AllianceCurrentPage - 1)">
-                        Previous
-                    </button>
-                }
-
-                @for (int i = Math.Max(1, AllianceCurrentPage - 2); i <= Math.Min(AllianceResults.TotalPages, AllianceCurrentPage + 2); i++)
-                {
-                    var pageNumber = i;
-                    <button class="dragon-btn @(pageNumber == AllianceCurrentPage ? "active" : "")" 
-                            @onclick="() => OnAlliancePageChanged(pageNumber)">
-                        @pageNumber
-                    </button>
-                }
-
-                @if (AllianceCurrentPage < AllianceResults.TotalPages)
-                {
-                    <button class="dragon-btn" @onclick="() => OnAlliancePageChanged(AllianceCurrentPage + 1)">
-                        Next
-                    </button>
-                }
+        <MudTabPanel Text="🛡️ Alliances"
+                     ID="@("alliances")"
+                     Class="dragon-tab-panel">
+            <div class="dragon-search">
+                <MudTextField @bind-Value="AllianceSearchQuery"
+                              Label="Search Alliances"
+                              Placeholder="Search alliances by name or ID..."
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Class="dragon-mud-search"
+                              Immediate="true"
+                              DebounceInterval="300" />
             </div>
-        }
-        else
+
+            <MudTable Items="@(AllianceResults?.Items ?? new List<AllianceDto>())"
+                      Loading="@IsLoadingAlliances"
+                      LoadingProgressColor="Color.Primary"
+                      Hover="true"
+                      Striped="true"
+                      Dense="true"
+                      Class="dragon-mud-table"
+                      Elevation="2">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6" Class="dragon-table-title">
+                        🛡️ Alliances (@(AllianceResults?.TotalCount ?? 0) found)
+                    </MudText>
+                    <MudSpacer />
+                    <MudText Typo="Typo.caption" Class="dragon-table-subtitle">
+                        Sorted by power (highest first)
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh Class="dragon-table-header">Rank</MudTh>
+                    <MudTh Class="dragon-table-header">Name</MudTh>
+                    <MudTh Class="dragon-table-header">Leader</MudTh>
+                    <MudTh Class="dragon-table-header">Power</MudTh>
+                    <MudTh Class="dragon-table-header">Members</MudTh>
+                    <MudTh Class="dragon-table-header">Fortress</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
+                        <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Class="dragon-rank-chip">
+                            #@(AllianceResults.Items.ToList().IndexOf(context) + 1 + (AllianceCurrentPage - 1) * AlliancePageSize)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
+                        <MudText Typo="Typo.body2" Class="dragon-alliance-name">@context.Name</MudText>
+                    </MudTd>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
+                        <MudText Typo="Typo.body2">@context.OverlordName</MudText>
+                    </MudTd>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Class="dragon-power-chip">
+                            @context.Power.ToString("N0")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.People" Class="dragon-member-chip">
+                            @context.MemberCount
+                        </MudChip>
+                    </MudTd>
+                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
+                        <MudText Typo="Typo.body2" Class="dragon-fortress-info">
+                            Lv @context.FortressLevel (@context.FortressX, @context.FortressY)
+                        </MudText>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body1" Class="dragon-no-data">
+                        @if (string.IsNullOrWhiteSpace(AllianceSearchQuery))
+                        {
+                            <span>No alliances found for the selected realm and date.</span>
+                        }
+                        else
+                        {
+                            <span>No alliances found matching "@AllianceSearchQuery".</span>
+                        }
+                    </MudText>
+                </NoRecordsContent>
+            </MudTable>
+
+            @if (AllianceResults?.TotalPages > 1)
+            {
+                <div class="dragon-pagination-container">
+                    <MudPagination Count="AllianceResults.TotalPages"
+                                   Selected="AllianceCurrentPage"
+                                   SelectedChanged="OnAlliancePageChanged"
+                                   ShowFirstButton="true"
+                                   ShowLastButton="true"
+                                   ShowPreviousButton="true"
+                                   ShowNextButton="true"
+                                   BoundaryCount="1"
+                                   MiddleCount="3" />
+                </div>
+            }
+        </MudTabPanel>
+
+        @if (IsAdmin)
         {
-            <div class="dragon-error">
-                No alliances found for the selected date.
-            </div>
+            <MudTabPanel Text="📥 Import Data"
+                         ID="@("import")"
+                         Class="dragon-tab-panel">
+                <div class="dragon-surface" style="padding: var(--dragon-space-6); text-align: center;">
+                    <MudText Typo="Typo.h4" Class="mb-4" Style="color: var(--dragon-text-primary);">
+                        <MudIcon Icon="@Icons.Material.Filled.Upload" Class="me-2" />
+                        Import Data
+                    </MudText>
+                    <MudText Typo="Typo.body1" Class="mb-6" Style="color: var(--dragon-text-secondary);">
+                        Access the full import interface for uploading map data files.
+                    </MudText>
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.Upload"
+                               OnClick="NavigateToImport"
+                               Class="dragon-btn-primary">
+                        Go to Import Page
+                    </MudButton>
+                </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="📊 Analytics"
+                         ID="@("history")"
+                         Class="dragon-tab-panel">
+                <div class="dragon-surface" style="padding: var(--dragon-space-6); text-align: center;">
+                    <MudText Typo="Typo.h4" Class="mb-4" Style="color: var(--dragon-text-primary);">
+                        <MudIcon Icon="@Icons.Material.Filled.Analytics" Class="me-2" />
+                        History & Analytics
+                    </MudText>
+                    <MudText Typo="Typo.body1" Class="mb-6" Style="color: var(--dragon-text-secondary);">
+                        View import history and analytics data.
+                    </MudText>
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.Analytics"
+                               OnClick="NavigateToHistory"
+                               Class="dragon-btn-primary">
+                        Go to History Page
+                    </MudButton>
+                </div>
+            </MudTabPanel>
         }
-    }
+    </MudTabs>
 
-    <!-- Admin Tabs Content -->
-    @if (ActiveTab == "import" && IsAdmin)
-    {
-        <div class="dragon-surface" style="padding: var(--dragon-space-6); text-align: center;">
-            <h3 style="color: var(--dragon-text-primary); margin-bottom: var(--dragon-space-4);">Import Data</h3>
-            <p style="color: var(--dragon-text-secondary); margin-bottom: var(--dragon-space-6);">
-                Access the full import interface for uploading map data files.
-            </p>
-            <button class="dragon-btn dragon-btn-primary" @onclick="NavigateToImport">
-                Go to Import Page
-            </button>
-        </div>
-    }
+    <ErrorAlert ErrorMessage="@ErrorMessage" OnErrorCleared="ClearError" />
 
-    @if (ActiveTab == "history" && IsAdmin)
-    {
-        <div class="dragon-surface" style="padding: var(--dragon-space-6); text-align: center;">
-            <h3 style="color: var(--dragon-text-primary); margin-bottom: var(--dragon-space-4);">History & Analytics</h3>
-            <p style="color: var(--dragon-text-secondary); margin-bottom: var(--dragon-space-6);">
-                View import history and analytics data.
-            </p>
-            <button class="dragon-btn dragon-btn-primary" @onclick="NavigateToHistory">
-                Go to History Page
-            </button>
-        </div>
-    }
+
+
+
 
     <!-- Discord Button -->
     <a href="https://discord.gg/am5mgJ6gvg" class="discord-link" target="_blank">
@@ -269,27 +324,64 @@
     private bool IsAdmin = false;
 
     // Player-related state
-    private string PlayerSearchQuery = "";
+    private string _playerSearchQuery = "";
+    private string PlayerSearchQuery
+    {
+        get => _playerSearchQuery;
+        set
+        {
+            _playerSearchQuery = value;
+            PlayerCurrentPage = 1; // Reset to page 1 when searching
+            _ = LoadPlayers();
+        }
+    }
     private bool IsLoadingPlayers = false;
     private int PlayerCurrentPage = 1;
     private const int PlayerPageSize = 20;
-    private Timer? _playerSearchTimer;
-    private const int SearchDelayMs = 300;
     private PagedResult<PlayerDto>? PlayerResults;
 
-    // Alliance-related state  
-    private string AllianceSearchQuery = "";
+    // Alliance-related state
+    private string _allianceSearchQuery = "";
+    private string AllianceSearchQuery
+    {
+        get => _allianceSearchQuery;
+        set
+        {
+            _allianceSearchQuery = value;
+            AllianceCurrentPage = 1; // Reset to page 1 when searching
+            _ = LoadAlliances();
+        }
+    }
     private bool IsLoadingAlliances = false;
     private int AllianceCurrentPage = 1;
     private const int AlliancePageSize = 20;
-    private Timer? _allianceSearchTimer;
     private PagedResult<AllianceDto>? AllianceResults;
+
+    // Date loading state
+    private bool IsLoadingDates = false;
 
     private List<DateTime> AvailableDates => DateState.AvailableDates;
     private List<RealmDto> AvailableRealms => RealmState.AvailableRealms;
 
+    private string SelectedDateString
+    {
+        get => CurrentDate?.ToString("yyyy-MM-dd") ?? "";
+        set
+        {
+            if (DateTime.TryParse(value, out var selectedDate))
+            {
+                DateState.SetSelectedDate(selectedDate);
+                PlayerCurrentPage = 1;
+                AllianceCurrentPage = 1;
+                _ = LoadCurrentTabData();
+            }
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        Console.WriteLine("DragonRealmBrowse: OnInitializedAsync called");
+
         // Check authentication state
         try
         {
@@ -304,6 +396,7 @@
 
         // Determine initial tab based on current route
         var uri = Navigation.Uri;
+        Console.WriteLine($"DragonRealmBrowse: Current URI: {uri}");
         if (uri.Contains("/alliances"))
         {
             ActiveTab = "alliances";
@@ -320,6 +413,7 @@
         {
             ActiveTab = "players";
         }
+        Console.WriteLine($"DragonRealmBrowse: ActiveTab set to: {ActiveTab}");
 
         DateState.DateChanged += OnDateStateChanged;
         RealmState.RealmChanged += OnRealmStateChanged;
@@ -327,7 +421,9 @@
         try
         {
             // Load available realms first
+            Console.WriteLine("DragonRealmBrowse: Loading available realms");
             var availableRealms = await RealmService.GetAvailableRealmsAsync();
+            Console.WriteLine($"DragonRealmBrowse: Found {availableRealms.Count} available realms");
             RealmState.SetAvailableRealms(availableRealms);
 
             // Check if any realms are available
@@ -338,17 +434,16 @@
             }
 
             // Initialize from local storage (this will restore the previously selected realm)
+            Console.WriteLine("DragonRealmBrowse: Initializing from local storage");
             await RealmState.InitializeFromLocalStorageAsync();
+            Console.WriteLine($"DragonRealmBrowse: After initialization - SelectedRealm: {RealmState.SelectedRealm?.Name} ({RealmState.SelectedRealm?.RealmId})");
 
-            // Load available dates for the selected realm
+            // If we have a selected realm after initialization, manually trigger the data loading
+            // This is needed because if the realm doesn't change, the OnRealmChanged event won't fire
             if (RealmState.SelectedRealm != null)
             {
-                await LoadAvailableDatesForRealm(RealmState.SelectedRealm.RealmId);
-            }
-
-            if (DateState.SelectedDate.HasValue && RealmState.SelectedRealm != null)
-            {
-                await LoadCurrentTabData();
+                Console.WriteLine("DragonRealmBrowse: Manually triggering data loading for restored realm");
+                await OnRealmChanged(RealmState.SelectedRealm);
             }
         }
         catch (Exception)
@@ -359,6 +454,10 @@
 
     private async Task LoadAvailableDatesForRealm(string realmId)
     {
+        // Prevent concurrent calls
+        if (IsLoadingDates) return;
+
+        IsLoadingDates = true;
         try
         {
             // Load available dates from both services for the specific realm
@@ -372,6 +471,10 @@
         catch (Exception)
         {
             ErrorMessage = "Failed to load available dates for the selected realm.";
+        }
+        finally
+        {
+            IsLoadingDates = false;
         }
     }
 
@@ -416,18 +519,27 @@
 
     private async Task OnRealmChanged(RealmDto? newRealm)
     {
+        Console.WriteLine($"DragonRealmBrowse: OnRealmChanged called with realm: {newRealm?.Name} ({newRealm?.RealmId})");
+
         if (newRealm != null)
         {
             // Load dates for the new realm
+            Console.WriteLine($"DragonRealmBrowse: Loading available dates for realm {newRealm.RealmId}");
             await LoadAvailableDatesForRealm(newRealm.RealmId);
 
             // Validate and auto-correct selected date for new realm
+            Console.WriteLine("DragonRealmBrowse: Validating and correcting selected date");
             await ValidateAndCorrectSelectedDate();
 
             // Reload current tab data with new realm (only if we have a valid date)
             if (DateState.SelectedDate.HasValue)
             {
+                Console.WriteLine($"DragonRealmBrowse: Loading current tab data for date {DateState.SelectedDate}");
                 await LoadCurrentTabData();
+            }
+            else
+            {
+                Console.WriteLine("DragonRealmBrowse: No valid date selected, skipping data load");
             }
         }
     }
@@ -458,7 +570,15 @@
 
     private async Task LoadPlayers()
     {
-        if (!CurrentDate.HasValue || CurrentRealm == null) return;
+        Console.WriteLine($"LoadPlayers called - CurrentDate: {CurrentDate}, CurrentRealm: {CurrentRealm?.Name} ({CurrentRealm?.RealmId})");
+        if (!CurrentDate.HasValue || CurrentRealm == null)
+        {
+            Console.WriteLine($"LoadPlayers returning early - CurrentDate.HasValue: {CurrentDate.HasValue}, CurrentRealm == null: {CurrentRealm == null}");
+            return;
+        }
+
+        // Prevent concurrent calls
+        if (IsLoadingPlayers) return;
 
         IsLoadingPlayers = true;
         ErrorMessage = null;
@@ -474,12 +594,16 @@
         finally
         {
             IsLoadingPlayers = false;
+            StateHasChanged();
         }
     }
 
     private async Task LoadAlliances()
     {
         if (!CurrentDate.HasValue || CurrentRealm == null) return;
+
+        // Prevent concurrent calls
+        if (IsLoadingAlliances) return;
 
         IsLoadingAlliances = true;
         ErrorMessage = null;
@@ -536,54 +660,9 @@
         // For admin tabs, just update the active tab (content is static)
     }
 
-    private async Task OnDateChanged(ChangeEventArgs e)
-    {
-        if (DateTime.TryParse(e.Value?.ToString(), out var selectedDate))
-        {
-            DateState.SetSelectedDate(selectedDate);
-            PlayerCurrentPage = 1;
-            AllianceCurrentPage = 1;
-            await LoadCurrentTabData();
-        }
-    }
 
-    private async void OnPlayerSearchInput(ChangeEventArgs e)
-    {
-        PlayerSearchQuery = e.Value?.ToString() ?? "";
 
-        // Cancel any existing timer
-        _playerSearchTimer?.Dispose();
 
-        // Set up a new timer for debounced search
-        _playerSearchTimer = new Timer(async _ =>
-        {
-            await InvokeAsync(async () =>
-            {
-                PlayerCurrentPage = 1; // Reset to page 1 when searching
-                await LoadPlayers();
-                StateHasChanged();
-            });
-        }, null, SearchDelayMs, Timeout.Infinite);
-    }
-
-    private async void OnAllianceSearchInput(ChangeEventArgs e)
-    {
-        AllianceSearchQuery = e.Value?.ToString() ?? "";
-
-        // Cancel any existing timer
-        _allianceSearchTimer?.Dispose();
-
-        // Set up a new timer for debounced search
-        _allianceSearchTimer = new Timer(async _ =>
-        {
-            await InvokeAsync(async () =>
-            {
-                AllianceCurrentPage = 1; // Reset to page 1 when searching
-                await LoadAlliances();
-                StateHasChanged();
-            });
-        }, null, SearchDelayMs, Timeout.Infinite);
-    }
 
     private async Task OnPlayerPageChanged(int page)
     {
@@ -688,11 +767,648 @@
         await SetActiveTab("history");
     }
 
+    // MudTabs support methods
+    private readonly Dictionary<int, string> TabIndexToId = new()
+    {
+        { 0, "players" },
+        { 1, "alliances" },
+        { 2, "import" },
+        { 3, "history" }
+    };
+
+    private readonly Dictionary<string, int> TabIdToIndex = new()
+    {
+        { "players", 0 },
+        { "alliances", 1 },
+        { "import", 2 },
+        { "history", 3 }
+    };
+
+    private int GetActiveTabIndex()
+    {
+        if (IsAdmin)
+        {
+            return TabIdToIndex.TryGetValue(ActiveTab, out var index) ? index : 0;
+        }
+        else
+        {
+            // For non-admin users, only players and alliances tabs are available
+            return ActiveTab switch
+            {
+                "players" => 0,
+                "alliances" => 1,
+                _ => 0
+            };
+        }
+    }
+
+    private async Task OnTabChanged(int newIndex)
+    {
+        if (IsAdmin)
+        {
+            if (TabIndexToId.TryGetValue(newIndex, out var tabId))
+            {
+                await SetActiveTab(tabId);
+            }
+        }
+        else
+        {
+            // For non-admin users, map indices to available tabs only
+            var tabId = newIndex switch
+            {
+                0 => "players",
+                1 => "alliances",
+                _ => "players"
+            };
+            await SetActiveTab(tabId);
+        }
+    }
+
     public void Dispose()
     {
         DateState.DateChanged -= OnDateStateChanged;
         RealmState.RealmChanged -= OnRealmStateChanged;
-        _playerSearchTimer?.Dispose();
-        _allianceSearchTimer?.Dispose();
     }
 }
+
+<style>
+    /* Dragon theme styling for MudSelect date selector */
+    .dragon-data-selector {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: var(--dragon-space-3);
+        margin-bottom: 0;
+        padding: var(--dragon-space-4) var(--dragon-space-6);
+        background: var(--dragon-bg-surface);
+        border-radius: var(--dragon-radius-lg);
+        border: 1px solid var(--dragon-border-primary);
+        backdrop-filter: blur(10px);
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: var(--dragon-space-8);
+    }
+
+    .dragon-mud-date-select {
+        min-width: 200px;
+        flex: 1;
+    }
+
+    .dragon-mud-date-select .mud-input-control {
+        background: var(--dragon-bg-surface-hover);
+        border-radius: var(--dragon-radius-md);
+    }
+
+    .dragon-mud-date-select .mud-input-control .mud-input {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-primary);
+        font-size: 0.9rem;
+        font-weight: var(--dragon-font-medium);
+    }
+
+    .dragon-mud-date-select .mud-input-control .mud-input-label {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-primary);
+        font-size: 0.95rem;
+        font-weight: var(--dragon-font-medium);
+    }
+
+    .dragon-mud-date-select .mud-input-control .mud-input-outlined {
+        border-color: var(--dragon-border-primary);
+    }
+
+    .dragon-mud-date-select .mud-input-control .mud-input-outlined:hover {
+        border-color: var(--dragon-border-hover);
+    }
+
+    .dragon-mud-date-select .mud-input-control .mud-input-outlined.mud-input-focused {
+        border-color: var(--dragon-border-active);
+        box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.2);
+    }
+
+    .dragon-mud-date-select .mud-select-input {
+        color: var(--dragon-text-primary);
+    }
+
+    .dragon-mud-date-select .mud-input-adornment-end {
+        color: var(--dragon-text-secondary);
+    }
+
+    /* Mobile responsive design handled by MudBlazor */
+
+    /* Dragon theme styling for MudTextField search inputs */
+    .dragon-search {
+        margin-bottom: var(--dragon-space-6);
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .dragon-mud-search {
+        width: 100%;
+    }
+
+    .dragon-mud-search .mud-input-control {
+        background: var(--dragon-bg-surface);
+        border-radius: var(--dragon-radius-lg);
+        border: 1px solid var(--dragon-border-primary);
+        backdrop-filter: blur(10px);
+        transition: var(--dragon-transition-base);
+    }
+
+    .dragon-mud-search .mud-input-control:hover {
+        border-color: var(--dragon-border-hover);
+        box-shadow: var(--dragon-shadow-sm);
+    }
+
+    .dragon-mud-search .mud-input-control .mud-input {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-primary);
+        font-size: 0.95rem;
+        font-weight: var(--dragon-font-medium);
+        padding: var(--dragon-space-4) var(--dragon-space-5);
+    }
+
+    .dragon-mud-search .mud-input-control .mud-input-label {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-primary);
+        font-size: 1rem;
+        font-weight: var(--dragon-font-medium);
+    }
+
+    .dragon-mud-search .mud-input-control .mud-input-outlined {
+        border-color: var(--dragon-border-primary);
+    }
+
+    .dragon-mud-search .mud-input-control .mud-input-outlined:hover {
+        border-color: var(--dragon-border-hover);
+    }
+
+    .dragon-mud-search .mud-input-control .mud-input-outlined.mud-input-focused {
+        border-color: var(--dragon-border-active);
+        box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.2), var(--dragon-shadow-md);
+    }
+
+    .dragon-mud-search .mud-input-adornment-start {
+        color: var(--dragon-text-secondary);
+        margin-right: var(--dragon-space-3);
+    }
+
+    .dragon-mud-search .mud-input-control .mud-input::placeholder {
+        color: var(--dragon-text-muted);
+        font-style: italic;
+    }
+
+    /* Mobile responsive design for search handled by MudBlazor */
+
+    /* Dragon theme styling for MudTable components */
+    .dragon-mud-table {
+        background: linear-gradient(135deg,
+            rgba(45, 45, 45, 0.95) 0%,
+            rgba(26, 26, 26, 0.9) 100%);
+        border-radius: var(--dragon-radius-2xl);
+        border: 2px solid var(--dragon-border-primary);
+        backdrop-filter: blur(20px);
+        margin: var(--dragon-space-12) 0 var(--dragon-space-16);
+        overflow: hidden;
+        box-shadow: var(--dragon-shadow-2xl);
+        transition: var(--dragon-transition-base);
+        position: relative;
+    }
+
+    .dragon-mud-table::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg,
+            rgba(212, 175, 55, 0.05) 0%,
+            transparent 25%,
+            rgba(139, 69, 19, 0.05) 50%,
+            transparent 75%,
+            rgba(212, 175, 55, 0.05) 100%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .dragon-mud-table .mud-table-toolbar {
+        background: var(--dragon-bg-surface-hover);
+        border-bottom: 1px solid var(--dragon-border-primary);
+        padding: var(--dragon-space-4) var(--dragon-space-6);
+    }
+
+    .dragon-table-title {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-heading);
+        font-weight: var(--dragon-font-semibold);
+    }
+
+    .dragon-table-subtitle {
+        color: var(--dragon-text-secondary);
+        font-family: var(--dragon-font-primary);
+        font-style: italic;
+    }
+
+    .dragon-mud-table .mud-table-head {
+        background: var(--dragon-bg-secondary);
+    }
+
+    .dragon-table-header {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-primary);
+        font-weight: var(--dragon-font-semibold);
+        font-size: var(--dragon-text-sm);
+        line-height: var(--dragon-leading-tight);
+        border-bottom: 2px solid var(--dragon-border-primary);
+        padding: var(--dragon-space-4) var(--dragon-space-5);
+        text-transform: uppercase;
+        letter-spacing: 0.75px;
+        background: linear-gradient(135deg, var(--dragon-bg-secondary), var(--dragon-bg-surface-hover));
+    }
+
+    .dragon-mud-table .mud-table-body .mud-table-row {
+        background: transparent;
+        transition: var(--dragon-transition-base);
+        border-bottom: 1px solid rgba(139, 69, 19, 0.2);
+        min-height: 80px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .dragon-mud-table .mud-table-body .mud-table-row:hover {
+        background: var(--dragon-bg-surface-hover);
+        transform: translateY(-2px);
+        box-shadow: var(--dragon-shadow-lg);
+        border-left: 4px solid var(--dragon-primary);
+        cursor: pointer;
+        filter: brightness(1.02);
+        transition: var(--dragon-transition-base);
+    }
+
+    .dragon-mud-table .mud-table-body .mud-table-row:active {
+        transform: translateY(0);
+        box-shadow: var(--dragon-shadow-md);
+        transition: var(--dragon-transition-fast);
+    }
+
+    .dragon-mud-table .mud-table-body .mud-table-row:nth-child(even) {
+        background: rgba(139, 69, 19, 0.02);
+    }
+
+    .dragon-mud-table .mud-table-body .mud-table-row:nth-child(even):hover {
+        background: var(--dragon-bg-surface-hover);
+    }
+
+    .dragon-table-cell {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-primary);
+        font-size: var(--dragon-text-base);
+        font-weight: var(--dragon-font-normal);
+        line-height: var(--dragon-leading-normal);
+        padding: var(--dragon-space-6) var(--dragon-space-8);
+        border-bottom: 1px solid rgba(139, 69, 19, 0.1);
+        vertical-align: middle;
+        transition: var(--dragon-transition-base);
+        position: relative;
+        z-index: 1;
+    }
+
+    .dragon-clickable {
+        cursor: pointer;
+    }
+
+    .dragon-player-name,
+    .dragon-alliance-name {
+        font-weight: var(--dragon-font-medium);
+        color: var(--dragon-text-primary);
+    }
+
+    .dragon-power-chip {
+        background: linear-gradient(135deg, var(--dragon-primary), var(--dragon-primary-light));
+        color: #ffffff;
+        font-family: var(--dragon-font-primary);
+        font-weight: var(--dragon-font-semibold);
+        font-size: var(--dragon-text-sm);
+        line-height: var(--dragon-leading-tight);
+        border-radius: var(--dragon-radius-md);
+        box-shadow: var(--dragon-shadow-sm);
+        padding: var(--dragon-space-2) var(--dragon-space-3);
+        min-width: 80px;
+        text-align: center;
+        letter-spacing: 0.25px;
+    }
+
+    .dragon-alliance-chip {
+        background: linear-gradient(135deg, var(--dragon-primary-light), var(--dragon-primary));
+        color: #ffffff;
+        font-weight: var(--dragon-font-medium);
+        font-size: 0.8rem;
+        border-radius: var(--dragon-radius-sm);
+        box-shadow: var(--dragon-shadow-sm);
+        padding: var(--dragon-space-1) var(--dragon-space-3);
+    }
+
+    .dragon-rank-chip {
+        background: linear-gradient(135deg, var(--dragon-primary-dark), var(--dragon-primary));
+        color: #ffffff;
+        font-weight: var(--dragon-font-bold);
+        font-size: 0.8rem;
+        border-radius: var(--dragon-radius-sm);
+        box-shadow: var(--dragon-shadow-sm);
+        padding: var(--dragon-space-1) var(--dragon-space-2);
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .dragon-member-chip {
+        background: linear-gradient(135deg, var(--dragon-info), var(--dragon-info-light));
+        color: #ffffff;
+        font-weight: var(--dragon-font-medium);
+        font-size: 0.8rem;
+        border-radius: var(--dragon-radius-sm);
+        box-shadow: var(--dragon-shadow-sm);
+        padding: var(--dragon-space-1) var(--dragon-space-3);
+        transition: var(--dragon-transition-base);
+        cursor: pointer;
+    }
+
+    /* Chip Interactive States */
+    .dragon-power-chip:hover,
+    .dragon-alliance-chip:hover,
+    .dragon-rank-chip:hover,
+    .dragon-member-chip:hover {
+        transform: translateY(-1px) scale(1.02);
+        box-shadow: var(--dragon-shadow-md);
+        filter: brightness(1.1);
+    }
+
+    .dragon-power-chip:active,
+    .dragon-alliance-chip:active,
+    .dragon-rank-chip:active,
+    .dragon-member-chip:active {
+        transform: translateY(0) scale(1);
+        box-shadow: var(--dragon-shadow-sm);
+        transition: var(--dragon-transition-fast);
+    }
+
+    .dragon-no-alliance {
+        color: var(--dragon-text-muted);
+        font-style: italic;
+    }
+
+    .dragon-fortress-info {
+        color: var(--dragon-text-secondary);
+        font-size: 0.85rem;
+    }
+
+    .dragon-no-data {
+        color: var(--dragon-text-secondary);
+        text-align: center;
+        padding: var(--dragon-space-8);
+        font-style: italic;
+    }
+
+    .dragon-mud-table .mud-progress-linear {
+        background: var(--dragon-bg-surface);
+    }
+
+    .dragon-mud-table .mud-progress-linear .mud-progress-linear-bar {
+        background: linear-gradient(90deg, var(--dragon-primary), var(--dragon-primary-light));
+    }
+
+    /* Mobile responsive design for tables handled by MudBlazor */
+
+    /* Dragon theme styling for MudPagination components */
+    .dragon-pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: var(--dragon-space-12) 0 var(--dragon-space-16);
+        padding: var(--dragon-space-8) var(--dragon-space-6);
+        background: linear-gradient(135deg,
+            rgba(45, 45, 45, 0.9) 0%,
+            rgba(26, 26, 26, 0.8) 100%);
+        border-radius: var(--dragon-radius-2xl);
+        border: 2px solid var(--dragon-border-primary);
+        backdrop-filter: blur(20px);
+        box-shadow: var(--dragon-shadow-xl);
+        transition: var(--dragon-transition-base);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dragon-pagination-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg,
+            rgba(212, 175, 55, 0.1) 0%,
+            transparent 25%,
+            rgba(139, 69, 19, 0.1) 50%,
+            transparent 75%,
+            rgba(212, 175, 55, 0.1) 100%);
+        pointer-events: none;
+    }
+
+    /* === PAGINATION STYLING REMOVED === */
+    /* Using default MudBlazor pagination without custom styling */
+
+    /* Dragon theme styling for MudTabs components */
+    .dragon-mud-tabs {
+        margin-bottom: var(--dragon-space-16);
+        background: linear-gradient(135deg,
+            rgba(45, 45, 45, 0.8) 0%,
+            rgba(26, 26, 26, 0.7) 100%);
+        border-radius: var(--dragon-radius-2xl);
+        border: 2px solid var(--dragon-border-primary);
+        backdrop-filter: blur(15px);
+        padding: var(--dragon-space-6);
+        overflow: hidden;
+        position: relative;
+        box-shadow: var(--dragon-shadow-xl);
+    }
+
+    .dragon-mud-tabs::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg,
+            rgba(212, 175, 55, 0.08) 0%,
+            transparent 25%,
+            rgba(139, 69, 19, 0.08) 50%,
+            transparent 75%,
+            rgba(212, 175, 55, 0.08) 100%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .dragon-mud-tabs .mud-tabs-toolbar {
+        background: transparent;
+        border-radius: var(--dragon-radius-lg);
+        padding: 0;
+        gap: var(--dragon-space-2);
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .dragon-mud-tabs .mud-tab {
+        background: transparent;
+        border: none;
+        color: var(--dragon-text-secondary);
+        border-radius: var(--dragon-radius-lg);
+        font-family: var(--dragon-font-primary);
+        font-size: var(--dragon-text-base);
+        font-weight: var(--dragon-font-medium);
+        transition: var(--dragon-transition-base);
+        position: relative;
+        overflow: hidden;
+        padding: var(--dragon-space-6) var(--dragon-space-12);
+        min-height: 56px;
+        text-transform: none;
+        margin: 0 var(--dragon-space-2);
+    }
+
+    .dragon-mud-tabs .mud-tab::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(139, 69, 19, 0.1), transparent);
+        transition: var(--dragon-transition-slow);
+    }
+
+    .dragon-mud-tabs .mud-tab:hover::before {
+        left: 100%;
+    }
+
+    .dragon-mud-tabs .mud-tab:hover {
+        color: var(--dragon-text-primary);
+        transform: translateY(-2px);
+        background: var(--dragon-bg-surface-hover);
+        box-shadow: var(--dragon-shadow-sm);
+        filter: brightness(1.05);
+    }
+
+    .dragon-mud-tabs .mud-tab:active {
+        transform: translateY(0);
+        transition: var(--dragon-transition-fast);
+    }
+
+    .dragon-mud-tabs .mud-tab:focus {
+        outline: none;
+        box-shadow: var(--dragon-shadow-focus);
+    }
+
+    .dragon-mud-tabs .mud-tab.mud-tab-active {
+        background: linear-gradient(135deg, var(--dragon-primary), var(--dragon-primary-light));
+        color: #ffffff;
+        box-shadow: var(--dragon-shadow-md), 0 0 0 1px rgba(255, 255, 255, 0.1);
+        transform: none;
+    }
+
+    .dragon-mud-tabs .mud-tab.mud-tab-active:hover {
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: var(--dragon-shadow-lg), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+
+    .dragon-mud-tabs .mud-tabs-panels {
+        padding: 0;
+        background: transparent;
+        position: relative;
+        z-index: 1;
+    }
+
+    .dragon-tab-panel {
+        padding: 0;
+        background: transparent;
+    }
+
+    /* Admin tab content styling */
+    .dragon-btn-primary.mud-button {
+        background: linear-gradient(135deg, var(--dragon-primary), var(--dragon-primary-light));
+        color: #ffffff;
+        border: none;
+        font-weight: var(--dragon-font-medium);
+        padding: var(--dragon-space-3) var(--dragon-space-6);
+        border-radius: var(--dragon-radius-md);
+        transition: var(--dragon-transition-base);
+    }
+
+    .dragon-btn-primary.mud-button:hover {
+        background: linear-gradient(135deg, var(--dragon-primary-dark), var(--dragon-primary));
+        transform: translateY(-1px);
+        box-shadow: var(--dragon-shadow-md);
+    }
+
+    /* Mobile responsive design for tabs handled by MudBlazor */
+
+    /* Modern label styling */
+    .dragon-select-label {
+        font-family: var(--dragon-font-primary);
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #d4af37;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: var(--dragon-space-2);
+        display: flex;
+        align-items: center;
+        gap: var(--dragon-space-2);
+    }
+
+    /* Modern select styling */
+    .dragon-select {
+        width: 100%;
+        padding: var(--dragon-space-4);
+        background: rgba(26, 26, 26, 0.8);
+        border: 1px solid rgba(139, 69, 19, 0.2);
+        border-radius: var(--dragon-radius-md);
+        color: #f5f5f5;
+        font-family: var(--dragon-font-primary);
+        font-size: 0.95rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 16px;
+        padding-right: 40px;
+    }
+
+    .dragon-select:hover {
+        border-color: rgba(139, 69, 19, 0.4);
+        background: rgba(26, 26, 26, 0.9);
+    }
+
+    .dragon-select:focus {
+        outline: none;
+        border-color: #d4af37;
+        box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+        background: rgba(26, 26, 26, 1);
+        border-color: var(--dragon-primary);
+        box-shadow: 0 0 0 2px rgba(139, 69, 19, 0.2);
+        background-color: var(--dragon-bg-surface);
+    }
+
+    .dragon-select option {
+        background: var(--dragon-bg-surface);
+        color: var(--dragon-text-primary);
+        padding: var(--dragon-space-2);
+    }
+</style>

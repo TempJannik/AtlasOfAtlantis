@@ -1,46 +1,157 @@
-﻿@*
-Sidebar navigation disabled - replaced by dragon theme tabbed navigation in DragonRealmBrowse.razor
+﻿@using DOAMapper.Shared.Services
+@using DOAMapper.Shared.Models.Authentication
+@inject IAuthenticationService AuthService
+@implements IDisposable
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">
-            <img src="_content/DOAMapper.Client/logo.jpeg" alt="Atlas of Atlantis" height="30" class="me-2" />
-            Atlas of Atlantis
-        </a>
-    </div>
-</div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="players" Match="NavLinkMatch.All">
-                <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> Players
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="alliances">
-                <span class="bi bi-shield-fill-nav-menu" aria-hidden="true"></span> Alliances
-            </NavLink>
-        </div>
-
-        <!-- Admin links will always be shown, but protected by route guards -->
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="import">
-                <span class="bi bi-upload-nav-menu" aria-hidden="true"></span> Import Data
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="history">
-                <span class="bi bi-clock-history-nav-menu" aria-hidden="true"></span> History/Analytics
-            </NavLink>
-        </div>
-    </nav>
-</div>
+@*
+MudBlazor-based navigation component for server-side rendering
+This provides a fallback navigation structure using MudBlazor components
 *@
 
-<!-- Navigation is now handled by the dragon theme tabbed interface -->
+<MudDrawer @bind-Open="@_drawerOpen"
+           Elevation="2"
+           Variant="@DrawerVariant.Temporary"
+           Class="dragon-drawer">
+    <MudDrawerHeader Class="dragon-drawer-header">
+        <MudText Typo="Typo.h6" Class="dragon-drawer-title">
+            <img src="logo.jpeg" alt="Atlas of Atlantis" height="24" class="me-2" />
+            Atlas of Atlantis
+        </MudText>
+    </MudDrawerHeader>
+
+    <MudNavMenu Class="dragon-nav-menu">
+        <MudNavLink Href="/players" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.People">
+            Players
+        </MudNavLink>
+        <MudNavLink Href="/alliances" Icon="@Icons.Material.Filled.Shield">
+            Alliances
+        </MudNavLink>
+
+        @if (IsAdmin)
+        {
+            <MudDivider Class="my-2" />
+            <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+                <MudNavLink Href="/import" Icon="@Icons.Material.Filled.Upload">
+                    Import Data
+                </MudNavLink>
+                <MudNavLink Href="/history" Icon="@Icons.Material.Filled.Analytics">
+                    History/Analytics
+                </MudNavLink>
+            </MudNavGroup>
+        }
+    </MudNavMenu>
+</MudDrawer>
+
+<MudAppBar Elevation="1" Class="dragon-appbar">
+    <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                   Color="Color.Inherit"
+                   Edge="Edge.Start"
+                   OnClick="@ToggleDrawer" />
+    <MudText Typo="Typo.h6" Class="dragon-appbar-title">Atlas of Atlantis</MudText>
+    <MudSpacer />
+    @if (IsAuthenticated)
+    {
+        <MudChip T="string" Color="Color.Primary" Size="Size.Small">
+            @(IsAdmin ? "Admin" : "User")
+        </MudChip>
+    }
+</MudAppBar>
+
+<style>
+    /* Dragon theme styling for MudBlazor navigation */
+    .dragon-drawer {
+        background: var(--dragon-bg-secondary);
+        border-right: 1px solid var(--dragon-border-primary);
+    }
+
+    .dragon-drawer-header {
+        background: var(--dragon-bg-surface);
+        border-bottom: 1px solid var(--dragon-border-primary);
+        padding: var(--dragon-space-4);
+    }
+
+    .dragon-drawer-title {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-heading);
+        font-weight: var(--dragon-font-semibold);
+        display: flex;
+        align-items: center;
+    }
+
+    .dragon-nav-menu .mud-nav-link {
+        color: var(--dragon-text-secondary);
+        border-radius: var(--dragon-radius-md);
+        margin: var(--dragon-space-1) var(--dragon-space-3);
+        transition: var(--dragon-transition-base);
+    }
+
+    .dragon-nav-menu .mud-nav-link:hover {
+        background: var(--dragon-bg-surface-hover);
+        color: var(--dragon-text-primary);
+    }
+
+    .dragon-nav-menu .mud-nav-link.active {
+        background: linear-gradient(135deg, var(--dragon-primary), var(--dragon-primary-light));
+        color: #ffffff;
+    }
+
+    .dragon-appbar {
+        background: var(--dragon-bg-secondary);
+        border-bottom: 1px solid var(--dragon-border-primary);
+    }
+
+    .dragon-appbar-title {
+        color: var(--dragon-text-primary);
+        font-family: var(--dragon-font-heading);
+        font-weight: var(--dragon-font-semibold);
+    }
+</style>
+
+@code {
+    private bool _drawerOpen = false;
+    private bool IsAdmin = false;
+    private bool IsAuthenticated = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await UpdateAuthenticationState();
+    }
+
+    private async Task UpdateAuthenticationState()
+    {
+        try
+        {
+            IsAuthenticated = await AuthService.IsAuthenticatedAsync();
+            IsAdmin = await AuthService.IsAdminAsync();
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            IsAuthenticated = false;
+            IsAdmin = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private async void OnAuthenticationStateChanged(AuthenticationState newState)
+    {
+        await InvokeAsync(() =>
+        {
+            IsAuthenticated = newState.IsAuthenticated;
+            IsAdmin = newState.IsAdmin;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}
 
