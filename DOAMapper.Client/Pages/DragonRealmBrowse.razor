@@ -90,14 +90,14 @@
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh Class="dragon-table-header">Rank</MudTh>
+                    <MudTh Class="dragon-table-header dragon-hide-mobile">Rank</MudTh>
                     <MudTh Class="dragon-table-header">Name</MudTh>
                     <MudTh Class="dragon-table-header">Power</MudTh>
-                    <MudTh Class="dragon-table-header">City</MudTh>
+                    <MudTh Class="dragon-table-header dragon-hide-mobile">City</MudTh>
                     <MudTh Class="dragon-table-header">Alliance</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToPlayer(context.PlayerId)">
+                    <MudTd Class="dragon-table-cell dragon-clickable dragon-hide-mobile" @onclick="() => NavigateToPlayer(context.PlayerId)">
                         <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Class="dragon-rank-chip">
                             #@context.Rank
                         </MudChip>
@@ -110,7 +110,7 @@
                             @context.Might.ToString("N0")
                         </MudChip>
                     </MudTd>
-                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToPlayer(context.PlayerId)">
+                    <MudTd Class="dragon-table-cell dragon-clickable dragon-hide-mobile" @onclick="() => NavigateToPlayer(context.PlayerId)">
                         <MudText Typo="Typo.body2">@context.CityName</MudText>
                     </MudTd>
                     <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToPlayer(context.PlayerId)">
@@ -189,15 +189,15 @@
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh Class="dragon-table-header">Rank</MudTh>
+                    <MudTh Class="dragon-table-header dragon-hide-mobile">Rank</MudTh>
                     <MudTh Class="dragon-table-header">Name</MudTh>
-                    <MudTh Class="dragon-table-header">Leader</MudTh>
+                    <MudTh Class="dragon-table-header dragon-hide-mobile">Leader</MudTh>
                     <MudTh Class="dragon-table-header">Power</MudTh>
                     <MudTh Class="dragon-table-header">Members</MudTh>
-                    <MudTh Class="dragon-table-header">Fortress</MudTh>
+                    <MudTh Class="dragon-table-header dragon-hide-mobile">Fortress</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
+                    <MudTd Class="dragon-table-cell dragon-clickable dragon-hide-mobile" @onclick="() => NavigateToAlliance(context.AllianceId)">
                         <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Class="dragon-rank-chip">
                             #@(AllianceResults.Items.ToList().IndexOf(context) + 1 + (AllianceCurrentPage - 1) * AlliancePageSize)
                         </MudChip>
@@ -205,7 +205,7 @@
                     <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
                         <MudText Typo="Typo.body2" Class="dragon-alliance-name">@context.Name</MudText>
                     </MudTd>
-                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
+                    <MudTd Class="dragon-table-cell dragon-clickable dragon-hide-mobile" @onclick="() => NavigateToAlliance(context.AllianceId)">
                         <MudText Typo="Typo.body2">@context.OverlordName</MudText>
                     </MudTd>
                     <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
@@ -218,7 +218,7 @@
                             @context.MemberCount
                         </MudChip>
                     </MudTd>
-                    <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToAlliance(context.AllianceId)">
+                    <MudTd Class="dragon-table-cell dragon-clickable dragon-hide-mobile" @onclick="() => NavigateToAlliance(context.AllianceId)">
                         <MudText Typo="Typo.body2" Class="dragon-fortress-info">
                             Lv @context.FortressLevel (@context.FortressX, @context.FortressY)
                         </MudText>
@@ -1410,5 +1410,83 @@
         background: var(--dragon-bg-surface);
         color: var(--dragon-text-primary);
         padding: var(--dragon-space-2);
+    }
+
+    /* Custom responsive class for hiding columns on mobile */
+    @@media (max-width: 960px) {
+        .dragon-hide-mobile,
+        th.dragon-hide-mobile,
+        td.dragon-hide-mobile,
+        .mud-table-cell.dragon-hide-mobile,
+        .mud-th.dragon-hide-mobile,
+        .mud-td.dragon-hide-mobile {
+            display: none !important;
+        }
+    }
+
+    /* Mobile fixes with maximum specificity */
+    @@media (max-width: 960px) {
+        /* Fix toolbar spacing - target all possible MudBlazor toolbar classes */
+        .mud-table-toolbar,
+        .mud-toolbar,
+        div[class*="mud-table-toolbar"],
+        div[class*="mud-toolbar"] {
+            padding: 20px 16px !important;
+            margin: 0 !important;
+        }
+
+        /* Fix cell alignment - target all possible MudBlazor cell classes */
+        .mud-table-cell,
+        .mud-td,
+        td[class*="mud"],
+        div[class*="mud-table-cell"] {
+            text-align: left !important;
+            justify-content: flex-start !important;
+            align-items: flex-start !important;
+        }
+
+        /* Force table layout and remove extra spacing */
+        .mud-table,
+        .dragon-mud-table,
+        table[class*="mud"],
+        div[class*="mud-table"] {
+            table-layout: auto !important;
+            margin: 0 !important;
+        }
+
+        .mud-table-body tr,
+        tbody[class*="mud"] tr {
+            display: table-row !important;
+        }
+
+        .mud-table-body td,
+        tbody[class*="mud"] td {
+            display: table-cell !important;
+            vertical-align: middle !important;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .mud-table-toolbar,
+        .mud-toolbar,
+        div[class*="mud-table-toolbar"],
+        div[class*="mud-toolbar"] {
+            padding: 16px 12px !important;
+            margin: 0 !important;
+        }
+
+        .mud-table-cell,
+        .mud-td,
+        td[class*="mud"],
+        div[class*="mud-table-cell"] {
+            padding: 8px 6px !important;
+        }
+
+        /* Ensure table container doesn't add extra spacing */
+        .mud-table,
+        .dragon-mud-table,
+        div[class*="mud-table"] {
+            margin: 0 !important;
+        }
     }
 </style>

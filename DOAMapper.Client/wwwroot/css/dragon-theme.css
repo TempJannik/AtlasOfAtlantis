@@ -753,6 +753,28 @@ h6 { font-size: 1rem; }
         font-size: 0.9rem; /* Slightly smaller font on mobile */
     }
 
+    /* Mobile table fixes - using correct MudBlazor classes with high specificity */
+    .dragon-mud-table .mud-table-toolbar,
+    .mud-table .mud-table-toolbar {
+        padding: var(--dragon-space-6) var(--dragon-space-4) !important;
+    }
+
+    .dragon-mud-table .mud-table-cell,
+    .mud-table .mud-table-cell {
+        text-align: left !important;
+    }
+
+    .dragon-mud-table .mud-table-body .mud-table-row,
+    .mud-table .mud-table-body .mud-table-row {
+        display: table-row !important;
+    }
+
+    .dragon-mud-table .mud-table-body .mud-table-cell,
+    .mud-table .mud-table-body .mud-table-cell {
+        display: table-cell !important;
+        vertical-align: middle !important;
+    }
+
     .dragon-select {
         min-width: 180px; /* Reduce min-width for mobile */
         font-size: 0.85rem; /* Smaller font for mobile */
@@ -969,6 +991,17 @@ h6 { font-size: 1rem; }
 
     .dragon-data-label {
         font-size: 0.85rem;
+    }
+
+    /* Extra mobile table fixes for very small screens */
+    .dragon-mud-table .mud-table-toolbar,
+    .mud-table .mud-table-toolbar {
+        padding: var(--dragon-space-4) var(--dragon-space-3) !important;
+    }
+
+    .dragon-mud-table .mud-table-cell,
+    .mud-table .mud-table-cell {
+        padding: var(--dragon-space-4) var(--dragon-space-3) !important;
     }
 
     .dragon-select {
