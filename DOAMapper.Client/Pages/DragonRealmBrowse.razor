@@ -93,7 +93,7 @@
                     <MudTh Class="dragon-table-header dragon-hide-mobile">Rank</MudTh>
                     <MudTh Class="dragon-table-header">Name</MudTh>
                     <MudTh Class="dragon-table-header">Power</MudTh>
-                    <MudTh Class="dragon-table-header dragon-hide-mobile">City</MudTh>
+                    <MudTh Class="dragon-table-header dragon-hide-mobile">Location</MudTh>
                     <MudTh Class="dragon-table-header">Alliance</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -111,7 +111,14 @@
                         </MudChip>
                     </MudTd>
                     <MudTd Class="dragon-table-cell dragon-clickable dragon-hide-mobile" @onclick="() => NavigateToPlayer(context.PlayerId)">
-                        <MudText Typo="Typo.body2">@context.CityName</MudText>
+                        @if (context.CityX.HasValue && context.CityY.HasValue)
+                        {
+                            <MudText Typo="Typo.body2">(@context.CityX, @context.CityY)</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="dragon-text-secondary">—</MudText>
+                        }
                     </MudTd>
                     <MudTd Class="dragon-table-cell dragon-clickable" @onclick="() => NavigateToPlayer(context.PlayerId)">
                         @if (!string.IsNullOrEmpty(context.AllianceName))

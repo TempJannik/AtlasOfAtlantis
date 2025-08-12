@@ -123,9 +123,21 @@
                                                 <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="me-2" />
                                                 @member.Name
                                             </MudText>
-                                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Class="dragon-member-power">
-                                                @member.Might.ToString("N0")
-                                            </MudChip>
+                                            <div class="d-flex align-center" style="gap:8px;">
+                                                <MudText Typo="Typo.body2" Class="dragon-text-secondary">
+                                                    @if (member.CityX.HasValue && member.CityY.HasValue)
+                                                    {
+                                                        <span>(@member.CityX, @member.CityY)</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>—</span>
+                                                    }
+                                                </MudText>
+                                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Class="dragon-member-power">
+                                                    @member.Might.ToString("N0")
+                                                </MudChip>
+                                            </div>
                                         </div>
                                     </MudPaper>
                                 }

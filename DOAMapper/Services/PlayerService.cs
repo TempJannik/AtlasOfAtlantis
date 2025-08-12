@@ -89,6 +89,42 @@ public class PlayerService : IPlayerService
 
         var playerDtos = _mapper.Map<List<PlayerDto>>(players);
 
+        // Load city tile coordinates for these players at the given date/realm
+        try
+        {
+            var playerIds = players.Select(p => p.PlayerId).Distinct().ToList();
+            if (playerIds.Count > 0)
+            {
+                var cityTiles = await _context.Tiles
+                    .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
+                    .Join(_context.Realms, ts => ts.Session.RealmId, r => r.Id, (ts, r) => new { ts.Tile, ts.Session, Realm = r })
+                    .Where(tsr => tsr.Realm.RealmId == realmId &&
+                                  tsr.Tile.Type == "City" &&
+                                  tsr.Tile.PlayerId != null && playerIds.Contains(tsr.Tile.PlayerId) &&
+                                  tsr.Tile.ValidFrom <= utcDate &&
+                                  (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > utcDate))
+                    .Select(tsr => tsr.Tile)
+                    .ToListAsync();
+
+                var cityLookup = cityTiles
+                    .GroupBy(t => t.PlayerId!)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(t => t.ValidFrom).First());
+
+                foreach (var dto in playerDtos)
+                {
+                    if (dto.PlayerId != null && cityLookup.TryGetValue(dto.PlayerId, out var tile))
+                    {
+                        dto.CityX = tile.X;
+                        dto.CityY = tile.Y;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load city coordinates for players page {Page}", page);
+        }
+
         // Set the data date and rank for each player
         foreach (var dto in playerDtos)
         {

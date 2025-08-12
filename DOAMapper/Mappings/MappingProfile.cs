@@ -12,8 +12,10 @@ public class MappingProfile : Profile
         CreateMap<Player, PlayerDto>()
             .ForMember(dest => dest.AllianceName, opt => opt.MapFrom(src => src.Alliance != null ? src.Alliance.Name : null))
             .ForMember(dest => dest.DataDate, opt => opt.MapFrom(src => src.ValidFrom))
-            .ForMember(dest => dest.Rank, opt => opt.Ignore()); // Rank is set manually in the service
-            
+            .ForMember(dest => dest.Rank, opt => opt.Ignore()) // Rank is set manually in the service
+            .ForMember(dest => dest.CityX, opt => opt.Ignore())
+            .ForMember(dest => dest.CityY, opt => opt.Ignore());
+
         CreateMap<Player, PlayerDetailDto>()
             .IncludeBase<Player, PlayerDto>()
             .ForMember(dest => dest.TileCount, opt => opt.MapFrom(src => src.Tiles.Count))
