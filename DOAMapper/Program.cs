@@ -230,16 +230,7 @@ else
     });
     app.UseHsts();
 
-    // Swagger also enabled in production (per request)
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-// Enable Output Cache
-app.UseOutputCache();
-
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DOAMapper API v1");
-        c.RoutePrefix = string.Empty; // Serve Swagger UI at application root
-    });
+    // Swagger disabled in production
 }
 
 // API-only: no HTTPS redirection here (handled by hosting)
