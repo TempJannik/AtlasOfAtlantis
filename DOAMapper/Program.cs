@@ -1,13 +1,13 @@
 using DOAMapper.Services;
-using DOAMapper.Components;
 using DOAMapper.Data;
 using DOAMapper.Shared.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using MudBlazor.Services;
 using Serilog;
 using System.Text;
 
@@ -33,12 +33,34 @@ builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database", LogLevel.Non
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.None);
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents()
-    .AddInteractiveWebAssemblyComponents();
+// API-only: no Razor components or interactive rendering
 
 // Add API controllers
 builder.Services.AddControllers();
+
+// Output caching: long TTL policy with broad vary and global tag for invalidation
+builder.Services.AddOutputCache(options =>
+{
+    options.AddPolicy("LongLivedData", b => b
+        .Expire(TimeSpan.FromHours(12))
+        .SetVaryByQuery("*")
+        .Tag("data"));
+});
+
+// OpenAPI/Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+// CORS: allow all origins/headers/methods (turn off verification)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+        policy
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .SetIsOriginAllowed(_ => true) // allow any origin by echoing it back
+            .AllowCredentials());
+});
+
 
 // Configure request size limits for large file uploads (100MB)
 builder.Services.Configure<IISServerOptions>(options =>
@@ -147,9 +169,6 @@ builder.Services.AddSingleton<DOAMapper.Services.ErrorHandlingService>();
 builder.Services.AddScoped<DOAMapper.Services.BackgroundImportService>();
 builder.Services.AddScoped<DOAMapper.Services.ImportStatusService>();
 
-// Add MudBlazor services
-builder.Services.AddMudServices();
-
 // Server should only register server services
 // Client services are registered in the client project's Program.cs
 
@@ -191,26 +210,45 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseWebAssemblyDebugging();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 else
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    // Generic API exception handler producing ProblemDetails
+    app.UseExceptionHandler(errorApp =>
+    {
+        errorApp.Run(async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/problem+json";
+            var problem = Results.Problem(
+                title: "An unexpected error occurred",
+                statusCode: StatusCodes.Status500InternalServerError);
+            await problem.ExecuteAsync(context);
+        });
+    });
     app.UseHsts();
+
+    // Swagger also enabled in production (per request)
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+// Enable Output Cache
+app.UseOutputCache();
+
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DOAMapper API v1");
+        c.RoutePrefix = string.Empty; // Serve Swagger UI at application root
+    });
 }
 
-// Comment out HTTPS redirection for Railway deployment (Railway handles HTTPS at load balancer level)
-// app.UseHttpsRedirection();
+// API-only: no HTTPS redirection here (handled by hosting)
 
+// Enable Output Cache globally
+app.UseOutputCache();
 
-app.UseAntiforgery();
-
-app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode()
-    .AddInteractiveWebAssemblyRenderMode()
-    .AddAdditionalAssemblies(typeof(DOAMapper.Client._Imports).Assembly);
+// Enable CORS globally (both environments)
+app.UseCors("AllowAll");
 
 // Map API controllers
 app.MapControllers();

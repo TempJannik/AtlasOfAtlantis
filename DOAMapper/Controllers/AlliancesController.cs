@@ -3,6 +3,7 @@ using DOAMapper.Services.Interfaces;
 using DOAMapper.Shared.Services;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace DOAMapper.Controllers;
 
@@ -22,6 +23,7 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<PagedResult<AllianceDto>>> GetAlliances(
         [FromQuery] string? realmId = null,
         [FromQuery] DateTime? date = null,
@@ -61,6 +63,7 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("search")]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<PagedResult<AllianceDto>>> SearchAlliances(
         [FromQuery] string query = "",
         [FromQuery] string? realmId = null,
@@ -101,6 +104,7 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("{realmId}/{allianceId}")]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<AllianceDto>> GetAlliance(
         string realmId,
         string allianceId,
@@ -136,6 +140,7 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("{realmId}/{allianceId}/members")]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<PagedResult<PlayerDto>>> GetAllianceMembers(
         string realmId,
         string allianceId,
@@ -218,6 +223,7 @@ public class AlliancesController : ControllerBase
     }
 
     [HttpGet("dates")]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<List<DateTime>>> GetAvailableDates([FromQuery] string? realmId = null)
     {
         // Require realm ID

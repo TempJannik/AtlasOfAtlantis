@@ -4,6 +4,8 @@ using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Models.Entities;
 using DOAMapper.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using DOAMapper.Shared.Models.Enums;
+
 
 namespace DOAMapper.Services;
 
@@ -38,9 +40,9 @@ public class MapService : IMapService
         const int maxRegionSize = 100; // 100x100 tiles max
         if ((maxX - minX) > maxRegionSize || (maxY - minY) > maxRegionSize)
         {
-            _logger.LogWarning("Region size too large: {Width}x{Height}, limiting to {MaxSize}x{MaxSize}", 
+            _logger.LogWarning("Region size too large: {Width}x{Height}, limiting to {MaxSize}x{MaxSize}",
                 maxX - minX, maxY - minY, maxRegionSize, maxRegionSize);
-            
+
             maxX = Math.Min(maxX, minX + maxRegionSize);
             maxY = Math.Min(maxY, minY + maxRegionSize);
         }
@@ -55,14 +57,14 @@ public class MapService : IMapService
             .ToListAsync();
 
         var tileDtos = _mapper.Map<List<TileDto>>(tiles);
-        
+
         // Set the data date for each tile
         foreach (var dto in tileDtos)
         {
             dto.DataDate = utcDate;
         }
 
-        _logger.LogInformation("Found {Count} tiles in region ({MinX},{MinY}) to ({MaxX},{MaxY})", 
+        _logger.LogInformation("Found {Count} tiles in region ({MinX},{MinY}) to ({MaxX},{MaxY})",
             tiles.Count, minX, minY, maxX, maxY);
 
         return tileDtos;
@@ -108,15 +110,31 @@ public class MapService : IMapService
         {
             var tile = tileHistory[i];
             var tileDto = _mapper.Map<TileDto>(tile);
-            
+
             string changeType = "Added";
+            var changes = new List<string>();
             if (i < tileHistory.Count - 1)
             {
                 var previousTile = tileHistory[i + 1];
-                if (tile.Type != previousTile.Type || 
-                    tile.Level != previousTile.Level || 
-                    tile.PlayerId != previousTile.PlayerId ||
-                    tile.AllianceId != previousTile.AllianceId)
+                if (tile.Type != previousTile.Type)
+                {
+                    changes.Add($"Type: {previousTile.Type} → {tile.Type}");
+                }
+                if (tile.Level != previousTile.Level)
+                {
+                    changes.Add($"Level: {previousTile.Level} → {tile.Level}");
+                }
+                if (tile.PlayerId != previousTile.PlayerId)
+                {
+                    var dir = string.IsNullOrEmpty(previousTile.PlayerId) && !string.IsNullOrEmpty(tile.PlayerId) ? "assigned" :
+                              !string.IsNullOrEmpty(previousTile.PlayerId) && string.IsNullOrEmpty(tile.PlayerId) ? "cleared" : "changed";
+                    changes.Add($"Owner {dir}");
+                }
+                if (tile.AllianceId != previousTile.AllianceId)
+                {
+                    changes.Add("Alliance changed");
+                }
+                if (changes.Count > 0)
                 {
                     changeType = "Modified";
                 }
@@ -127,12 +145,17 @@ public class MapService : IMapService
                 changeType = "Removed";
             }
 
+            var state = changeType == "Added" ? HistoryState.Added
+                       : changeType == "Modified" ? HistoryState.Changed
+                       : HistoryState.Removed;
+
             historyEntries.Add(new HistoryEntryDto<TileDto>
             {
                 Data = tileDto,
                 ValidFrom = tile.ValidFrom,
                 ValidTo = tile.ValidTo,
-                ChangeType = changeType
+                State = state,
+                Changes = changes
             });
         }
 

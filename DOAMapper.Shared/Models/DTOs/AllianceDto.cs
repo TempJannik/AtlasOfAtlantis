@@ -10,5 +10,7 @@ public class AllianceDto
     public int FortressX { get; set; }
     public int FortressY { get; set; }
     public int MemberCount { get; set; }
+    public int Rank { get; set; }
+
     public DateTime DataDate { get; set; }
 }

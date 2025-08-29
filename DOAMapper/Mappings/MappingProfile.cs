@@ -24,8 +24,9 @@ public class MappingProfile : Profile
                 
         CreateMap<Alliance, AllianceDto>()
             .ForMember(dest => dest.MemberCount, opt => opt.MapFrom(src => src.Members.Count))
-            .ForMember(dest => dest.DataDate, opt => opt.MapFrom(src => src.ValidFrom));
-            
+            .ForMember(dest => dest.DataDate, opt => opt.MapFrom(src => src.ValidFrom))
+            .ForMember(dest => dest.Rank, opt => opt.Ignore());
+
         CreateMap<Tile, TileDto>()
             .ForMember(dest => dest.PlayerName, opt => opt.MapFrom(src => src.Player != null ? src.Player.Name : null))
             .ForMember(dest => dest.AllianceName, opt => opt.MapFrom(src => src.Alliance != null ? src.Alliance.Name : null))

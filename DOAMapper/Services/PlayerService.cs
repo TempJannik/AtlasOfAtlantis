@@ -4,6 +4,8 @@ using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Models.Entities;
 using DOAMapper.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using DOAMapper.Shared.Models.Enums;
+
 
 namespace DOAMapper.Services;
 
@@ -47,10 +49,10 @@ public class PlayerService : IPlayerService
             .OrderByDescending(p => p.Might)
             .ToList();
 
-        // Create rank lookup dictionary
+        // Create rank lookup dictionary (trim PlayerId to avoid whitespace mismatches)
         var rankLookup = deduplicatedPlayers
-            .Select((player, index) => new { player.PlayerId, Rank = index + 1 })
-            .ToDictionary(x => x.PlayerId, x => x.Rank);
+            .Select((player, index) => new { PlayerId = player.PlayerId.Trim(), Rank = index + 1 })
+            .ToDictionary(x => x.PlayerId, x => x.Rank, StringComparer.Ordinal);
 
         // Now apply search filter to the deduplicated players
         var filteredPlayers = deduplicatedPlayers.AsQueryable();
@@ -99,16 +101,16 @@ public class PlayerService : IPlayerService
                     .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
                     .Join(_context.Realms, ts => ts.Session.RealmId, r => r.Id, (ts, r) => new { ts.Tile, ts.Session, Realm = r })
                     .Where(tsr => tsr.Realm.RealmId == realmId &&
-                                  tsr.Tile.Type == "City" &&
                                   tsr.Tile.PlayerId != null && playerIds.Contains(tsr.Tile.PlayerId) &&
                                   tsr.Tile.ValidFrom <= utcDate &&
-                                  (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > utcDate))
+                                  (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > utcDate) &&
+                                  tsr.Tile.Type.Trim().ToLower() == "city")
                     .Select(tsr => tsr.Tile)
                     .ToListAsync();
 
                 var cityLookup = cityTiles
-                    .GroupBy(t => t.PlayerId!)
-                    .ToDictionary(g => g.Key, g => g.OrderByDescending(t => t.ValidFrom).First());
+                    .GroupBy(t => t.PlayerId!.Trim())
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(t => t.ValidFrom).First(), StringComparer.Ordinal);
 
                 foreach (var dto in playerDtos)
                 {
@@ -129,7 +131,8 @@ public class PlayerService : IPlayerService
         foreach (var dto in playerDtos)
         {
             dto.DataDate = utcDate;
-            dto.Rank = rankLookup.TryGetValue(dto.PlayerId, out var rank) ? rank : 0;
+            var key = (dto.PlayerId ?? string.Empty).Trim();
+            dto.Rank = rankLookup.TryGetValue(key, out var rank) ? rank : 0;
         }
 
         _logger.LogInformation("Found {Count} players matching query '{Query}' with ranks calculated", totalCount, query);
@@ -189,6 +192,42 @@ public class PlayerService : IPlayerService
         var playerDetail = _mapper.Map<PlayerDetailDto>(player);
         playerDetail.DataDate = utcDate;
 
+        // Populate CityX/CityY from City tile in this realm at this date
+        try
+        {
+            var cityTile = await _context.Tiles
+                .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
+                .Join(_context.Realms, ts => ts.Session.RealmId, r => r.Id, (ts, r) => new { ts.Tile, ts.Session, Realm = r })
+                .Where(tsr => tsr.Realm.RealmId == realmId &&
+                              tsr.Tile.PlayerId == player.PlayerId &&
+                              tsr.Tile.ValidFrom <= utcDate &&
+                              (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > utcDate) &&
+                              tsr.Tile.Type.Trim().ToLower() == "city")
+                .OrderByDescending(tsr => tsr.Tile.ValidFrom)
+                .Select(tsr => tsr.Tile)
+                .FirstOrDefaultAsync();
+
+            if (cityTile != null)
+            {
+                playerDetail.CityX = cityTile.X;
+                playerDetail.CityY = cityTile.Y;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load city coordinates for player {PlayerId}", playerId);
+        }
+
+        // Compute and set rank for this player
+        try
+        {
+            playerDetail.Rank = await GetPlayerRankAsync(playerId, realmId, utcDate);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to compute rank for player {PlayerId}", playerId);
+        }
+
         _logger.LogInformation("Found player {PlayerName} with {TileCount} tiles", player.Name, player.Tiles.Count);
 
         return playerDetail;
@@ -215,7 +254,7 @@ public class PlayerService : IPlayerService
             .ToListAsync();
 
         var tileDtos = _mapper.Map<List<TileDto>>(tiles);
-        
+
         // Set the data date for each tile
         foreach (var dto in tileDtos)
         {
@@ -246,6 +285,63 @@ public class PlayerService : IPlayerService
             var player = playerHistory[i];
             var playerDto = _mapper.Map<PlayerDto>(player);
 
+            // Populate CityX/CityY and AllianceName for this entry at its ValidFrom, scoped to realm
+            try
+            {
+                // City tile
+                var cityTile = await _context.Tiles
+                    .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
+                    .Join(_context.Realms, ts => ts.Session.RealmId, r => r.Id, (ts, r) => new { ts.Tile, ts.Session, Realm = r })
+                    .Where(tsr => tsr.Realm.RealmId == realmId &&
+                                  tsr.Tile.PlayerId == player.PlayerId &&
+                                  tsr.Tile.ValidFrom <= player.ValidFrom &&
+                                  (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > player.ValidFrom) &&
+                                  tsr.Tile.Type.Trim().ToLower() == "city")
+                    .OrderByDescending(tsr => tsr.Tile.ValidFrom)
+                    .Select(tsr => tsr.Tile)
+                    .FirstOrDefaultAsync();
+
+                if (cityTile != null)
+                {
+                    playerDto.CityX = cityTile.X;
+                    playerDto.CityY = cityTile.Y;
+                }
+
+                // Alliance name
+                if (!string.IsNullOrEmpty(player.AllianceId))
+                {
+                    var alliance = await _context.Alliances
+                        .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+                        .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
+                        .Where(asr => asr.Realm.RealmId == realmId &&
+                                     asr.Alliance.AllianceId == player.AllianceId &&
+                                     asr.Alliance.ValidFrom <= player.ValidFrom &&
+                                     (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > player.ValidFrom))
+                        .OrderByDescending(asr => asr.Alliance.ValidFrom)
+                        .Select(asr => asr.Alliance)
+                        .FirstOrDefaultAsync();
+
+                    if (alliance != null)
+                    {
+                        playerDto.AllianceName = alliance.Name;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to populate coordinates or alliance for history entry {Index}", i);
+            }
+
+            // Compute and set rank for this snapshot
+            try
+            {
+                playerDto.Rank = await GetPlayerRankAsync(player.PlayerId, realmId, player.ValidFrom);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to compute rank for history entry {Index}", i);
+            }
+
             string changeType = "Added";
             var changeDetails = new List<string>();
 
@@ -262,7 +358,7 @@ public class PlayerService : IPlayerService
                 }
                 if (player.Might != previousPlayer.Might)
                 {
-                    changeDetails.Add($"Might changed from {previousPlayer.Might:N0} to {player.Might:N0}");
+                    changeDetails.Add($"Power changed from {previousPlayer.Might:N0} to {player.Might:N0}");
                     hasBasicChanges = true;
                 }
                 if (player.CityName != previousPlayer.CityName)
@@ -274,12 +370,30 @@ public class PlayerService : IPlayerService
                 {
                     var oldAllianceName = previousPlayer.Alliance?.Name ?? "None";
                     var newAllianceName = player.Alliance?.Name ?? "None";
-                    changeDetails.Add($"Alliance changed from '{oldAllianceName}' to '{newAllianceName}'");
+                    if (string.IsNullOrEmpty(previousPlayer.AllianceId) && !string.IsNullOrEmpty(player.AllianceId))
+                        changeDetails.Add($"Joined alliance '{newAllianceName}'");
+                    else if (!string.IsNullOrEmpty(previousPlayer.AllianceId) && string.IsNullOrEmpty(player.AllianceId))
+                        changeDetails.Add($"Left alliance '{oldAllianceName}'");
+                    else
+                        changeDetails.Add($"Alliance changed from '{oldAllianceName}' to '{newAllianceName}'");
                     hasBasicChanges = true;
                 }
 
+                // Rank change (smaller rank value is higher)
+                try
+                {
+                    var prevRank = await GetPlayerRankAsync(playerId, realmId, previousPlayer.ValidFrom);
+                    var curRank = await GetPlayerRankAsync(playerId, realmId, player.ValidFrom);
+                    if (prevRank > 0 && curRank > 0 && prevRank != curRank)
+                    {
+                        var dir = curRank < prevRank ? "increase" : "decrease";
+                        changeDetails.Add($"Rank {dir}: {prevRank} → {curRank}");
+                    }
+                }
+                catch { /* ignore rank diff failures */ }
+
                 // Check for city coordinate and wilderness changes by analyzing tile data
-                await AnalyzeTileChangesForPlayerAsync(playerId, player.ValidFrom, previousPlayer.ValidFrom, changeDetails);
+                await AnalyzeTileChangesForPlayerAsync(realmId, playerId, player.ValidFrom, previousPlayer.ValidFrom, changeDetails);
 
                 if (hasBasicChanges || changeDetails.Count > 0)
                 {
@@ -287,24 +401,23 @@ public class PlayerService : IPlayerService
                 }
             }
 
-            if (!player.IsActive)
+            // Only mark Removed for the most recent entry if it's currently inactive
+            if (i == 0 && !player.IsActive)
             {
                 changeType = "Removed";
             }
 
-            // Create a custom change type that includes details
-            var displayChangeType = changeType;
-            if (changeDetails.Any())
-            {
-                displayChangeType = $"{changeType}: {string.Join("; ", changeDetails)}";
-            }
+            var state = changeType == "Added" ? HistoryState.Added
+                       : changeType == "Modified" ? HistoryState.Changed
+                       : HistoryState.Removed;
 
             historyEntries.Add(new HistoryEntryDto<PlayerDto>
             {
                 Data = playerDto,
                 ValidFrom = player.ValidFrom,
                 ValidTo = player.ValidTo,
-                ChangeType = displayChangeType
+                State = state,
+                Changes = changeDetails
             });
         }
 
@@ -313,24 +426,32 @@ public class PlayerService : IPlayerService
         return historyEntries;
     }
 
-    private async Task AnalyzeTileChangesForPlayerAsync(string playerId, DateTime currentDate, DateTime previousDate, List<string> changeDetails)
+    private async Task AnalyzeTileChangesForPlayerAsync(string realmId, string playerId, DateTime currentDate, DateTime previousDate, List<string> changeDetails)
     {
-        // Get tiles for both dates
+        // Get tiles for both dates, scoped to realm
         var currentTiles = await _context.Tiles
-            .Where(t => t.PlayerId == playerId &&
-                       t.ValidFrom <= currentDate &&
-                       (t.ValidTo == null || t.ValidTo > currentDate))
+            .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
+            .Join(_context.Realms, ts => ts.Session.RealmId, r => r.Id, (ts, r) => new { ts.Tile, ts.Session, Realm = r })
+            .Where(tsr => tsr.Realm.RealmId == realmId &&
+                          tsr.Tile.PlayerId == playerId &&
+                          tsr.Tile.ValidFrom <= currentDate &&
+                          (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > currentDate))
+            .Select(tsr => tsr.Tile)
             .ToListAsync();
 
         var previousTiles = await _context.Tiles
-            .Where(t => t.PlayerId == playerId &&
-                       t.ValidFrom <= previousDate &&
-                       (t.ValidTo == null || t.ValidTo > previousDate))
+            .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
+            .Join(_context.Realms, ts => ts.Session.RealmId, r => r.Id, (ts, r) => new { ts.Tile, ts.Session, Realm = r })
+            .Where(tsr => tsr.Realm.RealmId == realmId &&
+                          tsr.Tile.PlayerId == playerId &&
+                          tsr.Tile.ValidFrom <= previousDate &&
+                          (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > previousDate))
+            .Select(tsr => tsr.Tile)
             .ToListAsync();
 
         // Check for city coordinate changes
-        var currentCityTile = currentTiles.FirstOrDefault(t => t.Type == "City");
-        var previousCityTile = previousTiles.FirstOrDefault(t => t.Type == "City");
+        var currentCityTile = currentTiles.FirstOrDefault(t => t.Type.Trim().ToLower() == "city");
+        var previousCityTile = previousTiles.FirstOrDefault(t => t.Type.Trim().ToLower() == "city");
 
         if (currentCityTile != null && previousCityTile != null)
         {
@@ -341,8 +462,8 @@ public class PlayerService : IPlayerService
         }
 
         // Check for wilderness changes
-        var currentWilderness = currentTiles.Where(t => t.Type != "City").ToList();
-        var previousWilderness = previousTiles.Where(t => t.Type != "City").ToList();
+        var currentWilderness = currentTiles.Where(t => t.Type.Trim().ToLower() != "city").ToList();
+        var previousWilderness = previousTiles.Where(t => t.Type.Trim().ToLower() != "city").ToList();
 
         var currentWildernessKeys = currentWilderness.Select(t => $"{t.X},{t.Y}").ToHashSet();
         var previousWildernessKeys = previousWilderness.Select(t => $"{t.X},{t.Y}").ToHashSet();
@@ -406,8 +527,9 @@ public class PlayerService : IPlayerService
             .OrderByDescending(p => p.Might)
             .ToList();
 
-        // Find the rank of the specific player
-        var rank = orderedPlayers.FindIndex(p => p.PlayerId == playerId) + 1;
+        // Find the rank of the specific player (trim to avoid mismatches)
+        var normalizedId = (playerId ?? string.Empty).Trim();
+        var rank = orderedPlayers.FindIndex(p => string.Equals(p.PlayerId.Trim(), normalizedId, StringComparison.Ordinal)) + 1;
 
         _logger.LogInformation("Player {PlayerId} has rank {Rank} out of {TotalPlayers} players",
             playerId, rank, orderedPlayers.Count);

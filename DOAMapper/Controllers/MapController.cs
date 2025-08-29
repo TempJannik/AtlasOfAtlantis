@@ -2,6 +2,7 @@
 using DOAMapper.Services.Interfaces;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace DOAMapper.Controllers;
 
@@ -19,6 +20,7 @@ public class MapController : ControllerBase
     }
 
     [HttpGet("region")]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<List<TileDto>>> GetRegionTiles(
         [FromQuery] int x1,
         [FromQuery] int y1,
@@ -57,6 +59,7 @@ public class MapController : ControllerBase
     }
 
     [HttpGet("tile")]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<TileDto>> GetTile(
         [FromQuery] int x,
         [FromQuery] int y,
@@ -98,6 +101,7 @@ public class MapController : ControllerBase
 
     [HttpGet("tile/history")]
     [RequireAdmin]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<List<HistoryEntryDto<TileDto>>>> GetTileHistory(
         [FromQuery] int x,
         [FromQuery] int y)

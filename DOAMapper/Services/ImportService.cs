@@ -250,6 +250,22 @@ public class ImportService : IImportService
             session.RecordsChanged = 40;   // Update with actual count if available
             await _context.SaveChangesAsync();
             _logger.LogInformation("Import processing completed successfully for session {SessionId}", sessionId);
+            // Invalidate output cache after direct completion (non-progress path)
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var cache = scope.ServiceProvider.GetService<Microsoft.AspNetCore.OutputCaching.IOutputCacheStore>();
+                if (cache != null)
+                {
+                    await cache.EvictByTagAsync("data", default);
+                    _logger.LogInformation("Output cache invalidated via tag 'data' after import completion for session {SessionId}", sessionId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to evict output cache after import completion for session {SessionId}", sessionId);
+            }
+
         }
         catch (Exception ex)
         {
@@ -938,7 +954,7 @@ public class ImportService : IImportService
                     importData.Tiles.Count);
             }, cancellationToken);
 
-            
+
             // Verify transaction state before commit
             await VerifyTransactionIntegrity(sessionId, importData);
 
@@ -1603,10 +1619,10 @@ public class ImportService : IImportService
 
         // Detect changes
         var changes = await _changeDetectionService.DetectTileChangesAsync(tileEntities, currentTiles);
-        
+
         // Apply changes
         await _temporalDataService.ApplyTileChangesAsync(changes, sessionId, importDate);
-        
+
         _logger.LogInformation("Tiles import completed: {Added} added, {Modified} modified, {Removed} removed",
             changes.Added.Count, changes.Modified.Count, changes.Removed.Count);
     }

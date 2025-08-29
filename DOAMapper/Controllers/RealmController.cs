@@ -3,6 +3,8 @@ using DOAMapper.Shared.Services;
 using DOAMapper.Attributes;
 using DOAMapper.Shared.Constants;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
+
 
 namespace DOAMapper.Controllers;
 
@@ -20,6 +22,7 @@ public class RealmController : ControllerBase
     }
 
     [HttpGet]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<List<RealmDto>>> GetAvailableRealms()
     {
         try

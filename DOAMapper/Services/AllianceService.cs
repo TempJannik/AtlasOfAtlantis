@@ -4,6 +4,8 @@ using DOAMapper.Shared.Models.DTOs;
 using DOAMapper.Models.Entities;
 using DOAMapper.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using DOAMapper.Shared.Models.Enums;
+
 
 namespace DOAMapper.Services;
 
@@ -72,10 +74,31 @@ public class AllianceService : IAllianceService
 
         var allianceDtos = _mapper.Map<List<AllianceDto>>(alliances);
 
-        // Set the data date for each alliance
+        // Build alliance rank lookup (by Power desc) for this realm/date
+        var allAlliancesForRank = await _context.Alliances
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
+            .Where(asr => asr.Realm.RealmId == realmId &&
+                         asr.Alliance.ValidFrom <= utcDate &&
+                         (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
+            .Select(asr => asr.Alliance)
+            .ToListAsync();
+
+        var dedupAlliancesForRank = allAlliancesForRank
+            .GroupBy(a => a.AllianceId)
+            .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
+            .OrderByDescending(a => a.Power)
+            .ToList();
+
+        var allianceRankLookup = dedupAlliancesForRank
+            .Select((a, i) => new { a.AllianceId, Rank = i + 1 })
+            .ToDictionary(x => x.AllianceId, x => x.Rank, StringComparer.Ordinal);
+
+        // Set the data date and rank for each alliance
         foreach (var dto in allianceDtos)
         {
             dto.DataDate = utcDate;
+            dto.Rank = allianceRankLookup.TryGetValue(dto.AllianceId, out var r) ? r : 0;
         }
 
         _logger.LogInformation("Found {Count} alliances for date {Date}", totalCount, date);
@@ -151,10 +174,31 @@ public class AllianceService : IAllianceService
 
         var allianceDtos = _mapper.Map<List<AllianceDto>>(alliances);
 
-        // Set the data date for each alliance
+        // Build alliance rank lookup (by Power desc) for this realm/date
+        var allAlliancesForRank = await _context.Alliances
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
+            .Where(asr => asr.Realm.RealmId == realmId &&
+                         asr.Alliance.ValidFrom <= utcDate &&
+                         (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
+            .Select(asr => asr.Alliance)
+            .ToListAsync();
+
+        var dedupAlliancesForRank = allAlliancesForRank
+            .GroupBy(a => a.AllianceId)
+            .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
+            .OrderByDescending(a => a.Power)
+            .ToList();
+
+        var allianceRankLookup = dedupAlliancesForRank
+            .Select((a, i) => new { a.AllianceId, Rank = i + 1 })
+            .ToDictionary(x => x.AllianceId, x => x.Rank, StringComparer.Ordinal);
+
+        // Set the data date and rank for each alliance
         foreach (var dto in allianceDtos)
         {
             dto.DataDate = utcDate;
+            dto.Rank = allianceRankLookup.TryGetValue(dto.AllianceId, out var r) ? r : 0;
         }
 
         _logger.LogInformation("Found {Count} alliances matching query '{Query}'", totalCount, query);
@@ -216,16 +260,38 @@ public class AllianceService : IAllianceService
 
         // Load members manually since navigation properties are ignored in EF configuration
         var members = await _context.Players
-            .Where(p => p.AllianceId == alliance.AllianceId &&
-                       p.ValidFrom <= utcDate &&
-                       (p.ValidTo == null || p.ValidTo > utcDate))
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+            .Where(psr => psr.Realm.RealmId == realmId &&
+                         psr.Player.AllianceId == alliance.AllianceId &&
+                         psr.Player.ValidFrom <= utcDate &&
+                         (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+            .Select(psr => psr.Player)
             .ToListAsync();
         alliance.Members = members;
 
         var allianceDto = _mapper.Map<AllianceDto>(alliance);
         allianceDto.DataDate = utcDate;
 
-        _logger.LogInformation("Found alliance {AllianceName} with {MemberCount} members", 
+        // Compute and set alliance rank by power within realm/date
+        var allAlliancesForRank = await _context.Alliances
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
+            .Where(asr => asr.Realm.RealmId == realmId &&
+                         asr.Alliance.ValidFrom <= utcDate &&
+                         (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
+            .Select(asr => asr.Alliance)
+            .ToListAsync();
+
+        var dedupAlliancesForRank = allAlliancesForRank
+            .GroupBy(a => a.AllianceId)
+            .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
+            .OrderByDescending(a => a.Power)
+            .ToList();
+
+        allianceDto.Rank = dedupAlliancesForRank.FindIndex(a => a.AllianceId == alliance.AllianceId) + 1;
+
+        _logger.LogInformation("Found alliance {AllianceName} with {MemberCount} members",
             alliance.Name, alliance.Members.Count);
 
         return allianceDto;
@@ -268,10 +334,10 @@ public class AllianceService : IAllianceService
                     .Join(_context.ImportSessions, t => t.ImportSessionId, s => s.Id, (t, s) => new { Tile = t, Session = s })
                     .Join(_context.Realms, ts => ts.Session.RealmId, r => r.Id, (ts, r) => new { ts.Tile, ts.Session, Realm = r })
                     .Where(tsr => tsr.Realm.RealmId == realmId &&
-                                  tsr.Tile.Type == "City" &&
                                   tsr.Tile.PlayerId != null && playerIds.Contains(tsr.Tile.PlayerId) &&
                                   tsr.Tile.ValidFrom <= utcDate &&
-                                  (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > utcDate))
+                                  (tsr.Tile.ValidTo == null || tsr.Tile.ValidTo > utcDate) &&
+                                  tsr.Tile.Type.Trim().ToLower() == "city")
                     .Select(tsr => tsr.Tile)
                     .ToListAsync();
 
@@ -294,10 +360,32 @@ public class AllianceService : IAllianceService
             _logger.LogWarning(ex, "Failed to load city coordinates for alliance members page {Page}", page);
         }
 
-        // Set the data date for each member
+        // Set the data date and rank for each member
+        // Build rank lookup across all players in realm+date for consistent ranking
+        var allPlayersForRank = await _context.Players
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+            .Where(psr => psr.Realm.RealmId == realmId &&
+                         psr.Player.ValidFrom <= utcDate &&
+                         (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+            .Select(psr => psr.Player)
+            .ToListAsync();
+
+        var dedupForRank = allPlayersForRank
+            .GroupBy(p => p.PlayerId)
+            .Select(g => g.OrderByDescending(p => p.ValidFrom).First())
+            .OrderByDescending(p => p.Might)
+            .ToList();
+
+        var rankLookup = dedupForRank
+            .Select((p, i) => new { PlayerId = p.PlayerId.Trim(), Rank = i + 1 })
+            .ToDictionary(x => x.PlayerId, x => x.Rank, StringComparer.Ordinal);
+
         foreach (var dto in memberDtos)
         {
             dto.DataDate = utcDate;
+            var key = (dto.PlayerId ?? string.Empty).Trim();
+            dto.Rank = rankLookup.TryGetValue(key, out var r) ? r : 0;
         }
 
         _logger.LogInformation("Found {Count} total members for alliance {AllianceId}, returning page {Page}",
@@ -333,7 +421,7 @@ public class AllianceService : IAllianceService
             .ToListAsync();
 
         var tileDtos = _mapper.Map<List<TileDto>>(tiles);
-        
+
         // Set the data date for each tile
         foreach (var dto in tileDtos)
         {
@@ -377,14 +465,81 @@ public class AllianceService : IAllianceService
             var allianceDto = _mapper.Map<AllianceDto>(alliance);
             allianceDto.MemberCount = memberCount; // Override the member count with the correct historical value
 
+            // Compute alliance rank for this snapshot (Power desc within realm at this date)
+            try
+            {
+                var allAlliancesForRank = await _context.Alliances
+                    .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+                    .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
+                    .Where(asr => asr.Realm.RealmId == realmId &&
+                                 asr.Alliance.ValidFrom <= alliance.ValidFrom &&
+                                 (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > alliance.ValidFrom))
+                    .Select(asr => asr.Alliance)
+                    .ToListAsync();
+
+                var dedupAlliancesForRank = allAlliancesForRank
+                    .GroupBy(a => a.AllianceId)
+                    .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
+                    .OrderByDescending(a => a.Power)
+                    .ToList();
+
+                var normalizedId = (alliance.AllianceId ?? string.Empty).Trim();
+                allianceDto.Rank = dedupAlliancesForRank.FindIndex(a => string.Equals(a.AllianceId.Trim(), normalizedId, StringComparison.Ordinal)) + 1;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to compute alliance rank for history entry at {Date}", alliance.ValidFrom);
+                allianceDto.Rank = 0;
+            }
+
             string changeType = "Added";
+            var changeDetails = new List<string>();
             if (i < allianceHistory.Count - 1)
             {
                 var previousAlliance = allianceHistory[i + 1];
-                if (alliance.Name != previousAlliance.Name ||
-                    alliance.Power != previousAlliance.Power ||
-                    alliance.OverlordName != previousAlliance.OverlordName ||
-                    alliance.FortressLevel != previousAlliance.FortressLevel)
+
+                if (alliance.Power != previousAlliance.Power)
+                {
+                    var direction = alliance.Power > previousAlliance.Power ? "increase" : "decrease";
+                    changeDetails.Add($"Power {direction}: {previousAlliance.Power:N0} → {alliance.Power:N0}");
+                }
+
+                // Member count change (use realm/date-scoped counts, not navigation property)
+                var prevMemberCount = await _context.Players
+                    .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+                    .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+                    .Where(psr => psr.Realm.RealmId == realmId &&
+                                 psr.Player.AllianceId == allianceId &&
+                                 psr.Player.ValidFrom <= previousAlliance.ValidFrom &&
+                                 (psr.Player.ValidTo == null || psr.Player.ValidTo > previousAlliance.ValidFrom))
+                    .GroupBy(psr => psr.Player.PlayerId)
+                    .CountAsync();
+
+                if (memberCount != prevMemberCount)
+                {
+                    var diff = memberCount - prevMemberCount;
+                    changeDetails.Add(diff > 0 ? $"Members increased by {diff}" : $"Members decreased by {-diff}");
+                }
+
+                // Rank change: compute rank for both snapshots and compare
+                try
+                {
+                    var prevRank = await ComputeAllianceRankAsync(realmId, previousAlliance.ValidFrom, previousAlliance.AllianceId);
+                    var curRank = await ComputeAllianceRankAsync(realmId, alliance.ValidFrom, alliance.AllianceId);
+                    if (prevRank > 0 && curRank > 0 && prevRank != curRank)
+                    {
+                        var dir = curRank < prevRank ? "increase" : "decrease"; // smaller number is better
+                        changeDetails.Add($"Rank {dir}: {prevRank} → {curRank}");
+                    }
+                }
+                catch { /* ignore rank diff failures */ }
+
+                if (alliance.FortressLevel > previousAlliance.FortressLevel)
+                {
+                    changeDetails.Add($"Fortress level up: {previousAlliance.FortressLevel} → {alliance.FortressLevel}");
+                }
+
+                if (changeDetails.Count > 0)
                 {
                     changeType = "Modified";
                 }
@@ -395,12 +550,17 @@ public class AllianceService : IAllianceService
                 changeType = "Removed";
             }
 
+            var state = changeType == "Added" ? HistoryState.Added
+                       : changeType == "Modified" ? HistoryState.Changed
+                       : HistoryState.Removed;
+
             historyEntries.Add(new HistoryEntryDto<AllianceDto>
             {
                 Data = allianceDto,
                 ValidFrom = alliance.ValidFrom,
                 ValidTo = alliance.ValidTo,
-                ChangeType = changeType
+                State = state,
+                Changes = changeDetails
             });
         }
 
@@ -421,5 +581,28 @@ public class AllianceService : IAllianceService
 
         // Ensure all dates are UTC for PostgreSQL compatibility
         return dates.Select(d => DateTime.SpecifyKind(d, DateTimeKind.Utc)).ToList();
+    }
+
+    private async Task<int> ComputeAllianceRankAsync(string realmId, DateTime asOfDate, string allianceId)
+    {
+        var utcDate = asOfDate.Kind == DateTimeKind.Utc ? asOfDate : DateTime.SpecifyKind(asOfDate, DateTimeKind.Utc);
+        var validAlliances = await _context.Alliances
+            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+            .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
+            .Where(asr => asr.Realm.RealmId == realmId &&
+                         asr.Alliance.ValidFrom <= utcDate &&
+                         (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
+            .Select(asr => asr.Alliance)
+            .ToListAsync();
+
+        var ordered = validAlliances
+            .GroupBy(a => a.AllianceId)
+            .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
+            .OrderByDescending(a => a.Power)
+            .ToList();
+
+        var norm = (allianceId ?? string.Empty).Trim();
+        var rank = ordered.FindIndex(a => string.Equals(a.AllianceId.Trim(), norm, StringComparison.Ordinal)) + 1;
+        return rank > 0 ? rank : 0;
     }
 }

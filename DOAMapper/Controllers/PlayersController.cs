@@ -3,6 +3,7 @@ using DOAMapper.Services.Interfaces;
 using DOAMapper.Shared.Services;
 using DOAMapper.Attributes;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace DOAMapper.Controllers;
 
@@ -22,6 +23,7 @@ public class PlayersController : ControllerBase
     }
 
     [HttpGet("search")]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<PagedResult<PlayerDto>>> SearchPlayers(
         [FromQuery] string query = "",
         [FromQuery] string? realmId = null,
@@ -62,6 +64,7 @@ public class PlayersController : ControllerBase
     }
 
     [HttpGet("{realmId}/{playerId}")]
+    [OutputCache(PolicyName = "LongLivedData")]
     public async Task<ActionResult<PlayerDetailDto>> GetPlayer(
         string realmId,
         string playerId,

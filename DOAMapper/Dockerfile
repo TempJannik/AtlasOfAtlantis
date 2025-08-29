@@ -8,7 +8,6 @@ WORKDIR /src
 
 # Copy project files for restore
 COPY ["DOAMapper/DOAMapper.csproj", "DOAMapper/"]
-COPY ["DOAMapper.Client/DOAMapper.Client.csproj", "DOAMapper.Client/"]
 COPY ["DOAMapper.Shared/DOAMapper.Shared.csproj", "DOAMapper.Shared/"]
 
 # Restore dependencies

@@ -14,11 +14,14 @@ namespace DOAMapper.Services;
 public class ImportStatusService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IServiceProvider _serviceProvider;
+
     private readonly ILogger<ImportStatusService> _logger;
 
-    public ImportStatusService(ApplicationDbContext context, ILogger<ImportStatusService> logger)
+    public ImportStatusService(ApplicationDbContext context, IServiceProvider serviceProvider, ILogger<ImportStatusService> logger)
     {
         _context = context;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -121,6 +124,23 @@ public class ImportStatusService
             _logger.LogError(ex, "Failed to complete import session {SessionId}", sessionId);
             throw;
         }
+        
+        // Invalidate cached responses after successful import
+        try
+        {
+            var cache = _serviceProvider.GetService<Microsoft.AspNetCore.OutputCaching.IOutputCacheStore>();
+            if (cache != null)
+            {
+                await cache.EvictByTagAsync("data", default);
+                _logger.LogInformation("Output cache invalidated via tag 'data' after import completion for session {SessionId}", sessionId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to evict output cache after import completion for session {SessionId}", sessionId);
+        }
+
+        
     }
 
     /// <summary>
@@ -142,7 +162,7 @@ public class ImportStatusService
             session.CompletedAt = DateTime.UtcNow;
             session.LastProgressUpdate = DateTime.UtcNow;
             session.StatusMessage = TruncateStatusMessage($"Import failed: {errorMessage}");
-            
+
             if (!string.IsNullOrEmpty(currentPhase))
             {
                 session.CurrentPhase = currentPhase;
@@ -225,7 +245,7 @@ public class ImportStatusService
             try
             {
                 var phaseDetails = JsonSerializer.Deserialize<Dictionary<string, PhaseProgress>>(
-                    session.PhaseDetailsJson, 
+                    session.PhaseDetailsJson,
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
                 if (phaseDetails != null)
