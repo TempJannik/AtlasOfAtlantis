@@ -97,25 +97,40 @@ public class AllianceService : IAllianceService
             }
         }
 
-        // Build alliance rank lookup (by stored Power desc) for this realm/date
-        var allAlliancesForRank = await _context.Alliances
-            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
-            .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
-            .Where(asr => asr.Realm.RealmId == realmId &&
-                         asr.Alliance.ValidFrom <= utcDate &&
-                         (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
-            .Select(asr => asr.Alliance)
-            .ToListAsync();
+        // Fill missing overlord names from most recent known record within the realm
+        var missingOverlordIds = allianceDtos.Where(d => string.IsNullOrWhiteSpace(d.OverlordName))
+            .Select(d => d.AllianceId).Distinct().ToList();
+        if (missingOverlordIds.Count > 0)
+        {
+            var fallbackOverlords = await _context.Alliances
+                .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+                .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
+                .Where(asr => asr.Realm.RealmId == realmId &&
+                             missingOverlordIds.Contains(asr.Alliance.AllianceId) &&
+                             !string.IsNullOrEmpty(asr.Alliance.OverlordName) &&
+                             asr.Alliance.ValidFrom <= utcDate)
+                .Select(asr => asr.Alliance)
+                .ToListAsync();
 
-        var dedupAlliancesForRank = allAlliancesForRank
-            .GroupBy(a => a.AllianceId)
-            .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
-            .OrderByDescending(a => a.Power)
-            .ToList();
+            var overlordLookup = fallbackOverlords
+                .GroupBy(a => a.AllianceId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.ValidFrom).First().OverlordName, StringComparer.Ordinal);
 
-        var allianceRankLookup = dedupAlliancesForRank
+            foreach (var dto in allianceDtos)
+            {
+                if (string.IsNullOrWhiteSpace(dto.OverlordName) && overlordLookup.TryGetValue(dto.AllianceId, out var ol))
+                {
+                    dto.OverlordName = ol;
+                }
+            }
+        }
+
+        // Build alliance rank lookup using computed member-sum power for consistency with sorting
+        var rankOrder = deduplicatedAlliances
+            .OrderByDescending(a => powerLookup.TryGetValue(a.AllianceId, out var p) ? p : a.Power)
             .Select((a, i) => new { a.AllianceId, Rank = i + 1 })
-            .ToDictionary(x => x.AllianceId, x => x.Rank, StringComparer.Ordinal);
+            .ToList();
+        var allianceRankLookup = rankOrder.ToDictionary(x => x.AllianceId, x => x.Rank, StringComparer.Ordinal);
 
         // Set the data date, computed power (already set), and rank for each alliance
         foreach (var dto in allianceDtos)
@@ -220,25 +235,40 @@ public class AllianceService : IAllianceService
             }
         }
 
-        // Build alliance rank lookup (by stored Power desc) for this realm/date
-        var allAlliancesForRank = await _context.Alliances
-            .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
-            .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
-            .Where(asr => asr.Realm.RealmId == realmId &&
-                         asr.Alliance.ValidFrom <= utcDate &&
-                         (asr.Alliance.ValidTo == null || asr.Alliance.ValidTo > utcDate))
-            .Select(asr => asr.Alliance)
-            .ToListAsync();
+        // Fill missing overlord names from most recent known record within the realm
+        var missingOverlordIds = allianceDtos.Where(d => string.IsNullOrWhiteSpace(d.OverlordName))
+            .Select(d => d.AllianceId).Distinct().ToList();
+        if (missingOverlordIds.Count > 0)
+        {
+            var fallbackOverlords = await _context.Alliances
+                .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+                .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
+                .Where(asr => asr.Realm.RealmId == realmId &&
+                             missingOverlordIds.Contains(asr.Alliance.AllianceId) &&
+                             !string.IsNullOrEmpty(asr.Alliance.OverlordName) &&
+                             asr.Alliance.ValidFrom <= utcDate)
+                .Select(asr => asr.Alliance)
+                .ToListAsync();
 
-        var dedupAlliancesForRank = allAlliancesForRank
-            .GroupBy(a => a.AllianceId)
-            .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
-            .OrderByDescending(a => a.Power)
-            .ToList();
+            var overlordLookup = fallbackOverlords
+                .GroupBy(a => a.AllianceId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.ValidFrom).First().OverlordName, StringComparer.Ordinal);
 
-        var allianceRankLookup = dedupAlliancesForRank
+            foreach (var dto in allianceDtos)
+            {
+                if (string.IsNullOrWhiteSpace(dto.OverlordName) && overlordLookup.TryGetValue(dto.AllianceId, out var ol))
+                {
+                    dto.OverlordName = ol;
+                }
+            }
+        }
+
+        // Build alliance rank lookup using computed member-sum power for consistency with sorting
+        var rankOrder = deduplicatedAlliances
+            .OrderByDescending(a => powerLookup.TryGetValue(a.AllianceId, out var p) ? p : a.Power)
             .Select((a, i) => new { a.AllianceId, Rank = i + 1 })
-            .ToDictionary(x => x.AllianceId, x => x.Rank, StringComparer.Ordinal);
+            .ToList();
+        var allianceRankLookup = rankOrder.ToDictionary(x => x.AllianceId, x => x.Rank, StringComparer.Ordinal);
 
         // Set the data date and rank for each alliance
         foreach (var dto in allianceDtos)
