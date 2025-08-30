@@ -50,14 +50,14 @@ builder.Services.AddOutputCache(options =>
 // OpenAPI/Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-// CORS: allow all origins/headers/methods (turn off verification)
+// CORS: restrict to production site only
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AtlasOnly", policy =>
         policy
+            .WithOrigins("https://atlasofatlantis.com")
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .SetIsOriginAllowed(_ => true) // allow any origin by echoing it back
             .AllowCredentials());
 });
 
@@ -239,7 +239,7 @@ else
 app.UseOutputCache();
 
 // Enable CORS globally (both environments)
-app.UseCors("AllowAll");
+app.UseCors("AtlasOnly");
 
 // Map API controllers
 app.MapControllers();
