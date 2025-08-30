@@ -45,12 +45,25 @@ public class AllianceService : IAllianceService
             .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
             .ToList();
 
-        var alliancesQuery = deduplicatedAlliances.AsQueryable();
+        var alliancesEnumerable = deduplicatedAlliances.AsEnumerable();
 
-        var totalCount = alliancesQuery.Count();
+        var totalCount = alliancesEnumerable.Count();
 
-        var alliances = alliancesQuery
-            .OrderByDescending(a => a.Power)
+        // Compute power by alliance from members' Might at this realm/date for proper sorting
+        var powerByAlliance = await _context.Players
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+            .Where(psr => psr.Realm.RealmId == realmId &&
+                          psr.Player.AllianceId != null &&
+                          psr.Player.ValidFrom <= utcDate &&
+                          (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+            .GroupBy(psr => psr.Player.AllianceId!)
+            .Select(g => new { AllianceId = g.Key, Power = g.Sum(x => x.Player.Might) })
+            .ToListAsync();
+        var powerLookup = powerByAlliance.ToDictionary(x => x.AllianceId, x => x.Power, StringComparer.Ordinal);
+
+        var alliances = alliancesEnumerable
+            .OrderByDescending(a => powerLookup.TryGetValue(a.AllianceId, out var p) ? p : a.Power)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToList();
@@ -146,21 +159,34 @@ public class AllianceService : IAllianceService
             .Select(g => g.OrderByDescending(a => a.ValidFrom).First())
             .ToList();
 
-        var alliancesQuery = deduplicatedAlliances.AsQueryable();
+        var alliancesEnumerable = deduplicatedAlliances.AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(query))
         {
             var lowerQuery = query.ToLower();
-            alliancesQuery = alliancesQuery.Where(a =>
+            alliancesEnumerable = alliancesEnumerable.Where(a =>
                 a.Name.ToLower().Contains(lowerQuery) ||
                 a.AllianceId.ToLower().Contains(lowerQuery) ||
                 a.OverlordName.ToLower().Contains(lowerQuery));
         }
 
-        var totalCount = alliancesQuery.Count();
+        var totalCount = alliancesEnumerable.Count();
 
-        var alliances = alliancesQuery
-            .OrderByDescending(a => a.Power)
+        // Compute power by alliance from members' Might at this realm/date for proper sorting
+        var powerByAlliance = await _context.Players
+            .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+            .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+            .Where(psr => psr.Realm.RealmId == realmId &&
+                          psr.Player.AllianceId != null &&
+                          psr.Player.ValidFrom <= utcDate &&
+                          (psr.Player.ValidTo == null || psr.Player.ValidTo > utcDate))
+            .GroupBy(psr => psr.Player.AllianceId!)
+            .Select(g => new { AllianceId = g.Key, Power = g.Sum(x => x.Player.Might) })
+            .ToListAsync();
+        var powerLookup = powerByAlliance.ToDictionary(x => x.AllianceId, x => x.Power, StringComparer.Ordinal);
+
+        var alliances = alliancesEnumerable
+            .OrderByDescending(a => powerLookup.TryGetValue(a.AllianceId, out var p) ? p : a.Power)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToList();
