@@ -74,7 +74,17 @@ public class AllianceService : IAllianceService
 
         var allianceDtos = _mapper.Map<List<AllianceDto>>(alliances);
 
-        // Build alliance rank lookup (by Power desc) for this realm/date
+        // Compute display Power from members' Might for this date (covers alliances without base power)
+        var allianceLookup = alliances.ToDictionary(a => a.AllianceId, StringComparer.Ordinal);
+        foreach (var dto in allianceDtos)
+        {
+            if (allianceLookup.TryGetValue(dto.AllianceId, out var a))
+            {
+                dto.Power = a.Members?.Sum(m => m.Might) ?? 0;
+            }
+        }
+
+        // Build alliance rank lookup (by stored Power desc) for this realm/date
         var allAlliancesForRank = await _context.Alliances
             .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
             .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
@@ -94,7 +104,7 @@ public class AllianceService : IAllianceService
             .Select((a, i) => new { a.AllianceId, Rank = i + 1 })
             .ToDictionary(x => x.AllianceId, x => x.Rank, StringComparer.Ordinal);
 
-        // Set the data date and rank for each alliance
+        // Set the data date, computed power (already set), and rank for each alliance
         foreach (var dto in allianceDtos)
         {
             dto.DataDate = utcDate;
@@ -174,7 +184,17 @@ public class AllianceService : IAllianceService
 
         var allianceDtos = _mapper.Map<List<AllianceDto>>(alliances);
 
-        // Build alliance rank lookup (by Power desc) for this realm/date
+        // Compute display Power from members' Might for this date (covers alliances without base power)
+        var allianceLookup = alliances.ToDictionary(a => a.AllianceId, StringComparer.Ordinal);
+        foreach (var dto in allianceDtos)
+        {
+            if (allianceLookup.TryGetValue(dto.AllianceId, out var a))
+            {
+                dto.Power = a.Members?.Sum(m => m.Might) ?? 0;
+            }
+        }
+
+        // Build alliance rank lookup (by stored Power desc) for this realm/date
         var allAlliancesForRank = await _context.Alliances
             .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
             .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
@@ -272,6 +292,8 @@ public class AllianceService : IAllianceService
 
         var allianceDto = _mapper.Map<AllianceDto>(alliance);
         allianceDto.DataDate = utcDate;
+        // Compute alliance power from members at this date within the realm
+        allianceDto.Power = alliance.Members?.Sum(m => m.Might) ?? 0;
 
         // Compute and set alliance rank by power within realm/date
         var allAlliancesForRank = await _context.Alliances
@@ -490,6 +512,31 @@ public class AllianceService : IAllianceService
             {
                 _logger.LogWarning(ex, "Failed to compute alliance rank for history entry at {Date}", alliance.ValidFrom);
                 allianceDto.Rank = 0;
+            }
+
+            // Compute Power for this snapshot from members' Might
+            try
+            {
+                var snapshotMembers = await _context.Players
+                    .Join(_context.ImportSessions, p => p.ImportSessionId, s => s.Id, (p, s) => new { Player = p, Session = s })
+                    .Join(_context.Realms, ps => ps.Session.RealmId, r => r.Id, (ps, r) => new { ps.Player, ps.Session, Realm = r })
+                    .Where(psr => psr.Realm.RealmId == realmId &&
+                                 psr.Player.AllianceId == allianceId &&
+                                 psr.Player.ValidFrom <= alliance.ValidFrom &&
+                                 (psr.Player.ValidTo == null || psr.Player.ValidTo > alliance.ValidFrom))
+                    .Select(psr => psr.Player)
+                    .ToListAsync();
+
+                var totalMight = snapshotMembers
+                    .GroupBy(p => p.PlayerId)
+                    .Select(g => g.OrderByDescending(p => p.ValidFrom).First().Might)
+                    .Sum();
+
+                allianceDto.Power = totalMight;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to compute alliance power for history entry at {Date}", alliance.ValidFrom);
             }
 
             string changeType = "Added";
