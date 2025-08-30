@@ -44,6 +44,7 @@ builder.Services.AddOutputCache(options =>
     options.AddPolicy("LongLivedData", b => b
         .Expire(TimeSpan.FromHours(12))
         .SetVaryByQuery("*")
+        .SetVaryByHeader("Origin")
         .Tag("data"));
 });
 
@@ -235,11 +236,11 @@ else
 
 // API-only: no HTTPS redirection here (handled by hosting)
 
+// Enable CORS globally (both environments) - must run before OutputCache so cached responses include CORS headers
+app.UseCors("AtlasOnly");
+
 // Enable Output Cache globally
 app.UseOutputCache();
-
-// Enable CORS globally (both environments)
-app.UseCors("AtlasOnly");
 
 // Map API controllers
 app.MapControllers();
