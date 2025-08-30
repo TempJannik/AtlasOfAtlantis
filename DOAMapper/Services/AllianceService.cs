@@ -235,34 +235,6 @@ public class AllianceService : IAllianceService
             }
         }
 
-        // Fill missing overlord names from most recent known record within the realm
-        var missingOverlordIds = allianceDtos.Where(d => string.IsNullOrWhiteSpace(d.OverlordName))
-            .Select(d => d.AllianceId).Distinct().ToList();
-        if (missingOverlordIds.Count > 0)
-        {
-            var fallbackOverlords = await _context.Alliances
-                .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
-                .Join(_context.Realms, as_ => as_.Session.RealmId, r => r.Id, (as_, r) => new { as_.Alliance, as_.Session, Realm = r })
-                .Where(asr => asr.Realm.RealmId == realmId &&
-                             missingOverlordIds.Contains(asr.Alliance.AllianceId) &&
-                             !string.IsNullOrEmpty(asr.Alliance.OverlordName) &&
-                             asr.Alliance.ValidFrom <= utcDate)
-                .Select(asr => asr.Alliance)
-                .ToListAsync();
-
-            var overlordLookup = fallbackOverlords
-                .GroupBy(a => a.AllianceId)
-                .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.ValidFrom).First().OverlordName, StringComparer.Ordinal);
-
-            foreach (var dto in allianceDtos)
-            {
-                if (string.IsNullOrWhiteSpace(dto.OverlordName) && overlordLookup.TryGetValue(dto.AllianceId, out var ol))
-                {
-                    dto.OverlordName = ol;
-                }
-            }
-        }
-
         // Build alliance rank lookup using computed member-sum power for consistency with sorting
         var rankOrder = deduplicatedAlliances
             .OrderByDescending(a => powerLookup.TryGetValue(a.AllianceId, out var p) ? p : a.Power)
@@ -273,6 +245,43 @@ public class AllianceService : IAllianceService
         // Set the data date and rank for each alliance
         foreach (var dto in allianceDtos)
         {
+            // Fill overlord if missing by looking up the most recent non-empty value for this realm/date
+            if (string.IsNullOrWhiteSpace(dto.OverlordName))
+            {
+                try
+                {
+                    var candidate = await _context.Alliances
+                        .Join(_context.ImportSessions, a => a.ImportSessionId, s => s.Id, (a, s) => new { Alliance = a, Session = s })
+                        .Join(_context.Realms, @as => @as.Session.RealmId, r => r.Id, (@as, r) => new { @as.Alliance, @as.Session, Realm = r })
+                        .Where(asr => asr.Realm.RealmId == realmId &&
+                                     asr.Alliance.AllianceId == dto.AllianceId &&
+                                     !string.IsNullOrEmpty(asr.Alliance.OverlordName) &&
+                                     asr.Alliance.ValidFrom <= utcDate)
+                        .OrderByDescending(asr => asr.Alliance.ValidFrom)
+                        .Select(asr => asr.Alliance)
+                        .FirstOrDefaultAsync();
+                    if (candidate != null)
+                    {
+                        dto.OverlordName = candidate.OverlordName;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fill overlord name for alliance {AllianceId}", dto.AllianceId);
+                }
+
+                // Last-resort heuristic: top Might member at this date as leader proxy
+                if (string.IsNullOrWhiteSpace(dto.OverlordName))
+                {
+                    if (allianceLookup.TryGetValue(dto.AllianceId, out var a) && (a.Members?.Count > 0))
+                    {
+                        var top = a.Members.OrderByDescending(m => m.Might).FirstOrDefault();
+                        if (top != null && !string.IsNullOrWhiteSpace(top.Name))
+                            dto.OverlordName = top.Name;
+                    }
+                }
+            }
+
             dto.DataDate = utcDate;
             dto.Rank = allianceRankLookup.TryGetValue(dto.AllianceId, out var r) ? r : 0;
         }
